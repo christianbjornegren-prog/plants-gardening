@@ -1,4 +1,4 @@
-import type { SVGProps } from 'react'
+import { useEffect, type SVGProps } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { HemIkon, LoggIkon, PlusIkon, RitningIkon, VaxterIkon } from './Ikoner'
 import { useNyVaxt } from './NyVaxt'
@@ -41,6 +41,12 @@ function Flik({ till, label, Ikon }: NavPost) {
 
 export function Layout() {
   const { oppna } = useNyVaxt()
+
+  // Skalets titel är neutral (index.html) så att inloggningssidan inte
+  // skvallrar om adressen. Väl inne får fliken sitt riktiga namn.
+  useEffect(() => {
+    document.title = 'Ripvägen 11'
+  }, [])
 
   return (
     <div className="flex min-h-dvh flex-col bg-botten">

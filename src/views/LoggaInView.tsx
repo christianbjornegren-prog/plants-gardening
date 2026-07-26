@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { GoogleIkon, VaxterIkon } from '../components/Ikoner'
 import { useAuth } from '../auth/AuthProvider'
 
@@ -6,21 +6,14 @@ import { useAuth } from '../auth/AuthProvider'
  * Visas bara i molnläge (riktig Firebase-config) när ingen är inloggad.
  *
  * INGEN adress här. Inloggningsskärmen är den enda sidan en främling kan nå,
- * och den ska inte berätta var vi bor — varken i texten eller i fliktiteln.
- * Adresskylten hör hemma innanför inloggningen.
+ * och den ska inte berätta var vi bor. Även den serverade `<title>` är neutral
+ * — adressen sätts först när man kommit in (se Layout). Adresskylten hör hemma
+ * innanför inloggningen.
  */
 export function LoggaInView() {
   const auth = useAuth()
   const [fel, setFel] = useState<string>()
   const [skickar, setSkickar] = useState(false)
-
-  useEffect(() => {
-    const tidigare = document.title
-    document.title = 'Trädgårdsjournal'
-    return () => {
-      document.title = tidigare
-    }
-  }, [])
 
   async function loggaIn() {
     setFel(undefined)

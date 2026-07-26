@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { LoggaInView } from './LoggaInView'
@@ -13,9 +15,11 @@ describe('LoggaInView', () => {
     expect(document.body.textContent).not.toMatch(/\b11\b/)
   })
 
-  it('sätter en neutral fliktitel medan man är utloggad', () => {
-    render(<LoggaInView />)
-    expect(document.title).toBe('Trädgårdsjournal')
+  it('skalets serverade titel är neutral', () => {
+    // index.html är vad en främling får innan React ens kört.
+    const html = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8')
+    expect(html).toContain('<title>Trädgårdsjournal</title>')
+    expect(html).not.toMatch(/Ripvägen/)
   })
 
   it('erbjuder Google och inga lösenordsfält', () => {
