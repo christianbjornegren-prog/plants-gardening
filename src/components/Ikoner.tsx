@@ -1,5 +1,9 @@
 import type { SVGProps } from 'react'
 
+/**
+ * Handritade 24×24 stroke-ikoner (1,75 pt, runda ändar) i stället för ett
+ * ikonbibliotek — matchar tuschkänslan och håller bundlen ren.
+ */
 function ikonProps(props: SVGProps<SVGSVGElement>): SVGProps<SVGSVGElement> {
   return {
     width: 24,
@@ -15,11 +19,19 @@ function ikonProps(props: SVGProps<SVGSVGElement>): SVGProps<SVGSVGElement> {
   }
 }
 
-export function KartaIkon(props: SVGProps<SVGSVGElement>) {
+export function HemIkon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...ikonProps(props)}>
-      <path d="M9 4.5 3.5 6.3v13.2L9 17.7l6 1.8 5.5-1.8V4.5L15 6.3 9 4.5Z" />
-      <path d="M9 4.5v13.2M15 6.3v13.2" />
+      <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4v-5.5H9V20H5a1 1 0 0 1-1-1v-8.5Z" />
+    </svg>
+  )
+}
+
+export function RitningIkon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...ikonProps(props)}>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />
+      <path d="M3.5 14h6.5v5.5M10 4.5V10h10.5" />
     </svg>
   )
 }
@@ -34,20 +46,20 @@ export function VaxterIkon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
-export function YtorIkon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...ikonProps(props)}>
-      <rect x="3.5" y="5.5" width="17" height="13" rx="1.5" />
-      <path d="M3.5 12h17M12 5.5v13" />
-    </svg>
-  )
-}
-
 export function LoggIkon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...ikonProps(props)}>
       <rect x="4.5" y="3.5" width="15" height="17" rx="2" />
       <path d="M8.5 8.5h7M8.5 12h7M8.5 15.5h4" />
+    </svg>
+  )
+}
+
+export function PlatsIkon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...ikonProps(props)}>
+      <path d="M12 20.5s6.5-5.4 6.5-10a6.5 6.5 0 1 0-13 0c0 4.6 6.5 10 6.5 10Z" />
+      <circle cx="12" cy="10.2" r="2.4" />
     </svg>
   )
 }
@@ -108,6 +120,40 @@ export function TillbakaIkon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...ikonProps(props)}>
       <path d="M14.5 5.5 8 12l6.5 6.5" />
+    </svg>
+  )
+}
+
+export function KryssIkon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...ikonProps(props)}>
+      <path d="M6 6l12 12M18 6 6 18" />
+    </svg>
+  )
+}
+
+export function SokIkon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...ikonProps(props)}>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4 4" />
+    </svg>
+  )
+}
+
+export function SolIkon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...ikonProps(props)}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4" />
+    </svg>
+  )
+}
+
+export function PilIkon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...ikonProps(props)}>
+      <path d="m9 5.5 6.5 6.5L9 18.5" />
     </svg>
   )
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { VaxterIkon } from './Ikoner'
 
-/** Visar ett foto via dess photoStore-nyckel, med varm platshållare. */
+/** Visar ett foto via dess photoStore-nyckel, med lugn platshållare. */
 export function FotoBild({
   fotoRef,
   alt,
@@ -29,7 +29,11 @@ export function FotoBild({
 
   if (!url) {
     return (
-      <div className={`flex items-center justify-center bg-tra/30 text-orm/50 ${className}`}>
+      <div
+        role="img"
+        aria-label={alt}
+        className={`flex items-center justify-center bg-upphojd text-linje ${className}`}
+      >
         <VaxterIkon width={26} height={26} />
       </div>
     )

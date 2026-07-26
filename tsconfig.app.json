@@ -6,7 +6,10 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "module": "esnext",
-    "types": ["vite/client"],
+    /* "node" krävs av palett.test.ts, som läser src/index.css från disk för
+       att verifiera att @theme och lib/palett.ts inte glidit isär. Tailwinds
+       vite-plugin transformerar bort innehållet vid ?raw-import. */
+    "types": ["vite/client", "node"],
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
 

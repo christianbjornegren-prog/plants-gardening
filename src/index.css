@@ -1,49 +1,84 @@
 @import 'tailwindcss';
 
 @theme {
-  /* Palett — hämtad från den verkliga trädgården (se CLAUDE.md) */
-  --color-panel: #232823;
-  --color-tra: #c9b694;
-  --color-orm: #4e6b44;
-  --color-lov: #8fa96f;
-  --color-fermob: #d3442e;
+  /* Brutna färger — bark-rampen (H≈100°) + trädgårdens egna färger.
+     Speglas av src/lib/palett.ts och verifieras i palett.test.ts.
+     Kromtak C ≤ 0,09 i OKLCH; endast fermob får bryta det. Se CLAUDE.md. */
+  --color-botten: #12110b;
+  --color-panel: #24231b;
+  --color-upphojd: #36342b;
+  --color-linje: #49483e;
+  --color-dis-svag: #76756c;
+  --color-dis: #a09f96;
   --color-ljus: #f7f5f0;
+  --color-tra: #c9b694;
+  --color-lov: #8fa96f;
+  --color-orm: #4e6b44;
+  --color-fermob: #d3442e;
+  --color-fermob-lyft: #e5644f;
 
   --font-display: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', sans-serif;
   --font-sans: 'Instrument Sans Variable', 'Instrument Sans', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+
+  /* EN rörelseidé, återanvänd överallt. Se CLAUDE.md → Hållbarhet. */
+  --ease-mjuk: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @layer base {
+  :root {
+    color-scheme: dark;
+  }
+
   body {
     margin: 0;
-    background-color: var(--color-ljus);
-    color: var(--color-panel);
+    background-color: var(--color-botten);
+    color: var(--color-ljus);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior-y: none;
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-fermob);
+    outline: 2px solid var(--color-fermob-lyft);
     outline-offset: 2px;
+  }
+
+  /* Mått, datum och antal sätts alltid i mono — den diskreta CAD-blinkningen. */
+  .mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background: var(--color-fermob);
+    color: var(--color-ljus);
   }
 }
 
-/* Startanimationen: kartan ritas fram som en tuschritning (se CLAUDE.md).
-   Konturer tecknas med stroke-dashoffset (dash-längd = omkrets i meter, satt
-   inline per element), fyllnader tonar in, prickar landar. */
+@utility dolj-scroll {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Ritningens tuschanimation: konturer tecknas med stroke-dashoffset
+   (dash-längd = omkrets i skärmpixlar, satt inline per element), fyllnader
+   tonar in, prickar landar. Enda undantaget från --ease-mjuk. */
 .anim-objekt {
   fill-opacity: 0;
   animation:
-    karta-rita 0.5s ease-out forwards,
-    karta-fyll 0.45s ease forwards;
+    rit-teckna 0.5s ease-out forwards,
+    rit-fyll 0.45s ease forwards;
   animation-delay: var(--rit-d, 0ms), var(--fyll-d, 400ms);
 }
 
 .anim-tona {
   opacity: 0;
-  animation: karta-tona 0.4s ease forwards;
+  animation: rit-tona 0.4s ease forwards;
   animation-delay: var(--ton-d, 900ms);
 }
 
@@ -52,38 +87,55 @@
   transform-box: fill-box;
   transform-origin: center;
   transform: scale(0.3);
-  animation: karta-prick 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: rit-prick 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
   animation-delay: var(--prick-d, 1050ms);
 }
 
-@keyframes karta-rita {
+@keyframes rit-teckna {
   to {
     stroke-dashoffset: 0;
   }
 }
-@keyframes karta-fyll {
+@keyframes rit-fyll {
   to {
     fill-opacity: 1;
   }
 }
-@keyframes karta-tona {
+@keyframes rit-tona {
   to {
     opacity: 1;
   }
 }
-@keyframes karta-prick {
+@keyframes rit-prick {
   to {
     opacity: 1;
     transform: scale(1);
   }
 }
 
+/* Sidbyten och innehåll som tonar upp — samma kurva som allt annat. */
+.tona-upp {
+  animation: tona-upp 0.22s var(--ease-mjuk) both;
+}
+
+@keyframes tona-upp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .anim-objekt,
   .anim-tona,
-  .anim-prick {
+  .anim-prick,
+  .tona-upp {
     animation: none;
-    /* !important: dash-längderna sätts inline per element */
+    /* !important: dash-värdena sätts inline per element */
     stroke-dashoffset: 0 !important;
     fill-opacity: 1;
     opacity: 1;

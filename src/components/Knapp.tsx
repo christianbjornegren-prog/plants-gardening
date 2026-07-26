@@ -1,14 +1,26 @@
 import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { Link, type LinkProps } from 'react-router-dom'
 
-type Variant = 'primar' | 'sekundar'
+/**
+ * Tre varianter, inte fler. `primar` bär fermob-fyllning och REN vit text —
+ * den varma ljus-tonen klarar inte 4,5:1 mot #D3442E (se lib/palett.ts).
+ */
+type Variant = 'primar' | 'sekundar' | 'tyst'
+
+const GRUND =
+  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm ' +
+  'transition-[background-color,opacity] duration-200 ease-[var(--ease-mjuk)] ' +
+  'disabled:opacity-40 disabled:pointer-events-none'
 
 function knappStil(variant: Variant): string {
-  const grund =
-    'inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm transition-opacity disabled:opacity-50'
-  return variant === 'primar'
-    ? `${grund} bg-fermob font-medium text-ljus`
-    : `${grund} border border-panel/25 text-panel`
+  switch (variant) {
+    case 'primar':
+      return `${GRUND} bg-fermob font-medium text-white hover:bg-fermob/90`
+    case 'sekundar':
+      return `${GRUND} border border-linje bg-panel text-ljus hover:bg-upphojd`
+    case 'tyst':
+      return `${GRUND} text-dis hover:text-ljus`
+  }
 }
 
 export function Knapp({
@@ -49,12 +61,11 @@ export function TaBortKnapp({
   return (
     <button
       type="button"
-      onClick={() => {
-        if (armerad) onBekraftad()
-        else setArmerad(true)
-      }}
-      className={`inline-flex min-h-11 items-center justify-center rounded-md px-4 py-2 text-sm transition-colors ${
-        armerad ? 'bg-fermob font-medium text-ljus' : 'border border-fermob/40 text-fermob'
+      onClick={() => (armerad ? onBekraftad() : setArmerad(true))}
+      className={`${GRUND} ${
+        armerad
+          ? 'bg-fermob font-medium text-white'
+          : 'border border-fermob-lyft/45 text-fermob-lyft hover:bg-fermob-lyft/10'
       }`}
     >
       {armerad ? 'Tryck igen för att ta bort' : children}
