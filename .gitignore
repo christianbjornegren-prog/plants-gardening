@@ -12,6 +12,22 @@ dist
 dist-ssr
 *.local
 
+# Miljövariabler — .env.local m.fl. innehåller Firebase-config, aldrig i git
+.env
+.env.*
+!.env.example
+
+# Firebase
+.firebase/
+
+# Service account-nycklar — får ALDRIG committas
+*adminsdk*.json
+*serviceaccount*.json
+
+# Testartefakter
+playwright-report
+test-results
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
