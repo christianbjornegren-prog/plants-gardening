@@ -1,0 +1,15 @@
+rules_version = '2';
+
+// Ripvägen 11 — all data ligger under users/{uid}/… och får bara läsas och
+// skrivas av den inloggade ägaren. En användare, ingen delning (se CLAUDE.md).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    // Allt annat är stängt.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

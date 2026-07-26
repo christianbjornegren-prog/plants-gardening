@@ -56,3 +56,14 @@
 - PWA/servicearbetare testas inte automatiskt (byggs bara i produktion);
   manifest, sw.js och ikoner röktestas manuellt via `vite preview`.
 - Årstidstonen verifieras som ren funktion (enhet), inte visuellt per säsong.
+- **Firestore-/Storage-säkerhetsreglerna är INTE testade skarpt.** Reglerna i
+  `firestore.rules`/`storage.rules` låser all data till ägaren
+  (`request.auth.uid == uid`), men isoleringen mellan användare är ännu inte
+  verifierad mot emulatorn eftersom Java saknas på maskinen (Firebase-
+  emulatorn kräver en JDK). Detta är en **känd, öppen lucka** tills reglerna
+  körts mot emulatorn.
+  - Installera Java (macOS, Homebrew): `brew install --cask temurin`
+  - Ett `test:rules`-skript och en harness med `@firebase/rules-unit-testing`
+    finns ännu inte — måste läggas till innan reglerna kan köras automatiskt.
+    Manuellt kan reglerna laddas i emulatorn med
+    `firebase emulators:start --only firestore,storage,auth`.
