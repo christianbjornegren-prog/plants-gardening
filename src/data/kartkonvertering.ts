@@ -22,6 +22,18 @@ export function tillLagratObjekt(objekt: MapObject): Record<string, unknown> {
   return lagrat
 }
 
+const KANDA_TYPER: readonly MapObjectType[] = [
+  'bod',
+  'altan',
+  'rabatt',
+  'gräsmatta',
+  'pallkrage',
+  'häck',
+  'träd',
+  'staket',
+  'annat',
+]
+
 export function franLagratObjekt(data: unknown): MapObject {
   const objekt = (data ?? {}) as Record<string, unknown>
   const punkter: PunktM[] = Array.isArray(objekt.points)
@@ -30,9 +42,14 @@ export function franLagratObjekt(data: unknown): MapObject {
         typeof p.y === 'number' ? p.y : 0,
       ])
     : []
+  // Okänd typsträng (äldre schema, handredigerat dokument) får inte krascha
+  // renderingen — falla tillbaka på 'annat'.
+  const typ = KANDA_TYPER.includes(objekt.type as MapObjectType)
+    ? (objekt.type as MapObjectType)
+    : 'annat'
   return {
     id: typeof objekt.id === 'string' ? objekt.id : '',
-    type: (objekt.type as MapObjectType | undefined) ?? 'annat',
+    type: typ,
     name: typeof objekt.name === 'string' ? objekt.name : '',
     points: punkter,
     note: typeof objekt.note === 'string' ? objekt.note : undefined,

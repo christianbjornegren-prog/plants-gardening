@@ -24,13 +24,19 @@ function YtaForm({ befintlig }: { befintlig: Area | undefined }) {
   const [sollage, setSollage] = useState<SunExposure | undefined>(befintlig?.sunExposure)
   const [jordman, setJordman] = useState(befintlig?.soil ?? '')
   const [anteckning, setAnteckning] = useState(befintlig?.note ?? '')
+  const [fel, setFel] = useState(false)
 
   function spara(e: FormEvent) {
     e.preventDefault()
+    const trimmatNamn = namn.trim()
+    if (!trimmatNamn) {
+      setFel(true)
+      return
+    }
     void (async () => {
       const repo = await import('../data/repo')
       const falt = {
-        name: namn.trim(),
+        name: trimmatNamn,
         sunExposure: sollage,
         soil: jordman.trim() || undefined,
         note: anteckning.trim() || undefined,
@@ -103,6 +109,12 @@ function YtaForm({ befintlig }: { befintlig: Area | undefined }) {
             className={inmatningsStil}
           />
         </Falt>
+
+        {fel && (
+          <p role="alert" className="text-sm text-fermob">
+            Ge ytan ett namn.
+          </p>
+        )}
 
         <div className="mt-2 flex gap-3">
           <Knapp type="submit" variant="primar" className="flex-1">

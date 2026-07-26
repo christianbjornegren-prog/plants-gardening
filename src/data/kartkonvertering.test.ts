@@ -37,4 +37,9 @@ describe('kartkonvertering', () => {
     expect(franLagratObjekt(null).points).toEqual([])
     expect(franLagratObjekt({ points: 'fel' }).type).toBe('annat')
   })
+
+  it('faller tillbaka på "annat" för okända typsträngar', () => {
+    expect(franLagratObjekt({ type: 'gazebo', points: [] }).type).toBe('annat')
+    expect(franLagratObjekt({ type: 'rabatt', points: [] }).type).toBe('rabatt')
+  })
 })

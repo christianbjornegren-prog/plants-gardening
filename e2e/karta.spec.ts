@@ -22,6 +22,8 @@ async function ritaObjekt(page: Page, relPunkter: [number, number][]) {
   }
   const sista = relPunkter[relPunkter.length - 1]!
   await page.mouse.dblclick(box.x + sista[0] * box.width, box.y + sista[1] * box.height)
+  // Panelen öppnas när objektet skapats — invänta den innan vi går vidare.
+  await expect(page.getByLabel('Namn')).toBeVisible()
 }
 
 test('tomtens mått skapar kartan med tomtgräns och adresskylt', async ({ page }) => {
@@ -45,7 +47,7 @@ test('rita ett objekt, döp och typa det, och se det efter omladdning', async ({
   await page.getByLabel('Namn').fill('Rabatten vid staketet')
   await page.getByLabel('Namn').blur()
   await page.getByLabel('Typ').selectOption('gräsmatta')
-  await expect(page.getByText('Mått:')).toBeVisible()
+  await expect(page.getByLabel('Objektets bredd i meter')).toBeVisible()
 
   await page.reload()
   await expect(page.locator('polygon[data-objekt-id]')).toHaveCount(1)

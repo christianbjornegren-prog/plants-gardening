@@ -1,11 +1,15 @@
 import {
+  arrayUnion,
   collection,
   deleteDoc,
   deleteField,
   doc,
+  getDocsFromCache,
   onSnapshot,
+  query,
   setDoc,
   updateDoc,
+  where,
   type DocumentData,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore'
@@ -153,13 +157,17 @@ export function uppdateraKartaMatt(uid: string, widthM: number, heightM: number)
   void updateDoc(kartaDoc(uid), { widthM, heightM }).catch(loggaFel)
 }
 
-/** Lägger till eller ersätter ett objekt i kartan (hela dokumentet skrivs om). */
+/**
+ * Lägger till eller ersätter ett objekt i kartan (hela dokumentet skrivs om).
+ * Befintliga objekt ersätts PÅ PLATS — arrayordningen är z-ordningen, och en
+ * namnändring får inte lyfta objektet över sina grannar.
+ */
 export function sparaKartobjekt(uid: string, karta: GardenMap, objekt: MapObject): void {
-  const ovriga = karta.objects.filter((o) => o.id !== objekt.id)
-  void setDoc(
-    kartaDoc(uid),
-    tillLagradKarta({ ...karta, objects: [...ovriga, objekt] }),
-  ).catch(loggaFel)
+  const finns = karta.objects.some((o) => o.id === objekt.id)
+  const objects = finns
+    ? karta.objects.map((o) => (o.id === objekt.id ? objekt : o))
+    : [...karta.objects, objekt]
+  void setDoc(kartaDoc(uid), tillLagradKarta({ ...karta, objects })).catch(loggaFel)
 }
 
 /** Tar bort objektet och kopplar loss ytor som pekade på det. */
@@ -223,11 +231,32 @@ function stadaFoton(fotoRefs: string[]): void {
   })().catch(loggaFel)
 }
 
+/**
+ * Loggposter för ett mål, hämtade ur den lokala cachen vid raderingstillfället
+ * (fångar även poster som vyns state ännu inte hunnit se).
+ */
+async function loggposterFranCache(
+  uid: string,
+  falt: 'plantId' | 'areaId',
+  varde: string,
+): Promise<LogEntry[]> {
+  try {
+    const snap = await getDocsFromCache(query(loggCol(uid), where(falt, '==', varde)))
+    return snap.docs.map(tillLoggpost)
+  } catch {
+    return []
+  }
+}
+
 /** Tar även bort ytans egna loggposter och deras foton. */
 export function taBortYta(uid: string, id: string, loggposter: LogEntry[]): void {
   void deleteDoc(doc(ytaCol(uid), id)).catch(loggaFel)
-  for (const post of loggposter) taBortLoggpost(uid, post.id)
-  stadaFoton(loggposter.flatMap((post) => (post.photoRef ? [post.photoRef] : [])))
+  void (async () => {
+    const cachade = await loggposterFranCache(uid, 'areaId', id)
+    const alla = new Map([...loggposter, ...cachade].map((post) => [post.id, post]))
+    for (const post of alla.values()) taBortLoggpost(uid, post.id)
+    stadaFoton([...alla.values()].flatMap((post) => (post.photoRef ? [post.photoRef] : [])))
+  })().catch(loggaFel)
 }
 
 export interface VaxtFalt {
@@ -271,7 +300,7 @@ export function flyttaVaxt(uid: string, vaxt: Plant, tillYtaId: string): void {
   }
   void updateDoc(doc(vaxtCol(uid), vaxt.id), {
     areaId: tillYtaId,
-    moveHistory: [...vaxt.moveHistory, flytt],
+    moveHistory: arrayUnion(flytt),
     position: deleteField(),
   }).catch(loggaFel)
 }
@@ -295,7 +324,7 @@ export function flyttaVaxtPaKartan(
     }
     void updateDoc(doc(vaxtCol(uid), vaxt.id), {
       areaId: tillYtaId,
-      moveHistory: [...vaxt.moveHistory, flytt],
+      moveHistory: arrayUnion(flytt),
       position: { x, y },
     }).catch(loggaFel)
     return
@@ -305,17 +334,21 @@ export function flyttaVaxtPaKartan(
 
 export function laggTillVaxtFoto(uid: string, vaxt: Plant, fotoRef: string): void {
   void updateDoc(doc(vaxtCol(uid), vaxt.id), {
-    photoRefs: [...vaxt.photoRefs, fotoRef],
+    photoRefs: arrayUnion(fotoRef),
   }).catch(loggaFel)
 }
 
 /** Tar även bort växtens loggposter och alla foton (galleri + loggfoton). */
 export function taBortVaxt(uid: string, vaxt: Plant, loggposter: LogEntry[]): void {
   void deleteDoc(doc(vaxtCol(uid), vaxt.id)).catch(loggaFel)
-  for (const post of loggposter) taBortLoggpost(uid, post.id)
-  const fotoRefs = new Set(vaxt.photoRefs)
-  for (const post of loggposter) {
-    if (post.photoRef) fotoRefs.add(post.photoRef)
-  }
-  stadaFoton([...fotoRefs])
+  void (async () => {
+    const cachade = await loggposterFranCache(uid, 'plantId', vaxt.id)
+    const alla = new Map([...loggposter, ...cachade].map((post) => [post.id, post]))
+    for (const post of alla.values()) taBortLoggpost(uid, post.id)
+    const fotoRefs = new Set(vaxt.photoRefs)
+    for (const post of alla.values()) {
+      if (post.photoRef) fotoRefs.add(post.photoRef)
+    }
+    stadaFoton([...fotoRefs])
+  })().catch(loggaFel)
 }

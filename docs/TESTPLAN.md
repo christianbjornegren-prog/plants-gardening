@@ -43,6 +43,9 @@
 | Rörelse | reducedMotion: kartan visas direkt | e2e |
 | Årstidston | månader → årstid → CSS-filter | enhet |
 | Fototidslinje | loggfoto via snabblogg + växtfoto → daterad post med bild i tidslinjer | e2e |
+| Måttskala | `skalaTillMatt` (exakta mått, ankare, degenererade fall) | enhet |
+| Lagringsrobusthet | okänd karttyp → 'annat'; flyttalsrester normaliseras | enhet |
+| Formulärskydd | enbart mellanslag i namn stoppas med felmeddelande | (via required + trim, e2e täcker happy path) |
 
 ## Kända luckor
 

@@ -71,6 +71,26 @@ ligger i en egen chunk (~112 kB gzip) som laddas först när datalagret används
   översta objektet och flyttar växten om objektets yta är en annan).
   Hjul-zoom registreras med `{ passive: false }` (Reacts onWheel är passiv).
 
+## Slutgranskningens lärdomar (multi-agent-review)
+
+Bekräftade fynd som åtgärdats — mönster värda att minnas:
+
+- **Arrayordning är z-ordning:** `sparaKartobjekt` ersätter objekt PÅ PLATS i
+  `objects[]` — append-vid-redigering ändrade både rendering och yt-träffar.
+- **IndexedDB-skrivningar** bekräftas på `transaction.oncomplete` (inte
+  `request.onsuccess`) — annars kan kvotslut ge en photoRef mot en blob som
+  aldrig committades.
+- **URL-cachen i photoStore håller löften**, inte färdiga URL:er — samtidiga
+  hämtningar av samma foto delar en objectURL i stället för att läcka en.
+- **Pekar-id-disciplin:** varje gest äger sina pointerId:n; extra fingrar
+  ignoreras och `pointercancel` committar ALDRIG (koordinaterna är opålitliga).
+- **Ytbyte vid prick-släpp** avgörs av översta VÄXTBARA objekt med kopplad
+  yta — träd/bod ovanpå en rabatt slukar inte släppet.
+- **`arrayUnion`** för moveHistory/photoRefs i stället för hela arrayen från
+  klient-state.
+- **Loggstädning** vid borttagning frågar även den lokala cachen
+  (`getDocsFromCache`), inte bara vyns state.
+
 ## E2E och dev-server
 
 Playwrights `webServer` startar `npm run dev -- --port 5273 --strictPort` och

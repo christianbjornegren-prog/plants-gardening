@@ -44,6 +44,9 @@ Uppdateras varje session.
 - Foto på loggpost (`photoRef` finns i schemat men saknar UI).
 - Lägga till/ta bort enskilda hörn på befintlig polygon.
 - Zoomknappar (+/−) som komplement till pinch/hjul.
+- Migreringsverktyg lokal→moln (lokalt läge och molnläge är skilda
+  datamängder; dokumenterat i src/lib/lage.ts och .env.example).
+- Uttrycklig z-ordningskontroll för kartobjekt (nu: ritordning).
 
 ## Ingår inte i v1
 

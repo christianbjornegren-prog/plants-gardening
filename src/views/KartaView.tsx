@@ -14,11 +14,10 @@ import { useKartYta } from '../components/karta/useKartYta'
 import { VaxtPrickLager } from '../components/karta/VaxtPrickLager'
 import { Knapp, LankKnapp } from '../components/Knapp'
 import { useData } from '../data/DataProvider'
-import type { GardenMap } from '../data/types'
+import { VAXTBARA_TYPER, type GardenMap } from '../data/types'
 import { arstidston } from '../lib/arstid'
 import { avstand, punktIPolygon, snappaPunkt } from '../lib/geometri'
 import { tolkaMeter } from '../lib/format'
-import { KARTSTIL } from '../lib/kartstil'
 import { beraknaPrickar } from '../lib/vaxtplacering'
 import { viewBoxAttribut } from '../lib/viewbox'
 
@@ -96,9 +95,16 @@ function KartaSetup() {
 let startanimationVisad = false
 
 type Gest =
-  | { typ: 'pan'; senastX: number; senastY: number; totalPx: number; objektId?: string }
-  | { typ: 'pinch'; avstandPx: number }
-  | { typ: 'prick'; plantId: string; startX: number; startY: number; flyttad: boolean }
+  | {
+      typ: 'pan'
+      pekarId: number
+      senastX: number
+      senastY: number
+      totalPx: number
+      objektId?: string
+    }
+  | { typ: 'pinch'; pekarIds: [number, number]; avstandPx: number }
+  | { typ: 'prick'; pekarId: number; plantId: string; startX: number; startY: number; flyttad: boolean }
 
 function LevandeKarta({ karta }: { karta: GardenMap }) {
   const { vaxter, ytor } = useData()
@@ -130,9 +136,16 @@ function LevandeKarta({ karta }: { karta: GardenMap }) {
   function slappPrick(plantId: string, x: number, y: number) {
     const vaxt = vaxter.find((v) => v.id === plantId)
     if (!vaxt) return
+    // Ytbyte avgörs av översta VÄXTBARA objekt som har en kopplad yta —
+    // ett träd eller en bod ovanpå en rabatt ska inte sluka släppet.
     const traffat = [...karta.objects]
       .reverse()
-      .find((objekt) => !KARTSTIL[objekt.type].oppen && punktIPolygon([x, y], objekt.points))
+      .find(
+        (objekt) =>
+          VAXTBARA_TYPER.includes(objekt.type) &&
+          punktIPolygon([x, y], objekt.points) &&
+          ytor.some((y2) => y2.mapObjectId === objekt.id),
+      )
     const yta = traffat ? ytor.find((y2) => y2.mapObjectId === traffat.id) : undefined
     void (async () => {
       const { flyttaVaxtPaKartan } = await import('../data/repo')
@@ -143,19 +156,29 @@ function LevandeKarta({ karta }: { karta: GardenMap }) {
   function vidPekareNed(e: ReactPointerEvent<SVGSVGElement>) {
     e.currentTarget.setPointerCapture(e.pointerId)
     pekareRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    const gest = gestRef.current
 
-    if (pekareRef.current.size === 2) {
+    // Andra fingret under pan/prick → övergå till pinch. Fler fingrar än två
+    // ignoreras (handflata, tredje finger) — pågående gest får inte kapas.
+    if (gest && gest.typ !== 'pinch' && pekareRef.current.size === 2) {
+      const ids = [...pekareRef.current.keys()] as [number, number]
       const [a, b] = [...pekareRef.current.values()]
-      gestRef.current = { typ: 'pinch', avstandPx: Math.hypot(a!.x - b!.x, a!.y - b!.y) }
+      gestRef.current = {
+        typ: 'pinch',
+        pekarIds: ids,
+        avstandPx: Math.hypot(a!.x - b!.x, a!.y - b!.y),
+      }
       setDragen(undefined)
       return
     }
+    if (gest) return
 
     const mal = e.target as Element
     const prickEl = mal.closest('[data-vaxt-id]')
     if (prickEl) {
       gestRef.current = {
         typ: 'prick',
+        pekarId: e.pointerId,
         plantId: prickEl.getAttribute('data-vaxt-id') ?? '',
         startX: e.clientX,
         startY: e.clientY,
@@ -165,6 +188,7 @@ function LevandeKarta({ karta }: { karta: GardenMap }) {
     }
     gestRef.current = {
       typ: 'pan',
+      pekarId: e.pointerId,
       senastX: e.clientX,
       senastY: e.clientY,
       totalPx: 0,
@@ -180,16 +204,20 @@ function LevandeKarta({ karta }: { karta: GardenMap }) {
     }
 
     if (gest.typ === 'pinch') {
-      if (pekareRef.current.size < 2) return
-      const [a, b] = [...pekareRef.current.values()]
-      const nytt = Math.hypot(a!.x - b!.x, a!.y - b!.y)
+      if (!gest.pekarIds.includes(e.pointerId)) return
+      const a = pekareRef.current.get(gest.pekarIds[0])
+      const b = pekareRef.current.get(gest.pekarIds[1])
+      if (!a || !b) return
+      const nytt = Math.hypot(a.x - b.x, a.y - b.y)
       if (nytt > 10) {
-        const mitt = tillMeter((a!.x + b!.x) / 2, (a!.y + b!.y) / 2)
+        const mitt = tillMeter((a.x + b.x) / 2, (a.y + b.y) / 2)
         zoomaVid(gest.avstandPx / nytt, mitt)
         gest.avstandPx = nytt
       }
       return
     }
+
+    if (e.pointerId !== gest.pekarId) return
 
     if (gest.typ === 'prick') {
       if (!gest.flyttad && avstand([gest.startX, gest.startY], [e.clientX, e.clientY]) > 6) {
@@ -214,18 +242,22 @@ function LevandeKarta({ karta }: { karta: GardenMap }) {
   function vidPekareUpp(e: ReactPointerEvent<SVGSVGElement>) {
     pekareRef.current.delete(e.pointerId)
     const gest = gestRef.current
+    if (!gest) return
 
-    if (gest?.typ === 'pinch') {
-      if (pekareRef.current.size === 1) {
-        const [kvar] = [...pekareRef.current.values()]
-        gestRef.current = { typ: 'pan', senastX: kvar!.x, senastY: kvar!.y, totalPx: 99 }
-      } else if (pekareRef.current.size === 0) {
-        gestRef.current = null
-      }
+    if (gest.typ === 'pinch') {
+      if (!gest.pekarIds.includes(e.pointerId)) return
+      const kvarId = gest.pekarIds.find((id) => id !== e.pointerId)
+      const kvar = kvarId !== undefined ? pekareRef.current.get(kvarId) : undefined
+      gestRef.current =
+        kvarId !== undefined && kvar
+          ? { typ: 'pan', pekarId: kvarId, senastX: kvar.x, senastY: kvar.y, totalPx: 99 }
+          : null
       return
     }
 
-    if (gest?.typ === 'prick') {
+    if (e.pointerId !== gest.pekarId) return
+
+    if (gest.typ === 'prick') {
       if (gest.flyttad) {
         const [x, y] = snappaPunkt(tillMeter(e.clientX, e.clientY))
         setDragen(undefined)
@@ -237,10 +269,19 @@ function LevandeKarta({ karta }: { karta: GardenMap }) {
       return
     }
 
-    if (gest?.typ === 'pan') {
-      if (gest.totalPx < 8) {
-        setInfoval(gest.objektId ? { typ: 'objekt', id: gest.objektId } : undefined)
-      }
+    if (gest.totalPx < 8) {
+      setInfoval(gest.objektId ? { typ: 'objekt', id: gest.objektId } : undefined)
+    }
+    gestRef.current = null
+  }
+
+  /** Avbruten gest (samtal, kant-svep …): commit ALDRIG — koordinaterna är opålitliga. */
+  function vidPekareAvbruten(e: ReactPointerEvent<SVGSVGElement>) {
+    pekareRef.current.delete(e.pointerId)
+    const gest = gestRef.current
+    if (!gest) return
+    if (gest.typ === 'pinch' ? gest.pekarIds.includes(e.pointerId) : gest.pekarId === e.pointerId) {
+      setDragen(undefined)
       gestRef.current = null
     }
   }
@@ -258,7 +299,7 @@ function LevandeKarta({ karta }: { karta: GardenMap }) {
           onPointerDown={vidPekareNed}
           onPointerMove={vidPekareFlytt}
           onPointerUp={vidPekareUpp}
-          onPointerCancel={vidPekareUpp}
+          onPointerCancel={vidPekareAvbruten}
         >
           {/* Årstidstonen läggs bara på levande kartan — redigeringen är neutral. */}
           <g style={{ filter: arstidston() }}>

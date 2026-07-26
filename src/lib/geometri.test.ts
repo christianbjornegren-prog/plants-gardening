@@ -8,6 +8,7 @@ import {
   omkrets,
   omslutandeRektangel,
   punktIPolygon,
+  skalaTillMatt,
   snappa,
   snappaPunkt,
 } from './geometri'
@@ -112,5 +113,48 @@ describe('flyttaPunkter', () => {
       [1.5, 0],
       [2.5, 1],
     ])
+  })
+
+  it('läcker inte flyttalsrester till sparad data', () => {
+    const [forsta] = flyttaPunkter([[0.1, 0.1]], 0.2, 0.2)
+    expect(forsta).toEqual([0.3, 0.3])
+  })
+})
+
+describe('skalaTillMatt', () => {
+  it('skalar polygonen till exakta mått, förankrad i övre vänstra hörnet', () => {
+    expect(skalaTillMatt(kvadrat, 2, 8)).toEqual([
+      [0, 0],
+      [2, 0],
+      [2, 8],
+      [0, 8],
+    ])
+  })
+
+  it('behåller ankarpunkten för förskjutna polygoner', () => {
+    const skalad = skalaTillMatt(
+      [
+        [2, 3],
+        [6, 3],
+        [6, 5],
+        [2, 5],
+      ],
+      2,
+      1,
+    )
+    expect(skalad).toEqual([
+      [2, 3],
+      [4, 3],
+      [4, 4],
+      [2, 4],
+    ])
+  })
+
+  it('lämnar degenererade polygoner orörda', () => {
+    const linje: [number, number][] = [
+      [0, 0],
+      [4, 0],
+    ]
+    expect(skalaTillMatt(linje, 2, 2)).toEqual(linje)
   })
 })

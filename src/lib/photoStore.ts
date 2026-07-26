@@ -28,9 +28,20 @@ async function medFotoStore<T>(
 ): Promise<T> {
   const db = await oppnaFotoDb()
   return new Promise((losning, avslag) => {
-    const begaran = operation(db.transaction(IDB_STORE, lage).objectStore(IDB_STORE))
-    begaran.onsuccess = () => losning(begaran.result)
-    begaran.onerror = () => avslag(begaran.error ?? new Error('Fotodatabasen svarade inte'))
+    const transaktion = db.transaction(IDB_STORE, lage)
+    const begaran = operation(transaktion.objectStore(IDB_STORE))
+    if (lage === 'readwrite') {
+      // Skrivningar är varaktiga först vid transaction.oncomplete — en
+      // transaktion kan aborta (t.ex. kvotslut) EFTER att requesten lyckats.
+      transaktion.oncomplete = () => losning(begaran.result)
+      transaktion.onabort = () =>
+        avslag(transaktion.error ?? new Error('Fotolagringen avbröts'))
+      transaktion.onerror = () =>
+        avslag(transaktion.error ?? new Error('Fotolagringen misslyckades'))
+    } else {
+      begaran.onsuccess = () => losning(begaran.result)
+      begaran.onerror = () => avslag(begaran.error ?? new Error('Fotodatabasen svarade inte'))
+    }
   })
 }
 
@@ -50,34 +61,45 @@ export async function sparaFoto(uid: string, blob: Blob): Promise<string> {
   return sokvag
 }
 
-const urlCache = new Map<string, string>()
+/**
+ * Cachen håller LÖFTEN (inte färdiga URL:er) så att samtidiga anrop för samma
+ * fotoRef — t.ex. huvudbild + miniatyr i växtdetaljen — delar en enda
+ * objectURL i stället för att skapa varsin där den ena läcker.
+ */
+const urlCache = new Map<string, Promise<string | undefined>>()
 
 /** URL som kan sättas på en <img>. undefined om fotot saknas. */
-export async function hamtaFotoUrl(fotoRef: string): Promise<string | undefined> {
-  const cachad = urlCache.get(fotoRef)
-  if (cachad) return cachad
+export function hamtaFotoUrl(fotoRef: string): Promise<string | undefined> {
+  let lofte = urlCache.get(fotoRef)
+  if (!lofte) {
+    lofte = hamtaFotoUrlIntern(fotoRef)
+    urlCache.set(fotoRef, lofte)
+    // Misslyckade uppslag ska inte cachas för alltid.
+    void lofte.then((url) => {
+      if (!url && urlCache.get(fotoRef) === lofte) urlCache.delete(fotoRef)
+    })
+  }
+  return lofte
+}
 
-  let url: string | undefined
+async function hamtaFotoUrlIntern(fotoRef: string): Promise<string | undefined> {
   if (fotoRef.startsWith('lokal:')) {
     const blob = await medFotoStore<Blob | undefined>('readonly', (s) =>
       s.get(fotoRef.slice('lokal:'.length)),
     )
-    if (blob) url = URL.createObjectURL(blob)
-  } else {
-    const { getDownloadURL, getStorage, ref } = await import('firebase/storage')
-    const { getFirebaseApp } = await import('./firebase')
-    try {
-      url = await getDownloadURL(ref(getStorage(getFirebaseApp()), fotoRef))
-    } catch {
-      url = undefined
-    }
+    return blob ? URL.createObjectURL(blob) : undefined
   }
-  if (url) urlCache.set(fotoRef, url)
-  return url
+  const { getDownloadURL, getStorage, ref } = await import('firebase/storage')
+  const { getFirebaseApp } = await import('./firebase')
+  try {
+    return await getDownloadURL(ref(getStorage(getFirebaseApp()), fotoRef))
+  } catch {
+    return undefined
+  }
 }
 
 export async function taBortFoto(fotoRef: string): Promise<void> {
-  const cachad = urlCache.get(fotoRef)
+  const cachad = await urlCache.get(fotoRef)
   if (cachad?.startsWith('blob:')) URL.revokeObjectURL(cachad)
   urlCache.delete(fotoRef)
 

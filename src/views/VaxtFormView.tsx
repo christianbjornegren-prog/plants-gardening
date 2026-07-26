@@ -60,6 +60,7 @@ function VaxtForm({
   const [anteckning, setAnteckning] = useState(befintlig?.note ?? '')
   const [fotoFil, setFotoFil] = useState<File>()
   const [sparar, setSparar] = useState(false)
+  const [fel, setFel] = useState<string>()
 
   function valjFil(e: ChangeEvent<HTMLInputElement>) {
     setFotoFil(e.target.files?.[0])
@@ -67,13 +68,19 @@ function VaxtForm({
 
   function spara(e: FormEvent) {
     e.preventDefault()
+    const trimmatNamn = namn.trim()
+    if (!trimmatNamn) {
+      setFel('Ge växten ett namn.')
+      return
+    }
+    setFel(undefined)
     setSparar(true)
     void (async () => {
       try {
         const repo = await import('../data/repo')
         if (befintlig) {
           repo.uppdateraVaxt(uid, befintlig.id, {
-            name: namn.trim(),
+            name: trimmatNamn,
             note: anteckning.trim() || undefined,
           })
           if (ytaId !== befintlig.areaId) {
@@ -85,12 +92,17 @@ function VaxtForm({
 
         let photoRefs: string[] = []
         if (fotoFil) {
-          const { komprimeraBild } = await import('../lib/bild')
-          const { sparaFoto } = await import('../lib/photoStore')
-          photoRefs = [await sparaFoto(uid, await komprimeraBild(fotoFil))]
+          try {
+            const { komprimeraBild } = await import('../lib/bild')
+            const { sparaFoto } = await import('../lib/photoStore')
+            photoRefs = [await sparaFoto(uid, await komprimeraBild(fotoFil))]
+          } catch {
+            setFel('Fotot kunde inte sparas. Ta bort det eller prova ett annat.')
+            return
+          }
         }
         const nyttId = repo.skapaVaxt(uid, {
-          name: namn.trim(),
+          name: trimmatNamn,
           areaId: ytaId,
           note: anteckning.trim() || undefined,
           photoRefs,
@@ -156,6 +168,12 @@ function VaxtForm({
               className="text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-panel file:px-3.5 file:py-2.5 file:text-sm file:text-ljus"
             />
           </Falt>
+        )}
+
+        {fel && (
+          <p role="alert" className="text-sm text-fermob">
+            {fel}
+          </p>
         )}
 
         <div className="mt-2 flex gap-3">

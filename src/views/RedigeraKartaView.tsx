@@ -21,11 +21,12 @@ import {
   type MapObjectType,
   type PunktM,
 } from '../data/types'
-import { formatMeter, tolkaMeter } from '../lib/format'
+import { tolkaMeter } from '../lib/format'
 import {
   avstand,
   flyttaPunkter,
   omslutandeRektangel,
+  skalaTillMatt,
   snappa,
   snappaPunkt,
 } from '../lib/geometri'
@@ -42,10 +43,11 @@ export function RedigeraKartaView() {
 }
 
 type Gest =
-  | { typ: 'pan'; senastX: number; senastY: number; totalPx: number; objektId?: string }
-  | { typ: 'horn'; objektId: string; index: number; flyttad: boolean }
+  | { typ: 'pan'; pekarId: number; senastX: number; senastY: number; totalPx: number }
+  | { typ: 'horn'; pekarId: number; objektId: string; index: number; flyttad: boolean }
   | {
       typ: 'objekt'
+      pekarId: number
       objektId: string
       startMeter: PunktM
       origPunkter: PunktM[]
@@ -77,10 +79,16 @@ function Redigerare({ karta }: { karta: GardenMap }) {
   }
 
   function avslutaRitning() {
-    // Dubbelklick ger två klick på samma ställe — rensa dubbletter på slutet.
-    const punkter = ritPunkter.filter(
-      (p, i) => i === 0 || avstand(p, ritPunkter[i - 1]!) > 0.05,
-    )
+    // Dubbelklicket ger två extra klick i slutet. Punkterna är snappade till
+    // 0,1 m, så grannrutor kan ligga exakt 0,1 m isär — rensa svansen med en
+    // tröskel som är större än snappsteget.
+    let punkter = ritPunkter.filter((p, i) => i === 0 || avstand(p, ritPunkter[i - 1]!) > 0.001)
+    while (
+      punkter.length > 3 &&
+      avstand(punkter[punkter.length - 1]!, punkter[punkter.length - 2]!) <= 0.15
+    ) {
+      punkter = punkter.slice(0, -1)
+    }
     setRitar(false)
     setRitPunkter([])
     setHovrad(undefined)
@@ -115,6 +123,8 @@ function Redigerare({ karta }: { karta: GardenMap }) {
 
   function vidPekareNed(e: ReactPointerEvent<SVGSVGElement>) {
     if (ritar) return
+    // En gest i taget — extra fingrar får inte kapa pågående dragning.
+    if (gestRef.current) return
     e.currentTarget.setPointerCapture(e.pointerId)
     const mal = e.target as Element
 
@@ -122,6 +132,7 @@ function Redigerare({ karta }: { karta: GardenMap }) {
     if (hornEl && valt) {
       gestRef.current = {
         typ: 'horn',
+        pekarId: e.pointerId,
         objektId: valt.id,
         index: Number(hornEl.getAttribute('data-horn-index')),
         flyttad: false,
@@ -136,6 +147,7 @@ function Redigerare({ karta }: { karta: GardenMap }) {
       if (objekt) {
         gestRef.current = {
           typ: 'objekt',
+          pekarId: e.pointerId,
           objektId,
           startMeter: tillMeter(e.clientX, e.clientY),
           origPunkter: objekt.points,
@@ -144,7 +156,13 @@ function Redigerare({ karta }: { karta: GardenMap }) {
         return
       }
     }
-    gestRef.current = { typ: 'pan', senastX: e.clientX, senastY: e.clientY, totalPx: 0 }
+    gestRef.current = {
+      typ: 'pan',
+      pekarId: e.pointerId,
+      senastX: e.clientX,
+      senastY: e.clientY,
+      totalPx: 0,
+    }
   }
 
   function vidPekareFlytt(e: ReactPointerEvent<SVGSVGElement>) {
@@ -153,7 +171,7 @@ function Redigerare({ karta }: { karta: GardenMap }) {
       return
     }
     const gest = gestRef.current
-    if (!gest) return
+    if (!gest || e.pointerId !== gest.pekarId) return
 
     if (gest.typ === 'horn') {
       gest.flyttad = true
@@ -186,13 +204,13 @@ function Redigerare({ karta }: { karta: GardenMap }) {
     panoreraPx(dx, dy)
   }
 
-  function vidPekareUpp() {
+  function vidPekareUpp(e: ReactPointerEvent<SVGSVGElement>) {
     if (ritar) {
       return
     }
     const gest = gestRef.current
+    if (!gest || e.pointerId !== gest.pekarId) return
     gestRef.current = null
-    if (!gest) return
 
     if (gest.typ === 'horn' || gest.typ === 'objekt') {
       if (utkast && gest.flyttad) {
@@ -206,6 +224,14 @@ function Redigerare({ karta }: { karta: GardenMap }) {
     if (gest.typ === 'pan' && gest.totalPx < 8) {
       setValtId(undefined)
     }
+  }
+
+  /** Avbruten gest: släng utkastet utan att persistera. */
+  function vidPekareAvbruten(e: ReactPointerEvent<SVGSVGElement>) {
+    const gest = gestRef.current
+    if (!gest || e.pointerId !== gest.pekarId) return
+    gestRef.current = null
+    setUtkast(undefined)
   }
 
   function vidKlick(e: React.MouseEvent<SVGSVGElement>) {
@@ -222,7 +248,7 @@ function Redigerare({ karta }: { karta: GardenMap }) {
         <Link
           to="/"
           aria-label="Tillbaka till kartan"
-          className="-ml-1 flex size-10 items-center justify-center rounded-md text-panel/70"
+          className="-ml-1 flex size-11 items-center justify-center rounded-md text-panel/70"
         >
           <TillbakaIkon />
         </Link>
@@ -277,7 +303,7 @@ function Redigerare({ karta }: { karta: GardenMap }) {
               onPointerDown={vidPekareNed}
               onPointerMove={vidPekareFlytt}
               onPointerUp={vidPekareUpp}
-              onPointerCancel={vidPekareUpp}
+              onPointerCancel={vidPekareAvbruten}
               onClick={vidKlick}
               onDoubleClick={avslutaRitning}
             >
@@ -418,6 +444,73 @@ function TomtMatt({ karta }: { karta: GardenMap }) {
   )
 }
 
+function matthText(varde: number): string {
+  return String(Number(varde.toFixed(2))).replace('.', ',')
+}
+
+/** Spec: "Markera objekt → … ange mått." Måtten skalar polygonens bounding box. */
+function MattFalt({
+  objekt,
+  onPersistera,
+}: {
+  objekt: MapObject
+  onPersistera: (objekt: MapObject) => void
+}) {
+  const rekt = omslutandeRektangel(objekt.points)
+  const [bredd, setBredd] = useState(matthText(rekt.bredd))
+  const [hojd, setHojd] = useState(matthText(rekt.hojd))
+
+  useEffect(() => {
+    setBredd(matthText(rekt.bredd))
+    setHojd(matthText(rekt.hojd))
+  }, [rekt.bredd, rekt.hojd])
+
+  function spara() {
+    const nyBredd = tolkaMeter(bredd, 0.1)
+    const nyHojd = tolkaMeter(hojd, 0.1)
+    if (!nyBredd || !nyHojd) {
+      setBredd(matthText(rekt.bredd))
+      setHojd(matthText(rekt.hojd))
+      return
+    }
+    if (Math.abs(nyBredd - rekt.bredd) < 0.005 && Math.abs(nyHojd - rekt.hojd) < 0.005) return
+    onPersistera({ ...objekt, points: skalaTillMatt(objekt.points, nyBredd, nyHojd) })
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-sm font-medium">Mått (m)</span>
+      <div className="flex items-center gap-1.5">
+        <label className="sr-only" htmlFor="objekt-bredd">
+          Objektets bredd i meter
+        </label>
+        <input
+          id="objekt-bredd"
+          type="text"
+          inputMode="decimal"
+          value={bredd}
+          onChange={(e) => setBredd(e.target.value)}
+          onBlur={spara}
+          className={`${inmatningsStil} w-20 py-1.5 text-center font-mono text-sm`}
+        />
+        <span className="text-panel/50">×</span>
+        <label className="sr-only" htmlFor="objekt-hojd">
+          Objektets höjd i meter
+        </label>
+        <input
+          id="objekt-hojd"
+          type="text"
+          inputMode="decimal"
+          value={hojd}
+          onChange={(e) => setHojd(e.target.value)}
+          onBlur={spara}
+          className={`${inmatningsStil} w-20 py-1.5 text-center font-mono text-sm`}
+        />
+      </div>
+    </div>
+  )
+}
+
 function ObjektPanel({
   objekt,
   karta,
@@ -437,7 +530,6 @@ function ObjektPanel({
   const [namn, setNamn] = useState(objekt.name)
   const [anteckning, setAnteckning] = useState(objekt.note ?? '')
   const kopplad = ytor.find((y) => y.mapObjectId === objekt.id)
-  const rekt = omslutandeRektangel(objekt.points)
 
   function bytYta(ytaId: string) {
     void (async () => {
@@ -494,12 +586,7 @@ function ObjektPanel({
         </select>
       </Falt>
 
-      <p className="text-sm text-panel/60">
-        Mått:{' '}
-        <span className="font-mono text-panel">
-          {formatMeter(rekt.bredd)} × {formatMeter(rekt.hojd)}
-        </span>
-      </p>
+      <MattFalt objekt={objekt} onPersistera={onPersistera} />
 
       <Falt etikett="Anteckning">
         <textarea

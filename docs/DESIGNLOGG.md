@@ -85,3 +85,14 @@ Designbeslut + vad som provats och förkastats.
   avmättad vinter — en tonjustering, inte ett tema.
 - **Städning:** borttagen växt/yta tar med sig loggposter OCH deras foton;
   Ångra på ett loggfoto raderar även blobben.
+
+## Slutgranskning
+
+- **Touchytor:** snabbloggens sekundärknappar (Ångra/Foto/Skriv anteckning),
+  infokortets stängknapp och redigerarens tillbaka-länk höjda till 44 px
+  efter granskning — specens minimum gäller ÄVEN småknappar.
+- **Fotofel är aldrig tysta:** varje fotoväg (snabblogg, växtdetalj,
+  växtformulär) visar "Fotot kunde inte sparas …" med role=alert.
+- **Mått (m)-fält** i objektpanelen: spec-kravet "ange mått" uppfyllt genom
+  att skala polygonens bounding box, förankrad i övre vänstra hörnet, mono.
+- **Namnskydd:** enbart mellanslag i namn ger "Ge växten/ytan ett namn."

@@ -72,7 +72,7 @@ export function Infokort({
         type="button"
         aria-label="Stäng"
         onClick={onStang}
-        className="absolute -top-2.5 -right-2.5 flex size-8 items-center justify-center rounded-full border border-panel/15 bg-ljus text-panel/70 shadow-sm"
+        className="absolute -top-4 -right-2 flex size-11 items-center justify-center rounded-full border border-panel/15 bg-ljus text-panel/70 shadow-sm"
       >
         <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
           <path

@@ -17,6 +17,7 @@ export function VaxtDetaljView() {
   const navigate = useNavigate()
   const filInput = useRef<HTMLInputElement>(null)
   const [sparasFoto, setSparasFoto] = useState(false)
+  const [fotoFel, setFotoFel] = useState(false)
   const [valtFoto, setValtFoto] = useState(0)
 
   if (!laddad) return null
@@ -31,6 +32,7 @@ export function VaxtDetaljView() {
     const fil = e.target.files?.[0]
     e.target.value = ''
     if (!fil) return
+    setFotoFel(false)
     setSparasFoto(true)
     void (async () => {
       try {
@@ -42,6 +44,8 @@ export function VaxtDetaljView() {
         laggTillVaxtFoto(uid, vaxt, fotoRef)
         // Fotot blir också en daterad loggpost — det bygger fototidslinjen.
         skapaLoggpost(uid, { plantId: vaxt.id, type: 'anteckning', photoRef: fotoRef })
+      } catch {
+        setFotoFel(true)
       } finally {
         setSparasFoto(false)
       }
@@ -105,6 +109,12 @@ export function VaxtDetaljView() {
           {sparasFoto ? 'Sparar …' : 'Lägg till foto'}
         </Knapp>
       </div>
+
+      {fotoFel && (
+        <p role="alert" className="mt-2 text-sm text-fermob">
+          Fotot kunde inte sparas. Försök igen.
+        </p>
+      )}
 
       <dl className="mt-6 flex flex-col gap-1.5 text-sm">
         <div className="flex gap-2">

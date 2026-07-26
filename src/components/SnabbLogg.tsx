@@ -22,6 +22,7 @@ export function SnabbLogg({ plantId, areaId }: { plantId?: string; areaId?: stri
   const [antecknar, setAntecknar] = useState(false)
   const [text, setText] = useState('')
   const [sparasFoto, setSparasFoto] = useState(false)
+  const [fel, setFel] = useState(false)
   const fotoInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -57,6 +58,7 @@ export function SnabbLogg({ plantId, areaId }: { plantId?: string; areaId?: stri
     const fil = e.target.files?.[0]
     e.target.value = ''
     if (!fil) return
+    setFel(false)
     setSparasFoto(true)
     void (async () => {
       try {
@@ -64,6 +66,8 @@ export function SnabbLogg({ plantId, areaId }: { plantId?: string; areaId?: stri
         const { sparaFoto } = await import('../lib/photoStore')
         const fotoRef = await sparaFoto(uid, await komprimeraBild(fil))
         logga('anteckning', undefined, fotoRef)
+      } catch {
+        setFel(true)
       } finally {
         setSparasFoto(false)
       }
@@ -107,7 +111,7 @@ export function SnabbLogg({ plantId, areaId }: { plantId?: string; areaId?: stri
           <button
             type="button"
             onClick={angra}
-            className="min-h-8 rounded px-2 text-sm text-fermob underline underline-offset-2"
+            className="flex min-h-11 items-center rounded px-3 text-sm text-fermob underline underline-offset-2"
           >
             Ångra
           </button>
@@ -126,7 +130,7 @@ export function SnabbLogg({ plantId, areaId }: { plantId?: string; areaId?: stri
                 type="button"
                 disabled={sparasFoto}
                 onClick={() => fotoInput.current?.click()}
-                className="flex min-h-8 items-center gap-1.5 rounded px-2 text-sm text-panel/70 disabled:opacity-50"
+                className="flex min-h-11 items-center gap-1.5 rounded px-2.5 text-sm text-panel/70 disabled:opacity-50"
               >
                 <KameraIkon width={16} height={16} />
                 {sparasFoto ? 'Sparar …' : 'Foto'}
@@ -134,7 +138,7 @@ export function SnabbLogg({ plantId, areaId }: { plantId?: string; areaId?: stri
               <button
                 type="button"
                 onClick={() => setAntecknar(true)}
-                className="flex min-h-8 items-center gap-1.5 rounded px-2 text-sm text-panel/70"
+                className="flex min-h-11 items-center gap-1.5 rounded px-2.5 text-sm text-panel/70"
               >
                 <PennaIkon width={16} height={16} />
                 Skriv anteckning
@@ -143,6 +147,12 @@ export function SnabbLogg({ plantId, areaId }: { plantId?: string; areaId?: stri
           )
         )}
       </div>
+
+      {fel && (
+        <p role="alert" className="mt-1 text-sm text-fermob">
+          Fotot kunde inte sparas. Försök igen.
+        </p>
+      )}
 
       {antecknar && (
         <form onSubmit={sparaAnteckning} className="mt-1 flex flex-col gap-2">
