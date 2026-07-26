@@ -1,29 +1,95 @@
+import { useState } from 'react'
+import { Chip } from '../components/Chip'
 import { Tidslinje } from '../components/Tidslinje'
 import { VyHuvud } from '../components/VyHuvud'
-import { useData, ytaNamn } from '../data/DataProvider'
+import { useData } from '../data/DataProvider'
+import type { HandelseTyp } from '../data/types'
+import { handelseEtikett } from '../lib/etiketter'
 
+const TYPER: HandelseTyp[] = [
+  'foto',
+  'vattnat',
+  'gödslat',
+  'beskuret',
+  'planterat',
+  'flyttat',
+  'anteckning',
+]
+
+/** Hela historiken, filtrerbar på växt, plats, trädgård och typ. */
 export function LoggView() {
-  const { logg, vaxter, ytor, laddad } = useData()
+  const { handelser, vaxter, platser, tradgardar, laddad } = useData()
+  const [typ, setTyp] = useState<HandelseTyp>()
+  const [mal, setMal] = useState<string>()
+
   if (!laddad) return null
 
-  const vaxtNamn = new Map(vaxter.map((v) => [v.id, v.name]))
+  const platsAvId = new Map(platser.map((p) => [p.id, p]))
+  const vaxtAvId = new Map(vaxter.map((v) => [v.id, v]))
+
+  function tradgardFor(id: string | undefined): string | undefined {
+    if (!id) return undefined
+    return platsAvId.get(id)?.tradgardId
+  }
+
+  const filtrerade = handelser.filter((h) => {
+    if (typ && h.typ !== typ) return false
+    if (!mal) return true
+    if (mal.startsWith('t:')) {
+      const tradgardId = mal.slice(2)
+      const viaPlats = tradgardFor(h.platsId)
+      const viaVaxt = tradgardFor(vaxtAvId.get(h.vaxtId ?? '')?.platsId)
+      return viaPlats === tradgardId || viaVaxt === tradgardId
+    }
+    if (mal === 'utan-plats') {
+      return h.vaxtId !== undefined && !vaxtAvId.get(h.vaxtId)?.platsId
+    }
+    return false
+  })
 
   return (
-    <div className="mx-auto w-full max-w-2xl p-5 md:p-8">
+    <div className="tona-upp mx-auto w-full max-w-2xl px-5 py-5 md:px-8 md:py-8">
       <VyHuvud titel="Logg" />
+
+      <div className="dolj-scroll -mx-5 mb-2 flex gap-2 overflow-x-auto px-5 md:-mx-8 md:px-8">
+        <Chip vald={!mal} onClick={() => setMal(undefined)}>
+          Allt
+        </Chip>
+        {tradgardar.map((t) => (
+          <Chip key={t.id} vald={mal === `t:${t.id}`} onClick={() => setMal(`t:${t.id}`)}>
+            {t.namn}
+          </Chip>
+        ))}
+        <Chip vald={mal === 'utan-plats'} onClick={() => setMal('utan-plats')}>
+          Utan plats
+        </Chip>
+      </div>
+
+      <div className="dolj-scroll -mx-5 mb-4 flex gap-2 overflow-x-auto px-5 md:-mx-8 md:px-8">
+        <Chip vald={!typ} onClick={() => setTyp(undefined)}>
+          Alla slag
+        </Chip>
+        {TYPER.map((t) => (
+          <Chip key={t} vald={typ === t} onClick={() => setTyp(t)}>
+            {handelseEtikett(t)}
+          </Chip>
+        ))}
+      </div>
+
+      <p className="mono mb-2 text-xs text-dis-svag">
+        {filtrerade.length === 1 ? '1 händelse' : `${filtrerade.length} händelser`}
+      </p>
+
       <Tidslinje
-        poster={logg}
-        mal={(post) => {
-          if (post.plantId) {
-            const namn = vaxtNamn.get(post.plantId)
-            return namn ? { text: namn, lank: `/vaxter/${post.plantId}` } : undefined
-          }
-          if (post.areaId) {
-            return { text: ytaNamn(ytor, post.areaId), lank: `/ytor/${post.areaId}` }
-          }
-          return undefined
-        }}
-        tom="Inget loggat än. Öppna en växt eller yta och tryck på Vattnat, så börjar journalen här."
+        handelser={filtrerade}
+        vaxter={vaxter}
+        platser={platser}
+        visaMal
+        tomText={
+          handelser.length === 0
+            ? 'Inget loggat än. Öppna en växt och tryck Vattnat — det är ett tryck.'
+            : 'Inget matchar filtret.'
+        }
       />
     </div>
   )

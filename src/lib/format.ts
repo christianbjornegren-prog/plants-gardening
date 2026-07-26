@@ -42,3 +42,30 @@ export function formatDatum(datum: Date, idag: Date = new Date()): string {
     ? datumFormat.format(datum)
     : datumMedArFormat.format(datum)
 }
+
+const kortFormat = new Intl.DateTimeFormat('sv-SE', { day: 'numeric', month: 'short' })
+const manadArFormat = new Intl.DateTimeFormat('sv-SE', { month: 'short', year: 'numeric' })
+
+/** "14 maj" / "14 maj 2025" — under bilderna i fototidslinjen, alltid i mono. */
+export function formatDatumKort(datum: Date, idag: Date = new Date()): string {
+  const text = kortFormat.format(datum).replace('.', '')
+  return datum.getFullYear() === idag.getFullYear() ? text : `${text} ${datum.getFullYear()}`
+}
+
+/**
+ * "≈ maj 2026" — för migrerade foton vars exakta datum inte gick att återskapa.
+ * Hellre ett ärligt ungefär än ett påhittat datum i en journal.
+ */
+export function formatOsakertDatum(datum: Date): string {
+  return `≈ ${manadArFormat.format(datum).replace('.', '')}`
+}
+
+/** "3 dagar sedan" / "4 månader sedan" — grovt, för "inte fotad på länge". */
+export function formatSedan(dagar: number): string {
+  if (dagar < 1) return 'i dag'
+  if (dagar === 1) return '1 dag sedan'
+  if (dagar < 60) return `${dagar} dagar sedan`
+  const manader = Math.round(dagar / 30)
+  if (manader < 24) return `${manader} månader sedan`
+  return `${Math.round(dagar / 365)} år sedan`
+}

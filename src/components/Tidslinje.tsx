@@ -1,81 +1,109 @@
-import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import type { LogEntry, LogType } from '../data/types'
-import { formatDatum } from '../lib/format'
-import { LOGGTYPER } from '../lib/logg'
+import type { Handelse, HandelseTyp, Plats, Vaxt } from '../data/types'
+import { handelseEtikett } from '../lib/etiketter'
+import { formatDatum, formatOsakertDatum } from '../lib/format'
 import { FotoBild } from './FotoBild'
-import { DroppeIkon, GodselIkon, PennaIkon, SaxIkon, VaxterIkon } from './Ikoner'
+import {
+  DroppeIkon,
+  GodselIkon,
+  KameraIkon,
+  PennaIkon,
+  PlatsIkon,
+  SaxIkon,
+  VaxterIkon,
+} from './Ikoner'
 
-const TYP_IKON: Record<LogType, typeof DroppeIkon> = {
+const IKON: Record<HandelseTyp, typeof DroppeIkon> = {
   vattnat: DroppeIkon,
   gödslat: GodselIkon,
   beskuret: SaxIkon,
+  foto: KameraIkon,
   planterat: VaxterIkon,
+  flyttat: PlatsIkon,
   anteckning: PennaIkon,
 }
 
-export interface TidslinjeMal {
-  text: string
-  lank: string
-}
-
-/**
- * Tidslinje över loggposter, nyaste först. `mal` anger var posten hör hemma
- * (växt/yta) och visas bara där det behövs (globala loggen).
- */
 export function Tidslinje({
-  poster,
-  mal,
-  tom,
+  handelser,
+  vaxter,
+  platser,
+  visaMal = false,
+  bilder = 'stora',
+  tomText = 'Inget loggat än.',
 }: {
-  poster: LogEntry[]
-  mal?: (post: LogEntry) => TidslinjeMal | undefined
-  tom: ReactNode
+  /** Nyaste först. */
+  handelser: Handelse[]
+  vaxter: Vaxt[]
+  platser: Plats[]
+  /** Visa vilken växt/plats posten gäller — behövs i globala loggen. */
+  visaMal?: boolean
+  /**
+   * 'sma' på växt- och platskort: fototidslinjen ovanför visar redan samma
+   * bilder stort, och att upprepa dem gör historiken oläslig.
+   */
+  bilder?: 'stora' | 'sma'
+  tomText?: string
 }) {
-  if (poster.length === 0) {
-    return <p className="py-6 text-center text-sm text-panel/60">{tom}</p>
+  if (handelser.length === 0) {
+    return <p className="py-6 text-sm text-dis">{tomText}</p>
   }
+
   return (
-    <ol className="flex flex-col">
-      {poster.map((post) => {
-        const Ikon = TYP_IKON[post.type]
-        const postMal = mal?.(post)
+    <ol className="flex flex-col" data-testid="tidslinje">
+      {handelser.map((h) => {
+        const Ikon = IKON[h.typ]
+        const vaxt = h.vaxtId ? vaxter.find((v) => v.id === h.vaxtId) : undefined
+        const plats = h.platsId ? platser.find((p) => p.id === h.platsId) : undefined
+        const datum = new Date(h.datum)
+        const till = platser.find((p) => p.id === h.tillPlatsId)
+
         return (
-          <li
-            key={post.id}
-            className="flex gap-3 border-b border-panel/8 py-3 last:border-b-0"
-          >
-            <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-lov/20 text-orm">
+          <li key={h.id} className="flex gap-3 border-b border-linje/60 py-3 last:border-b-0">
+            <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-upphojd text-lov">
               <Ikon width={16} height={16} />
             </span>
+
             <div className="min-w-0 flex-1">
-              <div className="flex items-baseline justify-between gap-2">
-                <p className="text-sm font-medium">
-                  <span>{LOGGTYPER[post.type]}</span>
-                  {postMal && (
-                    <>
-                      {' · '}
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm text-ljus">
+                  {handelseEtikett(h.typ)}
+                  {h.typ === 'flyttat' && till && <span className="text-dis"> till {till.namn}</span>}
+                </span>
+                <span className="mono shrink-0 text-xs text-dis-svag">
+                  {h.datumOkant ? formatOsakertDatum(datum) : formatDatum(datum)}
+                </span>
+              </div>
+
+              {visaMal && (vaxt || plats) && (
+                <p className="mt-0.5 truncate text-xs">
+                  {vaxt ? (
+                    <Link to={`/vaxter/${vaxt.id}`} className="text-lov underline underline-offset-4">
+                      {vaxt.namn}
+                    </Link>
+                  ) : (
+                    plats && (
                       <Link
-                        to={postMal.lank}
-                        className="font-normal text-orm underline underline-offset-2"
+                        to={`/platser/${plats.id}`}
+                        className="text-lov underline underline-offset-4"
                       >
-                        {postMal.text}
+                        {plats.namn}
                       </Link>
-                    </>
+                    )
                   )}
                 </p>
-                <time className="shrink-0 text-xs text-panel/50" dateTime={post.date}>
-                  {formatDatum(new Date(post.date))}
-                </time>
-              </div>
-              {post.note && (
-                <p className="mt-0.5 text-sm whitespace-pre-wrap text-panel/75">{post.note}</p>
               )}
-              {post.photoRef && (
+
+              {h.anteckning && <p className="mt-1 text-sm text-dis">{h.anteckning}</p>}
+
+              {h.fotoRef && (
                 <FotoBild
-                  fotoRef={post.photoRef}
-                  alt="Loggfoto"
-                  className="mt-2 aspect-[4/3] w-full max-w-60 overflow-hidden rounded-md"
+                  fotoRef={h.fotoRef}
+                  alt={vaxt?.namn ?? plats?.namn ?? 'Foto'}
+                  className={
+                    bilder === 'sma'
+                      ? 'mt-2 size-14 rounded-lg'
+                      : 'mt-2 aspect-[4/3] w-full max-w-60 rounded-lg'
+                  }
                 />
               )}
             </div>

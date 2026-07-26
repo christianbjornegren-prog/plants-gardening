@@ -1,17 +1,19 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { Toaster } from 'sonner'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { Layout } from './components/Layout'
+import { NyVaxtProvider } from './components/NyVaxt'
+import { RullaUpp } from './components/RullaUpp'
 import { DataProvider } from './data/DataProvider'
-import { KartaView } from './views/KartaView'
-import { RedigeraKartaView } from './views/RedigeraKartaView'
+import { PlaceraProvider } from './data/PlaceraProvider'
+import { HemView } from './views/HemView'
 import { LoggaInView } from './views/LoggaInView'
 import { LoggView } from './views/LoggView'
-import { VaxtDetaljView } from './views/VaxtDetaljView'
+import { PlatsView } from './views/PlatsView'
+import { RitaView } from './views/RitaView'
+import { RitningView } from './views/RitningView'
 import { VaxterView } from './views/VaxterView'
-import { VaxtFormView } from './views/VaxtFormView'
-import { YtaDetaljView } from './views/YtaDetaljView'
-import { YtaFormView } from './views/YtaFormView'
-import { YtorView } from './views/YtorView'
+import { VaxtView } from './views/VaxtView'
 
 function AppRoutes() {
   const auth = useAuth()
@@ -19,22 +21,23 @@ function AppRoutes() {
   if (auth.status === 'utloggad') return <LoggaInView />
   return (
     <DataProvider>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route index element={<KartaView />} />
-          <Route path="karta/redigera" element={<RedigeraKartaView />} />
-          <Route path="vaxter" element={<VaxterView />} />
-          <Route path="vaxter/ny" element={<VaxtFormView />} />
-          <Route path="vaxter/:id" element={<VaxtDetaljView />} />
-          <Route path="vaxter/:id/andra" element={<VaxtFormView />} />
-          <Route path="ytor" element={<YtorView />} />
-          <Route path="ytor/ny" element={<YtaFormView />} />
-          <Route path="ytor/:id" element={<YtaDetaljView />} />
-          <Route path="ytor/:id/andra" element={<YtaFormView />} />
-          <Route path="logg" element={<LoggView />} />
-          <Route path="*" element={<KartaView />} />
-        </Route>
-      </Routes>
+      <PlaceraProvider>
+        <NyVaxtProvider>
+          <RullaUpp />
+          <Routes>
+            <Route element={<Layout />}>
+              <Route index element={<HemView />} />
+              <Route path="ritning" element={<RitningView />} />
+              <Route path="ritning/rita" element={<RitaView />} />
+              <Route path="vaxter" element={<VaxterView />} />
+              <Route path="vaxter/:id" element={<VaxtView />} />
+              <Route path="platser/:id" element={<PlatsView />} />
+              <Route path="logg" element={<LoggView />} />
+              <Route path="*" element={<HemView />} />
+            </Route>
+          </Routes>
+        </NyVaxtProvider>
+      </PlaceraProvider>
     </DataProvider>
   )
 }
@@ -44,6 +47,13 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <AppRoutes />
+        {/* Toasts ligger ovanför bottenraden i mobilen. */}
+        <Toaster
+          position="bottom-center"
+          offset={88}
+          mobileOffset={88}
+          toastOptions={{ unstyled: true, className: 'w-full' }}
+        />
       </BrowserRouter>
     </AuthProvider>
   )

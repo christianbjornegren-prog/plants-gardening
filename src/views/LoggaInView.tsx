@@ -27,7 +27,7 @@ export function LoggaInView() {
     <div className="flex min-h-dvh flex-col items-center justify-center gap-8 p-8">
       <Adresskylt stor />
       <form onSubmit={(e) => void loggaIn(e)} className="flex w-full max-w-xs flex-col gap-3">
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1 text-sm text-dis">
           E-post
           <input
             type="email"
@@ -35,10 +35,10 @@ export function LoggaInView() {
             required
             value={epost}
             onChange={(e) => setEpost(e.target.value)}
-            className="rounded-md border border-panel/20 bg-white px-3 py-2.5 text-base"
+            className="rounded-lg border border-linje bg-panel px-3 py-2.5 text-base text-ljus"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1 text-sm text-dis">
           Lösenord
           <input
             type="password"
@@ -46,18 +46,18 @@ export function LoggaInView() {
             required
             value={losenord}
             onChange={(e) => setLosenord(e.target.value)}
-            className="rounded-md border border-panel/20 bg-white px-3 py-2.5 text-base"
+            className="rounded-lg border border-linje bg-panel px-3 py-2.5 text-base text-ljus"
           />
         </label>
         {fel && (
-          <p className="text-sm text-fermob">
+          <p role="alert" className="text-sm text-fermob-lyft">
             Det gick inte att logga in. Kontrollera e-post och lösenord.
           </p>
         )}
         <button
           type="submit"
           disabled={skickar}
-          className="mt-2 min-h-11 rounded-md bg-fermob px-4 py-2.5 font-medium text-ljus disabled:opacity-60"
+          className="mt-2 min-h-11 rounded-lg bg-fermob px-4 py-2.5 font-medium text-white disabled:opacity-60"
         >
           Logga in
         </button>
