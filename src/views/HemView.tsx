@@ -41,7 +41,7 @@ export function HemView() {
           rubrik="Trädgården är tom än"
           text="Börja med att fota en växt. Namn räcker — plats och det andra kan komma sen."
           atgard={
-            <Knapp variant="primar" onClick={() => oppna()}>
+            <Knapp onClick={() => oppna()}>
               Fota första växten
             </Knapp>
           }
@@ -94,7 +94,7 @@ export function HemView() {
       </dl>
 
       <div className="mb-8">
-        <Knapp variant="primar" onClick={() => oppna()}>
+        <Knapp onClick={() => oppna()}>
           Fota en växt
         </Knapp>
       </div>

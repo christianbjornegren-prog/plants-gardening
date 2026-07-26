@@ -91,7 +91,6 @@ export function PlatsView() {
         <div className="mb-5 flex items-center gap-3 rounded-xl border border-dashed border-linje px-4 py-3">
           <p className="flex-1 text-sm text-dis">Planerad — inte anlagd än.</p>
           <Knapp
-            variant="primar"
             onClick={() => {
               void (async () => {
                 const repo = await import('../data/repo')

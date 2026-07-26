@@ -64,7 +64,7 @@ export function VaxterView() {
         rubrik="Här bor inga växter än"
         text="Lägg till den första. Ett namn räcker — plats och det andra kan komma sen."
         atgard={
-          <Knapp variant="primar" onClick={() => oppna()}>
+          <Knapp onClick={() => oppna()}>
             Fota första växten
           </Knapp>
         }

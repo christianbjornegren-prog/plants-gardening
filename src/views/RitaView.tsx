@@ -448,7 +448,8 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
               setMatPunkter([])
               setArmerad(undefined)
             }}
-            className={matar ? 'border-fermob-text text-fermob-text' : ''}
+            aria-pressed={matar}
+            className={matar ? 'bg-upphojd font-medium' : ''}
           >
             {matar ? 'Sluta mäta' : 'Mät'}
           </Knapp>
@@ -1032,7 +1033,6 @@ function PlatsPanel({
             {/* Lågmäld och sist. Rött är signalfärg, inte "radera". */}
             <div className="pt-1">
               <TaBortKnapp
-                variant="lank"
                 onBekraftad={() => {
                   const vaxterDar = vaxter.filter((v) => v.platsId === plats.id)
                   const platsFore = plats

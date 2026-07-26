@@ -74,7 +74,7 @@ function LoggaUtKnapp() {
           await signOut(getAuth(getFirebaseApp()))
         })()
       }}
-      className="min-h-9 shrink-0 rounded-lg border border-linje px-3 text-sm text-fermob-text"
+      className="min-h-9 shrink-0 rounded-lg border border-linje px-3 text-sm text-tusch"
     >
       Logga in igen
     </button>

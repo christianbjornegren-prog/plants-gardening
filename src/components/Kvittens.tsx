@@ -41,7 +41,7 @@ export function kvittera({
             toast.dismiss(t)
             onAngra()
           }}
-          className="min-h-9 shrink-0 rounded-lg px-2 text-sm font-medium text-fermob-text"
+          className="min-h-9 shrink-0 rounded-lg border border-linje px-3 text-sm font-medium text-tusch"
         >
           Ångra
         </button>

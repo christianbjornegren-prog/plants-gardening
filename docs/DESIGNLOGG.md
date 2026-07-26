@@ -405,3 +405,32 @@ inte målet — ritningen är. Vyn öppnar dessutom zoomad till det som faktiskt
 ritat (`innehallsRuta`), med ett golv på 6 × 6 m så en ensam pallkrage inte
 fyller skärmen. En rabatt i hörnet av en 20 × 20-tomt öppnade förut som en
 nästan tom yta.
+
+## Färgdisciplin — en röd åtgärd per skärm
+
+Soffröd är signalfärg. Regeln, nu kodifierad i `components/Knapp.tsx` och
+vaktad av `knapproller.test.tsx` + `e2e/fargdisciplin.spec.ts`:
+
+- **Exakt en röd åtgärd per skärm.** Skalets "Ny växt" (+) är appens röda.
+  En vy får en egen röd bara när skalet inte syns: ritläget (*Rita ny
+  plats*), inloggningen (*Logga in med Google*) och ark/sheets (deras
+  primärknapp), eftersom overlayn täcker skalet.
+- **Fyra roller, ett ställe:** `primar`, `sekundar`, `diskret`, `destruktiv`.
+  Inga ad hoc-knappstilar i vyerna.
+- **Destruktivt är diskret text i normal färg.** Rött förekommer först i
+  bekräftelsesteget ("Tryck igen för att ta bort"). TaBortKnapps inramade
+  röda variant är borttagen.
+- **Lägen markeras med ton, inte signalfärg:** armerat Mät-läge är
+  `bg-upphojd` + medium, placeringsbanderollen har neutral kant. Kvittensens
+  Ångra och FelVakts åtgärdsknapp är neutrala — felbanderollens röda kant ÄR
+  felsignalen, knappen behöver inte skrika samma sak.
+
+**Medvetet kvar i rött:** ritytans *canvas-återkoppling* — markerad forms
+kontur, pågående polygon, måttbandet, hårkorset. Det är inte knappar utan
+pennan i handen: färgen följer den pågående primärhandlingen. Feltexter
+(`role="alert"`) behåller också rött — fel är den andra legitima signalen.
+
+Demoterade till sekundär: Hems "Fota en växt" och tomlägenas "Fota första
+växten" (skalets + är samma handling — två röda för en handling är brus),
+inline-formulärets "Skapa ritningen" i Ritningen, samt "Planterad"/"Anlagd"
+(tillståndsövergångar, inte skärmens nästa handling).

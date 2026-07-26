@@ -2,10 +2,21 @@ import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from '
 import { Link, type LinkProps } from 'react-router-dom'
 
 /**
- * Tre varianter, inte fler. `primar` bär fermob-fyllning och REN vit text —
- * den varma ljus-tonen klarar inte 4,5:1 mot #D3442E (se lib/palett.ts).
+ * Fyra knapproller, definierade på ETT ställe. Regeln de bär upp:
+ *
+ * - `primar` är soffröd och används till EXAKT EN åtgärd per skärm — den
+ *   självklara nästa handlingen. Skalets "Ny växt" är appens röda; en vy får
+ *   bara en egen röd när skalet inte syns (ritläget, inloggningen, ark).
+ * - `sekundar` är neutral yta med kant: lätt att hitta, lyser inte.
+ * - `diskret` är ren text för det som ska finnas men inte synas.
+ * - `destruktiv` är diskret text i normal färg. Rött får förekomma först i
+ *   bekräftelsesteget — rött är signalfärg, inte "radera".
+ *
+ * `primar` bär REN vit text — den varma ljus-tonen klarar inte 4,5:1 mot
+ * #D3442E (se lib/palett.ts). Regeln vaktas av knapproller.test.tsx och
+ * e2e/fargdisciplin.spec.ts.
  */
-type Variant = 'primar' | 'sekundar' | 'tyst'
+type Variant = 'primar' | 'sekundar' | 'diskret' | 'destruktiv'
 
 const GRUND =
   'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm ' +
@@ -18,8 +29,13 @@ function knappStil(variant: Variant): string {
       return `${GRUND} bg-fermob font-medium text-white hover:bg-fermob/90`
     case 'sekundar':
       return `${GRUND} border border-linje bg-panel text-tusch hover:bg-upphojd`
-    case 'tyst':
+    case 'diskret':
       return `${GRUND} text-dis hover:text-tusch`
+    case 'destruktiv':
+      return (
+        'inline-flex min-h-9 items-center text-left text-sm text-dis underline ' +
+        'underline-offset-4 hover:text-tusch'
+      )
   }
 }
 
@@ -42,21 +58,17 @@ export function LankKnapp({
 
 /**
  * Tvåstegsknapp för borttagning: första trycket armerar, andra bekräftar.
- *
- * `lank` är den lågmälda varianten — destruktiva åtgärder ska vara svåra att
- * träffa av misstag, inte det mest framträdande i vyn. Rött är vår signalfärg
- * och ska inte betyda "radera".
+ * Före armering ser den ut som `destruktiv` — diskret text i normal färg.
+ * Först i bekräftelsesteget blir texten röd: det är själva signalen.
  */
 export function TaBortKnapp({
   onBekraftad,
   children = 'Ta bort',
   avarmeraEfterMs = 4000,
-  variant = 'knapp',
 }: {
   onBekraftad: () => void
   children?: ReactNode
   avarmeraEfterMs?: number
-  variant?: 'knapp' | 'lank'
 }) {
   const [armerad, setArmerad] = useState(false)
 
@@ -66,30 +78,12 @@ export function TaBortKnapp({
     return () => clearTimeout(timer)
   }, [armerad, avarmeraEfterMs])
 
-  const gemensam = () => (armerad ? onBekraftad() : setArmerad(true))
-
-  if (variant === 'lank') {
-    return (
-      <button
-        type="button"
-        onClick={gemensam}
-        className={`min-h-9 text-left text-sm underline underline-offset-4 ${
-          armerad ? 'font-medium text-fermob-text' : 'text-dis hover:text-fermob-text'
-        }`}
-      >
-        {armerad ? 'Tryck igen för att ta bort' : children}
-      </button>
-    )
-  }
-
   return (
     <button
       type="button"
-      onClick={gemensam}
-      className={`${GRUND} ${
-        armerad
-          ? 'bg-fermob font-medium text-white'
-          : 'border border-fermob-text/45 text-fermob-text hover:bg-fermob-text/10'
+      onClick={() => (armerad ? onBekraftad() : setArmerad(true))}
+      className={`min-h-9 text-left text-sm underline underline-offset-4 ${
+        armerad ? 'font-medium text-fermob-text' : 'text-dis hover:text-tusch'
       }`}
     >
       {armerad ? 'Tryck igen för att ta bort' : children}

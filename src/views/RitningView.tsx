@@ -328,9 +328,7 @@ function UtanRitning({ tradgard }: { tradgard: Tradgard }) {
               </Falt>
             </div>
             {fel && <p className="text-sm text-fermob-text">Ange måtten i meter, t.ex. 18 och 11,5.</p>}
-            <Knapp type="submit" variant="primar">
-              Skapa ritningen
-            </Knapp>
+            <Knapp type="submit">Skapa ritningen</Knapp>
           </form>
         ) : (
           <button
@@ -604,7 +602,7 @@ function LevandeRitning({
       {vb && <Skalstock mpp={mpp} />}
 
       {placera.uppdrag && (
-        <div className="absolute inset-x-3 top-3 flex items-center gap-3 rounded-xl border border-fermob-text/40 bg-panel px-4 py-3">
+        <div className="absolute inset-x-3 top-3 flex items-center gap-3 rounded-xl border border-linje bg-panel px-4 py-3 shadow-sm">
           <p className="flex-1 text-sm text-tusch">
             Tryck där <span className="font-medium">{placera.uppdrag.vaxtNamn}</span> står.
           </p>
