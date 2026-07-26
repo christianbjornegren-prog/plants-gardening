@@ -18,8 +18,10 @@ export default defineConfig({
         lang: 'sv',
         start_url: '/',
         display: 'standalone',
-        background_color: '#F7F5F0',
-        theme_color: '#232823',
+        // Måste följa den mörka appen — annars blinkar installationen
+        // ljusbeige innan appen laddat. botten resp. panel.
+        background_color: '#12110B',
+        theme_color: '#24231B',
         icons: [
           { src: 'ikon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'ikon-512.png', sizes: '512x512', type: 'image/png' },
