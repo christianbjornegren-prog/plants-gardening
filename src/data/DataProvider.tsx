@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useDataRot, usePersonligUid } from '../auth/AuthProvider'
 import { lyssnaPaDataFel, rapporteraDataFel } from './fel'
-import type { Handelse, Plats, Tradgard, Vaxt } from './types'
+import type { Handelse, Plats, Skuggkalla, Tradgard, Vaxt } from './types'
 
 export interface DataVarde {
   tradgardar: Tradgard[]
@@ -9,6 +9,8 @@ export interface DataVarde {
   vaxter: Vaxt[]
   /** Sorterad med nyaste först. */
   handelser: Handelse[]
+  /** Skuggkastare utanför tomten — bara Solen bryr sig. */
+  skuggkallor: Skuggkalla[]
   /** false tills migrering körts och alla lyssnare svarat — visa inget innan dess. */
   laddad: boolean
 }
@@ -22,6 +24,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [platser, setPlatser] = useState<Plats[]>()
   const [vaxter, setVaxter] = useState<Vaxt[]>()
   const [handelser, setHandelser] = useState<Handelse[]>()
+  const [skuggkallor, setSkuggkallor] = useState<Skuggkalla[]>()
   const [lasfel, setLasfel] = useState(false)
 
   // En nekad lyssnare svarar aldrig, och då fastnade `laddad` på false för
@@ -43,6 +46,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         repo.lyssnaPaPlatser(uid, (nya) => aktiv && setPlatser(nya)),
         repo.lyssnaPaVaxter(uid, (nya) => aktiv && setVaxter(nya)),
         repo.lyssnaPaHandelser(uid, (nya) => aktiv && setHandelser(nya)),
+        repo.lyssnaPaSkuggkallor(uid, (nya) => aktiv && setSkuggkallor(nya)),
       )
     })().catch((fel) => {
       // Utan detta kastar starten tyst och appen står vit för alltid.
@@ -61,6 +65,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       platser: platser ?? [],
       vaxter: vaxter ?? [],
       handelser: handelser ?? [],
+      skuggkallor: skuggkallor ?? [],
+      // laddad väntar INTE på skuggkällorna — de är ett soltillbehör och ska
+      // inte kunna blockera resten av appen.
       laddad:
         lasfel ||
         (tradgardar !== undefined &&
@@ -68,7 +75,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           vaxter !== undefined &&
           handelser !== undefined),
     }),
-    [tradgardar, platser, vaxter, handelser, lasfel],
+    [tradgardar, platser, vaxter, handelser, skuggkallor, lasfel],
   )
 
   return <DataContext.Provider value={varde}>{children}</DataContext.Provider>

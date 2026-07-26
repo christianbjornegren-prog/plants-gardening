@@ -33,6 +33,7 @@ import type {
   Plats,
   PlatsTyp,
   PunktM,
+  Skuggkalla,
   Sol,
   Status,
   Tradgard,
@@ -69,6 +70,7 @@ const platsCol = (uid: string) => collection(getDb(), 'users', uid, 'platser')
 const vaxtCol = (uid: string) => collection(getDb(), 'users', uid, 'vaxter')
 const handelseCol = (uid: string) => collection(getDb(), 'users', uid, 'handelser')
 const migreringDoc = (uid: string) => doc(getDb(), 'users', uid, 'meta', 'migrering')
+const skuggkallaCol = (uid: string) => collection(getDb(), 'users', uid, 'skuggkallor')
 
 export function nyttId(): string {
   return crypto.randomUUID().slice(0, 8)
@@ -84,6 +86,9 @@ function tillTradgard(snap: QueryDocumentSnapshot<DocumentData>): Tradgard {
     ordning: typeof d.ordning === 'number' ? d.ordning : 99,
     widthM: typeof d.widthM === 'number' ? d.widthM : undefined,
     heightM: typeof d.heightM === 'number' ? d.heightM : undefined,
+    norrVinkel: typeof d.norrVinkel === 'number' ? d.norrVinkel : undefined,
+    latitud: typeof d.latitud === 'number' ? d.latitud : undefined,
+    longitud: typeof d.longitud === 'number' ? d.longitud : undefined,
   }
 }
 
@@ -102,6 +107,7 @@ function tillPlats(snap: QueryDocumentSnapshot<DocumentData>): Plats {
     vaderstreck: d.vaderstreck as Vaderstreck | undefined,
     status: d.status === 'planerad' ? 'planerad' : 'finns',
     anteckning: d.anteckning as string | undefined,
+    hojdM: typeof d.hojdM === 'number' ? d.hojdM : undefined,
   }
 }
 
@@ -206,6 +212,25 @@ export function sparaTradgardMatt(uid: string, id: string, widthM: number, heigh
 
 export function dopOmTradgard(uid: string, id: string, namn: string): void {
   void updateDoc(doc(tradgardCol(uid), id), { namn }).catch(loggaFel)
+}
+
+/** Norrvinkel och läge för solberäkningen. Bara de fält som skickas med rörs. */
+export function sparaSolinstallning(
+  uid: string,
+  id: string,
+  falt: { norrVinkel?: number; latitud?: number; longitud?: number },
+): void {
+  const uppdatering: Record<string, unknown> = {}
+  if ('norrVinkel' in falt) uppdatering.norrVinkel = falt.norrVinkel ?? deleteField()
+  if ('latitud' in falt) uppdatering.latitud = falt.latitud ?? deleteField()
+  if ('longitud' in falt) uppdatering.longitud = falt.longitud ?? deleteField()
+  if (Object.keys(uppdatering).length === 0) return
+  void updateDoc(doc(tradgardCol(uid), id), uppdatering).catch(loggaFel)
+}
+
+/** Platsens höjd i meter — undefined tar bort fältet. */
+export function sparaPlatsHojd(uid: string, id: string, hojdM: number | undefined): void {
+  void updateDoc(doc(platsCol(uid), id), { hojdM: hojdM ?? deleteField() }).catch(loggaFel)
 }
 
 /* -------------------------------------------------------------------- platser */
@@ -471,6 +496,63 @@ export function markeraPlatsAnlagd(uid: string, plats: Plats): void {
 export function taBortVaxt(uid: string, vaxt: Vaxt, handelser: Handelse[]): void {
   void deleteDoc(doc(vaxtCol(uid), vaxt.id)).catch(loggaFel)
   void stadaHandelser(uid, 'vaxtId', vaxt.id, handelser).catch(loggaFel)
+}
+
+/* ---------------------------------------------------------------- skuggkällor */
+
+function tillSkuggkalla(snap: QueryDocumentSnapshot<DocumentData>): Skuggkalla {
+  const d = snap.data()
+  const geometri = franLagradGeometri(d.geometri)
+  return {
+    id: snap.id,
+    tradgardId: typeof d.tradgardId === 'string' ? d.tradgardId : '',
+    namn: typeof d.namn === 'string' ? d.namn : '',
+    punkter: geometri?.punkter ?? [],
+    hojdM: typeof d.hojdM === 'number' ? d.hojdM : 0,
+  }
+}
+
+export function lyssnaPaSkuggkallor(
+  uid: string,
+  mottagare: (v: Skuggkalla[]) => void,
+): () => void {
+  return onSnapshot(
+    skuggkallaCol(uid),
+    (snap) =>
+      mottagare(snap.docs.map(tillSkuggkalla).sort((a, b) => sorterare.compare(a.namn, b.namn))),
+    loggaLasfel,
+  )
+}
+
+export function skapaSkuggkalla(
+  uid: string,
+  falt: { tradgardId: string; namn: string; punkter: PunktM[]; hojdM: number },
+): string {
+  const ny = doc(skuggkallaCol(uid))
+  void setDoc(ny, {
+    tradgardId: falt.tradgardId,
+    namn: falt.namn,
+    geometri: tillLagradGeometri({ punkter: falt.punkter }),
+    hojdM: falt.hojdM,
+  }).catch(loggaFel)
+  return ny.id
+}
+
+export function uppdateraSkuggkalla(
+  uid: string,
+  id: string,
+  falt: Partial<{ namn: string; punkter: PunktM[]; hojdM: number }>,
+): void {
+  const uppdatering: Record<string, unknown> = {}
+  if ('namn' in falt) uppdatering.namn = falt.namn
+  if ('hojdM' in falt) uppdatering.hojdM = falt.hojdM
+  if (falt.punkter) uppdatering.geometri = tillLagradGeometri({ punkter: falt.punkter })
+  if (Object.keys(uppdatering).length === 0) return
+  void updateDoc(doc(skuggkallaCol(uid), id), uppdatering).catch(loggaFel)
+}
+
+export function taBortSkuggkalla(uid: string, id: string): void {
+  void deleteDoc(doc(skuggkallaCol(uid), id)).catch(loggaFel)
 }
 
 /* ------------------------------------------------------------------ händelser */
