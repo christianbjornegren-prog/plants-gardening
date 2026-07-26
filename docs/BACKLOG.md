@@ -20,17 +20,24 @@ Uppdateras varje session.
   växt, per yta (inkl. växternas poster) och globalt med länkar till målet.
   Loggposter städas när växt/yta tas bort.
 
+- **Fas 3 — Kartan:** setup med tomtmått, meterkoordinater, polygonritning
+  och hörn-/objektdragning med snap 0,1 m i redigeringsläget, typfärger +
+  trallmönster, namnetiketter, koppling objekt↔yta (inkl. "skapa yta från
+  objektet"), växtprickar (sparad position eller autoplacering), pan/pinch/
+  hjulzoom, infokort med snabblogg (Vattnat på 3 tryck från kartan!),
+  dra-prick-för-att-flytta med moveHistory, startanimationen med
+  prefers-reduced-motion-stöd.
+
 ## Pågår
 
-- **Fas 3 — Kartan:** meterkoordinater, polygonredigering (desktop),
-  typfärger, växtprickar, mobil pan/zoom + dra-för-att-flytta,
-  startanimationen.
+- **Fas 4 — Polish:** fototidslinje, årstidston, offline-finslipning.
 
 ## Senare
-- **Fas 4 — Polish:** fototidslinje, årstidston, offline-finslipning.
 - Ta bort enskilda foton från en växt (nu tas foton bara bort med växten).
 - Ta bort enskilda loggposter i efterhand (nu bara Ångra direkt efteråt).
 - Foto på loggpost (`photoRef` finns i schemat men saknar UI).
+- Lägga till/ta bort enskilda hörn på befintlig polygon.
+- Zoomknappar (+/−) som komplement till pinch/hjul.
 
 ## Ingår inte i v1
 

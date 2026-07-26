@@ -51,3 +51,25 @@ Designbeslut + vad som provats och förkastats.
   och känns levande från första stund.
 - **Provat och förkastat:** loggformulär med typ-väljare (för många steg);
   per-rad-radering i tidslinjen (för plottrigt, Ångra täcker felslag).
+
+## Fas 3
+
+- **Kartans språk:** panel-mörka konturer på vitlyft tomtyta = tuschritning.
+  Typfärger ur paletten: gräsmatta lov/45, rabatt tra/55, pallkrage tra/75,
+  häck orm/55, träd lov/35 med orm-kontur, bod nästan helmörk med ljus
+  etikett, altan med trallmönster (SVG-pattern i verklig skala, 28 cm brädor),
+  staket streckad öppen linje. Fermob endast för valt objekt/dragen prick.
+- **Etiketter och prickar är skärmkonstanta** (skalas med meter-per-pixel) —
+  kartan ska kännas som en ritning, inte en webbsida som zoomar text.
+  Etiketter visas bara när objektet är stort nog på skärmen (>64 px).
+- **Startanimationen:** tomtgräns (0 ms) → altan → bod → rabatter → övrigt
+  (90 ms stagger), fyllnader tonar in ~370 ms efter respektive kontur,
+  prickar landar med studs från 1050 ms. Totalt ~1,3 s. Spelas en gång per
+  appstart; `prefers-reduced-motion` visar allt direkt.
+- **Infokortet** ligger som flytande kort nertill (inte modal) — kartan
+  förblir synlig och interaktiv logik enkel. Växtens kort har snabbloggen:
+  Karta → prick → Vattnat = tre tryck.
+- **Provat och förkastat:** `pathLength`-normaliserad dash-animation
+  (fungerar inte med non-scaling-stroke, gav permanent streckade konturer);
+  autoplacering av prickar exakt på centroiden (krockade med namnetiketten,
+  flyttad 0,6 m nedåt).

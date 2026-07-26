@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { Layout } from './components/Layout'
 import { DataProvider } from './data/DataProvider'
 import { KartaView } from './views/KartaView'
+import { RedigeraKartaView } from './views/RedigeraKartaView'
 import { LoggaInView } from './views/LoggaInView'
 import { LoggView } from './views/LoggView'
 import { VaxtDetaljView } from './views/VaxtDetaljView'
@@ -21,6 +22,7 @@ function AppRoutes() {
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<KartaView />} />
+          <Route path="karta/redigera" element={<RedigeraKartaView />} />
           <Route path="vaxter" element={<VaxterView />} />
           <Route path="vaxter/ny" element={<VaxtFormView />} />
           <Route path="vaxter/:id" element={<VaxtDetaljView />} />

@@ -10,6 +10,13 @@ export function formatMeter(varde: number): string {
   return `${meterFormat.format(varde)} m`
 }
 
+/** Tolkar "12,5" eller "12.5" som meter. undefined om ogiltigt eller orimligt. */
+export function tolkaMeter(text: string, min = 0.1, max = 200): number | undefined {
+  const varde = Number.parseFloat(text.replace(',', '.'))
+  if (!Number.isFinite(varde) || varde < min || varde > max) return undefined
+  return varde
+}
+
 const datumFormat = new Intl.DateTimeFormat('sv-SE', { day: 'numeric', month: 'long' })
 const datumMedArFormat = new Intl.DateTimeFormat('sv-SE', {
   day: 'numeric',

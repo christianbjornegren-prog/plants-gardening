@@ -31,6 +31,16 @@
 | Snabblogg | tre tryck från fliken till Vattnat, kvittens, Ångra tar bort posten | e2e |
 | Loggposter | auto-Planterat vid ny växt, anteckning på yta, ytlogg med växtlänkar | e2e |
 | Loggstädning | borttagen växt lämnar inga loggposter | e2e |
+| Geometri | snap, centroid, punkt-i-polygon (även icke-konvex), omkrets, bbox | enhet |
+| ViewBox | anpassa/zooma/panorera/begränsa | enhet |
+| Växtplacering | sparad position, autoplacering i polygon, deterministisk, spridning | enhet |
+| Kartkonvertering | punkter ↔ {x,y}, undefined-fält, trasig data | enhet |
+| Karta setup | tomtmått → tomtgräns + adresskylt | e2e |
+| Ritning | polygon klickas ut, panel öppnas, typ/namn, kvar efter omladdning | e2e |
+| Yta-koppling | skapa yta från objekt → växtprick på kartan | e2e |
+| Infokort | tryck på objekt/prick, stäng, Vattnat från kartan (3 tryck) | e2e |
+| Prickdragning | dra till annat objekt → ny yta + flytthistorik | e2e |
+| Rörelse | reducedMotion: kartan visas direkt | e2e |
 
 ## Kända luckor
 

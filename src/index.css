@@ -29,3 +29,64 @@
     outline-offset: 2px;
   }
 }
+
+/* Startanimationen: kartan ritas fram som en tuschritning (se CLAUDE.md).
+   Konturer tecknas med stroke-dashoffset (dash-längd = omkrets i meter, satt
+   inline per element), fyllnader tonar in, prickar landar. */
+.anim-objekt {
+  fill-opacity: 0;
+  animation:
+    karta-rita 0.5s ease-out forwards,
+    karta-fyll 0.45s ease forwards;
+  animation-delay: var(--rit-d, 0ms), var(--fyll-d, 400ms);
+}
+
+.anim-tona {
+  opacity: 0;
+  animation: karta-tona 0.4s ease forwards;
+  animation-delay: var(--ton-d, 900ms);
+}
+
+.anim-prick {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0.3);
+  animation: karta-prick 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation-delay: var(--prick-d, 1050ms);
+}
+
+@keyframes karta-rita {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes karta-fyll {
+  to {
+    fill-opacity: 1;
+  }
+}
+@keyframes karta-tona {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes karta-prick {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-objekt,
+  .anim-tona,
+  .anim-prick {
+    animation: none;
+    /* !important: dash-längderna sätts inline per element */
+    stroke-dashoffset: 0 !important;
+    fill-opacity: 1;
+    opacity: 1;
+    transform: none;
+  }
+}

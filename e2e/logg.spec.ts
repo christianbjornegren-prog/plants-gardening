@@ -91,6 +91,7 @@ test('borttagen växt försvinner ur loggen', async ({ page }) => {
   await page.getByRole('button', { name: 'Tryck igen för att ta bort' }).click()
   await expect(page).toHaveURL(/\/vaxter$/)
 
-  await page.goto('/logg')
+  // SPA-navigering (ingen omladdning) så att raderingarna hinner persisteras
+  await page.getByRole('link', { name: 'Logg' }).first().click()
   await expect(page.getByText('Inget loggat än', { exact: false })).toBeVisible()
 })

@@ -26,6 +26,13 @@ users/{uid}/
 - **Kartobjekt** (`objects[]`) är polygoner + typ. Typer:
   `bod | altan | rabatt | gräsmatta | pallkrage | häck | träd | staket | annat`.
   Typer i `VAXTBARA_TYPER` kan kopplas till en yta.
+- **Lagringsformat för punkter:** Firestore stödjer inte nästlade arrayer,
+  så `points` lagras som `[{x, y}, …]` i dokumentet men är tupler `[x, y]`
+  i appens typer. Konverteringen bor i `src/data/kartkonvertering.ts`.
+- **Växtprickar:** växt med `position` ritas där; växt utan `position` vars
+  yta har `mapObjectId` autoplaceras i objektet (deterministisk spiral).
+  Flytt via kartan sätter `position` och byter `areaId` + `moveHistory` om
+  pricken släpps i ett objekt kopplat till en annan yta.
 - **Yta ≠ kartobjekt.** En yta kan sakna kartposition (t.ex. "Köksfönstret").
   Ett kartobjekt kan sakna yta (t.ex. staketet). Koppling via `mapObjectId`.
 - **id-fältet** i TS-typerna är dokument-id:t, ifyllt vid läsning (lagras inte

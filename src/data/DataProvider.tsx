@@ -1,12 +1,14 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useUid } from '../auth/AuthProvider'
-import type { Area, LogEntry, Plant } from './types'
+import type { Area, GardenMap, LogEntry, Plant } from './types'
 
 export interface DataVarde {
   ytor: Area[]
   vaxter: Plant[]
   /** Sorterad med nyaste först. */
   logg: LogEntry[]
+  /** null = ingen karta upplagd än. */
+  karta: GardenMap | null
   /** false tills alla lyssnare gett sitt första svar — visa inget innan dess. */
   laddad: boolean
 }
@@ -18,6 +20,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [ytor, setYtor] = useState<Area[]>()
   const [vaxter, setVaxter] = useState<Plant[]>()
   const [logg, setLogg] = useState<LogEntry[]>()
+  const [karta, setKarta] = useState<GardenMap | null>()
 
   useEffect(() => {
     let aktiv = true
@@ -35,6 +38,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         repo.lyssnaPaLogg(uid, (nya) => {
           if (aktiv) setLogg(nya)
         }),
+        repo.lyssnaPaKarta(uid, (ny) => {
+          if (aktiv) setKarta(ny)
+        }),
       )
     })()
     return () => {
@@ -47,7 +53,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     ytor: ytor ?? [],
     vaxter: vaxter ?? [],
     logg: logg ?? [],
-    laddad: ytor !== undefined && vaxter !== undefined && logg !== undefined,
+    karta: karta ?? null,
+    laddad:
+      ytor !== undefined && vaxter !== undefined && logg !== undefined && karta !== undefined,
   }
   return <DataContext.Provider value={varde}>{children}</DataContext.Provider>
 }

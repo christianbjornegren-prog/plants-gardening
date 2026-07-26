@@ -11,7 +11,17 @@ import {
 } from 'firebase/firestore'
 import { getDb } from '../lib/firebase'
 import { utanUndefined } from '../lib/rensa'
-import type { Area, LogEntry, LogType, Plant, PlantMove, SunExposure } from './types'
+import { franLagratObjekt, tillLagradKarta } from './kartkonvertering'
+import type {
+  Area,
+  GardenMap,
+  LogEntry,
+  LogType,
+  MapObject,
+  Plant,
+  PlantMove,
+  SunExposure,
+} from './types'
 
 /**
  * Datalagret. Importeras alltid dynamiskt (await import) så att Firebase
@@ -38,6 +48,10 @@ function vaxtCol(uid: string) {
 
 function loggCol(uid: string) {
   return collection(getDb(), 'users', uid, 'logEntries')
+}
+
+function kartaDoc(uid: string) {
+  return doc(getDb(), 'users', uid, 'garden', 'map')
 }
 
 function tillYta(snap: QueryDocumentSnapshot<DocumentData>): Area {
@@ -115,6 +129,70 @@ export function taBortLoggpost(uid: string, id: string): void {
   void deleteDoc(doc(loggCol(uid), id)).catch(loggaFel)
 }
 
+/** null = ingen karta upplagd än. */
+export function lyssnaPaKarta(uid: string, mottagare: (karta: GardenMap | null) => void): () => void {
+  return onSnapshot(kartaDoc(uid), (snap) => {
+    if (!snap.exists()) {
+      mottagare(null)
+      return
+    }
+    const data = snap.data()
+    mottagare({
+      widthM: typeof data.widthM === 'number' ? data.widthM : 0,
+      heightM: typeof data.heightM === 'number' ? data.heightM : 0,
+      objects: Array.isArray(data.objects) ? data.objects.map(franLagratObjekt) : [],
+    })
+  })
+}
+
+export function skapaKarta(uid: string, widthM: number, heightM: number): void {
+  void setDoc(kartaDoc(uid), { widthM, heightM, objects: [] }).catch(loggaFel)
+}
+
+export function uppdateraKartaMatt(uid: string, widthM: number, heightM: number): void {
+  void updateDoc(kartaDoc(uid), { widthM, heightM }).catch(loggaFel)
+}
+
+/** Lägger till eller ersätter ett objekt i kartan (hela dokumentet skrivs om). */
+export function sparaKartobjekt(uid: string, karta: GardenMap, objekt: MapObject): void {
+  const ovriga = karta.objects.filter((o) => o.id !== objekt.id)
+  void setDoc(
+    kartaDoc(uid),
+    tillLagradKarta({ ...karta, objects: [...ovriga, objekt] }),
+  ).catch(loggaFel)
+}
+
+/** Tar bort objektet och kopplar loss ytor som pekade på det. */
+export function taBortKartobjekt(
+  uid: string,
+  karta: GardenMap,
+  objektId: string,
+  kopplladeYtaIds: string[],
+): void {
+  void setDoc(
+    kartaDoc(uid),
+    tillLagradKarta({ ...karta, objects: karta.objects.filter((o) => o.id !== objektId) }),
+  ).catch(loggaFel)
+  for (const ytaId of kopplladeYtaIds) {
+    void updateDoc(doc(ytaCol(uid), ytaId), { mapObjectId: deleteField() }).catch(loggaFel)
+  }
+}
+
+export function nyttObjektId(): string {
+  return crypto.randomUUID().slice(0, 8)
+}
+
+export function kopplaYtaTillObjekt(uid: string, ytaId: string, objektId: string | undefined): void {
+  void updateDoc(doc(ytaCol(uid), ytaId), {
+    mapObjectId: objektId ?? deleteField(),
+  }).catch(loggaFel)
+}
+
+/** Sätter växtens läge på kartan (position i meter). */
+export function placeraVaxt(uid: string, plantId: string, x: number, y: number): void {
+  void updateDoc(doc(vaxtCol(uid), plantId), { position: { x, y } }).catch(loggaFel)
+}
+
 export interface YtaFalt {
   name: string
   sunExposure?: SunExposure
@@ -187,6 +265,33 @@ export function flyttaVaxt(uid: string, vaxt: Plant, tillYtaId: string): void {
     moveHistory: [...vaxt.moveHistory, flytt],
     position: deleteField(),
   }).catch(loggaFel)
+}
+
+/**
+ * Flytt via kartan: ny position, och om prickens nya läge hör till en annan
+ * yta byts även ytan (med post i moveHistory).
+ */
+export function flyttaVaxtPaKartan(
+  uid: string,
+  vaxt: Plant,
+  x: number,
+  y: number,
+  tillYtaId: string | undefined,
+): void {
+  if (tillYtaId && tillYtaId !== vaxt.areaId) {
+    const flytt: PlantMove = {
+      fromAreaId: vaxt.areaId,
+      toAreaId: tillYtaId,
+      date: new Date().toISOString(),
+    }
+    void updateDoc(doc(vaxtCol(uid), vaxt.id), {
+      areaId: tillYtaId,
+      moveHistory: [...vaxt.moveHistory, flytt],
+      position: { x, y },
+    }).catch(loggaFel)
+    return
+  }
+  placeraVaxt(uid, vaxt.id, x, y)
 }
 
 export function laggTillVaxtFoto(uid: string, vaxt: Plant, fotoRef: string): void {
