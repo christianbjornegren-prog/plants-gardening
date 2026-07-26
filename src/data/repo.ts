@@ -114,6 +114,7 @@ function tillVaxt(snap: QueryDocumentSnapshot<DocumentData>): Vaxt {
     position: d.position as Vaxt['position'],
     status: d.status === 'planerad' ? 'planerad' : 'finns',
     sort: d.sort as string | undefined,
+    latin: d.latin as string | undefined,
     planterad: d.planterad as string | undefined,
     antal: typeof d.antal === 'number' ? d.antal : undefined,
     sol: d.sol as Sol | undefined,
@@ -339,6 +340,7 @@ export interface VaxtFalt {
   platsId?: string
   status?: Status
   sort?: string
+  latin?: string
   planterad?: string
   antal?: number
   sol?: Sol
@@ -355,6 +357,7 @@ export function skapaVaxt(uid: string, falt: VaxtFalt): string {
       platsId: falt.platsId,
       status: falt.status ?? 'finns',
       sort: falt.sort,
+      latin: falt.latin,
       planterad: falt.planterad,
       antal: falt.antal,
       sol: falt.sol,
@@ -376,6 +379,7 @@ export function uppdateraVaxt(uid: string, id: string, falt: Partial<VaxtFalt>):
   for (const nyckel of [
     'platsId',
     'sort',
+    'latin',
     'planterad',
     'antal',
     'sol',

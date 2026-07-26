@@ -118,6 +118,8 @@ export interface Vaxt {
   status: Status
   /** Fri text, hennes egna ord. Aldrig en artdatabas. */
   sort?: string
+  /** Latinskt namn. Fylls i automatiskt om man tar ett namnförslag. */
+  latin?: string
   /** Fri text: "2023", "maj 2023", "12 maj 2023". */
   planterad?: string
   antal?: number

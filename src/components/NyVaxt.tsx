@@ -18,6 +18,7 @@ import { KameraIkon } from './Ikoner'
 import { Knapp } from './Knapp'
 import { kvittera } from './Kvittens'
 import { inmatningsStil } from './Falt'
+import { NamnForslag } from './NamnForslag'
 
 /**
  * Flöde A — lägg till en växt, foto först.
@@ -58,6 +59,7 @@ export function NyVaxtProvider({ children }: { children: ReactNode }) {
   const [oppen, setOppen] = useState(false)
   const [forval, setForval] = useState<NyVaxtForval>({})
   const [namn, setNamn] = useState('')
+  const [valtNamn, setValtNamn] = useState<{ sv: string; lat: string }>()
   const [fotoRef, setFotoRef] = useState<string>()
   const [laddarFoto, setLaddarFoto] = useState(false)
   const [fel, setFel] = useState<string>()
@@ -114,6 +116,9 @@ export function NyVaxtProvider({ children }: { children: ReactNode }) {
       const repo = await import('../data/repo')
       const vaxtId = repo.skapaVaxt(uid, {
         namn: trimmat,
+        // Bara om namnet fortfarande är det man valde — skriver hon om det
+        // till "Mormors ros" är latinet inte längre hennes.
+        latin: valtNamn?.sv === trimmat ? valtNamn.lat : undefined,
         platsId: forval.platsId,
         status: forval.status ?? 'finns',
       })
@@ -203,7 +208,16 @@ export function NyVaxtProvider({ children }: { children: ReactNode }) {
             placeholder="Vad är det?"
             aria-label="Växtens namn"
             enterKeyHint="done"
+            autoComplete="off"
             className={`${inmatningsStil} text-lg`}
+          />
+
+          <NamnForslag
+            fraga={namn}
+            onVald={(n) => {
+              setNamn(n.sv)
+              setValtNamn({ sv: n.sv, lat: n.lat })
+            }}
           />
 
           {fel && (
