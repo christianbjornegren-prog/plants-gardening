@@ -106,15 +106,3 @@ export function flyttaPunkter(punkter: PunktM[], dx: number, dy: number): PunktM
   return punkter.map(([x, y]) => [snappa(x + dx, 0.001), snappa(y + dy, 0.001)])
 }
 
-/**
- * Skalar polygonen så att dess omslutande rektangel får angivna mått,
- * förankrad i rektangelns övre vänstra hörn. Punkterna snappas till 0,1 m.
- */
-export function skalaTillMatt(punkter: PunktM[], nyBredd: number, nyHojd: number): PunktM[] {
-  const rekt = omslutandeRektangel(punkter)
-  if (rekt.bredd < 1e-9 || rekt.hojd < 1e-9 || nyBredd <= 0 || nyHojd <= 0) return punkter
-  return punkter.map(([x, y]) => [
-    snappa(rekt.x + ((x - rekt.x) / rekt.bredd) * nyBredd),
-    snappa(rekt.y + ((y - rekt.y) / rekt.hojd) * nyHojd),
-  ])
-}

@@ -1,5 +1,5 @@
 import { useEffect, type SVGProps } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { HemIkon, LoggIkon, PlusIkon, RitningIkon, VaxterIkon } from './Ikoner'
 import { useNyVaxt } from './NyVaxt'
 
@@ -47,6 +47,7 @@ function Flik({ till, label, Ikon }: NavPost) {
 
 export function Layout() {
   const { oppna } = useNyVaxt()
+  const iRitlage = useLocation().pathname.startsWith('/ritning/rita')
 
   // Skalets titel är neutral (index.html) så att inloggningssidan inte
   // skvallrar om adressen. Väl inne får fliken sitt riktiga namn.
@@ -77,14 +78,18 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
-        <button
-          type="button"
-          onClick={() => oppna()}
-          className="ml-auto inline-flex min-h-10 items-center gap-2 rounded-lg bg-fermob px-4 text-sm font-medium text-white transition-colors duration-200 ease-[var(--ease-mjuk)] hover:bg-fermob/90"
-        >
-          <PlusIkon width={18} height={18} />
-          Ny växt
-        </button>
+        {/* Ritläget har sin egen röda knapp. Två röda på samma skärm gör att
+            ingen av dem betyder något. */}
+        {!iRitlage && (
+          <button
+            type="button"
+            onClick={() => oppna()}
+            className="ml-auto inline-flex min-h-10 items-center gap-2 rounded-lg bg-fermob px-4 text-sm font-medium text-white transition-colors duration-200 ease-[var(--ease-mjuk)] hover:bg-fermob/90"
+          >
+            <PlusIkon width={18} height={18} />
+            Ny växt
+          </button>
+        )}
       </header>
 
       <main className="flex flex-1 flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0">

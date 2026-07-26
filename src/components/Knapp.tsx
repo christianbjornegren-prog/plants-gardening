@@ -40,15 +40,23 @@ export function LankKnapp({
   return <Link {...rest} className={`${knappStil(variant)} ${className}`} />
 }
 
-/** Tvåstegsknapp för borttagning: första trycket armerar, andra bekräftar. */
+/**
+ * Tvåstegsknapp för borttagning: första trycket armerar, andra bekräftar.
+ *
+ * `lank` är den lågmälda varianten — destruktiva åtgärder ska vara svåra att
+ * träffa av misstag, inte det mest framträdande i vyn. Rött är vår signalfärg
+ * och ska inte betyda "radera".
+ */
 export function TaBortKnapp({
   onBekraftad,
   children = 'Ta bort',
   avarmeraEfterMs = 4000,
+  variant = 'knapp',
 }: {
   onBekraftad: () => void
   children?: ReactNode
   avarmeraEfterMs?: number
+  variant?: 'knapp' | 'lank'
 }) {
   const [armerad, setArmerad] = useState(false)
 
@@ -58,10 +66,26 @@ export function TaBortKnapp({
     return () => clearTimeout(timer)
   }, [armerad, avarmeraEfterMs])
 
+  const gemensam = () => (armerad ? onBekraftad() : setArmerad(true))
+
+  if (variant === 'lank') {
+    return (
+      <button
+        type="button"
+        onClick={gemensam}
+        className={`min-h-9 text-left text-sm underline underline-offset-4 ${
+          armerad ? 'font-medium text-fermob-text' : 'text-dis hover:text-fermob-text'
+        }`}
+      >
+        {armerad ? 'Tryck igen för att ta bort' : children}
+      </button>
+    )
+  }
+
   return (
     <button
       type="button"
-      onClick={() => (armerad ? onBekraftad() : setArmerad(true))}
+      onClick={gemensam}
       className={`${GRUND} ${
         armerad
           ? 'bg-fermob font-medium text-white'

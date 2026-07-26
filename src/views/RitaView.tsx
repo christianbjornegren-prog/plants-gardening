@@ -19,14 +19,13 @@ import { VaxtPrickLager } from '../components/ritning/VaxtPrickLager'
 import { SaknasVy } from '../components/VyHuvud'
 import { useData } from '../data/DataProvider'
 import type { PlatsFalt } from '../data/repo'
-import { PLATSTYPER, type Plats, type PlatsTyp, type PunktM, type Tradgard } from '../data/types'
+import type { Plats, PlatsTyp, PunktM, Tradgard } from '../data/types'
 import { platstypEtikett } from '../lib/etiketter'
 import {
   allaRunda,
   arRund,
   formTillPolygon,
   laggTillPunkt,
-  segmentMitter,
   taBortPunkt,
   vaxlaRunt,
 } from '../lib/form'
@@ -37,19 +36,22 @@ import {
   flyttaPunkter,
   omkrets,
   omslutandeRektangel,
-  skalaTillMatt,
   snappa,
   snappaPunkt,
 } from '../lib/geometri'
 import { senasteFotoPerVaxt } from '../lib/handelser'
 import { nyttPlatsNamn } from '../lib/ritstil'
+import { TYPGRUPPER } from '../lib/typgrupper'
 import { beraknaPrickar, platsVidPunkt } from '../lib/vaxtplacering'
 import { viewBoxAttribut } from '../lib/viewbox'
 
 /**
- * Ritläget — planeringsverktyget. Desktop-först: mus, stor skärm, snap 0,1 m.
- * Läget är avsiktligt tydligt markerat och har en Klar-knapp; det ska aldrig
- * gå att undra om man är i det eller inte.
+ * Ritläget — planeringsverktyget.
+ *
+ * EN gest per betydelse: dra ett hörn flyttar det, klicka ett hörn markerar
+ * det (och först då syns Runda/Ta bort), klicka en kant lägger till ett hörn.
+ * Inga modifierartangenter — de går inte att upptäcka och finns inte på
+ * pekskärm. Behöver ritytan en manual ovanför sig är interaktionen fel.
  */
 export function RitaView() {
   const { tradgardar, laddad } = useData()
@@ -66,6 +68,8 @@ export function RitaView() {
   }
   return <Ritare key={tradgard.id} tradgard={tradgard} />
 }
+
+const HINT_NYCKEL = 'ripvagen-ritlage-hint'
 
 type Gest =
   | { typ: 'pan'; pekarId: number; senastX: number; senastY: number; totalPx: number }
@@ -84,24 +88,38 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
   const uid = useDataRot()
   const navigera = useNavigate()
   const angra = useAngra()
-  const { behallareRef, vb, mpp, tillMeter, panoreraPx } = useRitYta(
+
+  const iTradgarden = platser.filter((p) => p.tradgardId === tradgard.id)
+  // Öppna zoomad till det som finns ritat, inte till hela tomten. Fångas en
+  // gång vid montering — annars skulle vyn hoppa varje gång man ritar.
+  const innehall = useRef(
+    omslutandeRektangel(
+      iTradgarden.flatMap((p) =>
+        p.geometri ? formTillPolygon(p.geometri.punkter, p.geometri.runda) : [],
+      ),
+    ),
+  ).current
+  const { behallareRef, vb, mpp, tillMeter, tillSkarm, panoreraPx } = useRitYta(
     tradgard.widthM ?? 0,
     tradgard.heightM ?? 0,
+    innehall.bredd > 0 ? innehall : undefined,
   )
 
   const [valtId, setValtId] = useState<string>()
+  const [valtHorn, setValtHorn] = useState<number>()
   const [ritar, setRitar] = useState(false)
   const [ritPunkter, setRitPunkter] = useState<PunktM[]>([])
   const [hovrad, setHovrad] = useState<PunktM>()
   const [utkast, setUtkast] = useState<Plats>()
-  /** Växt som väntar på att placeras: klicka i listan, klicka på ritningen. */
   const [armerad, setArmerad] = useState<string>()
-  /** Måttband: två klick ger ett avstånd. Tredje klicket börjar om. */
   const [matar, setMatar] = useState(false)
   const [matPunkter, setMatPunkter] = useState<PunktM[]>([])
+  const [placeringsfel, setPlaceringsfel] = useState<string>()
+  const [visaHint, setVisaHint] = useState(
+    () => typeof localStorage !== 'undefined' && !localStorage.getItem(HINT_NYCKEL),
+  )
   const gestRef = useRef<Gest | null>(null)
 
-  const iTradgarden = platser.filter((p) => p.tradgardId === tradgard.id)
   const visade = utkast ? iTradgarden.map((p) => (p.id === utkast.id ? utkast : p)) : iTradgarden
   const valt = visade.find((p) => p.id === valtId)
   const prickar = beraknaPrickar(vaxter, platser, tradgard.id)
@@ -110,7 +128,20 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
     (v) => !prickar.some((p) => p.vaxt.id === v.id) && v.status !== 'planerad',
   )
 
-  /** Sparar geometri och lägger den gamla formen på ångra-stacken. */
+  function stangHint() {
+    setVisaHint(false)
+    try {
+      localStorage.setItem(HINT_NYCKEL, '1')
+    } catch {
+      // Privat läge utan lagring — då visas hinten igen. Inte värt mer.
+    }
+  }
+
+  function valjPlats(id: string | undefined) {
+    setValtId(id)
+    setValtHorn(undefined)
+  }
+
   function sparaGeometri(plats: Plats, punkter: PunktM[], runda: number[] | undefined, vad: string) {
     const foreP = plats.geometri?.punkter
     const foreR = plats.geometri?.runda
@@ -134,9 +165,6 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
   }
 
   function avslutaRitning() {
-    // Dubbelklicket ger två extra klick i slutet. Punkterna är snappade till
-    // 0,1 m, så grannrutor kan ligga exakt 0,1 m isär — rensa svansen med en
-    // tröskel som är större än snappsteget.
     let punkter = ritPunkter.filter((p, i) => i === 0 || avstand(p, ritPunkter[i - 1]!) > 0.001)
     while (
       punkter.length > 3 &&
@@ -158,12 +186,12 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
         typ,
         punkter,
       })
-      setValtId(id)
+      valjPlats(id)
       angra.minns('rita platsen', () => {
         void (async () => {
           const r = await import('../data/repo')
           r.taBortPlats(uid, id, [], [])
-          setValtId(undefined)
+          valjPlats(undefined)
         })()
       })
     })()
@@ -173,7 +201,6 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
     function vidTangent(e: KeyboardEvent) {
       if (!ritar) return
       if (e.key === 'Escape') {
-        // Esc ångrar sista hörnet; är det tomt avbryts ritningen.
         setRitPunkter((nu) => {
           if (nu.length <= 1) {
             setRitar(false)
@@ -195,28 +222,22 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
   function vidPekareNed(e: ReactPointerEvent<SVGSVGElement>) {
     if (ritar || armerad || matar) return
     if (gestRef.current) return
-    e.currentTarget.setPointerCapture(e.pointerId)
     const mal = e.target as Element
 
-    // Halvtransparent plupp mitt på en kant: klicka för att lägga till ett hörn.
-    const mittEl = mal.closest('[data-mitt-index]')
-    if (mittEl && valt?.geometri) {
-      const index = Number(mittEl.getAttribute('data-mitt-index'))
+    // Kant → lägg till ett hörn. Bara på en redan markerad form, så första
+    // klicket alltid betyder "markera" och andra "ändra".
+    const kantEl = mal.closest('[data-kant-index]')
+    if (kantEl && valt?.geometri) {
+      const index = Number(kantEl.getAttribute('data-kant-index'))
       const nytt = laggTillPunkt(valt.geometri.punkter, valt.geometri.runda, index)
       sparaGeometri(valt, nytt.punkter, nytt.runda, 'lägga till hörnet')
+      setValtHorn(index + 1)
       return
     }
 
+    e.currentTarget.setPointerCapture(e.pointerId)
+
     const hornEl = mal.closest('[data-horn-index]')
-    // Alt-klick tar bort hörnet. Formen måste behålla minst tre.
-    if (hornEl && valt?.geometri && e.altKey) {
-      const index = Number(hornEl.getAttribute('data-horn-index'))
-      const kvar = taBortPunkt(valt.geometri.punkter, valt.geometri.runda, index)
-      if (kvar.punkter.length !== valt.geometri.punkter.length) {
-        sparaGeometri(valt, kvar.punkter, kvar.runda, 'ta bort hörnet')
-      }
-      return
-    }
     if (hornEl && valt) {
       gestRef.current = {
         typ: 'horn',
@@ -262,8 +283,6 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
       const plats = iTradgarden.find((p) => p.id === gest.platsId)
       if (!plats?.geometri) return
       const punkt = snappaPunkt(tillMeter(e.clientX, e.clientY))
-      // Rör man sig inte räknas det som ett klick — och ett klick vänder
-      // hörnet mellan runt och spetsigt.
       if (!gest.flyttad && avstand(punkt, plats.geometri.punkter[gest.index]!) < 0.05) return
       gest.flyttad = true
       const punkter = plats.geometri.punkter.map((p, i) => (i === gest.index ? punkt : p))
@@ -304,16 +323,15 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
     if (gest.typ === 'horn') {
       const plats = iTradgarden.find((p) => p.id === gest.platsId)
       if (utkast?.geometri && gest.flyttad) {
-        sparaGeometri(plats ?? utkast, utkast.geometri.punkter, utkast.geometri.runda, 'flytta hörnet')
-      } else if (plats?.geometri && !gest.flyttad) {
-        // Klick utan rörelse → runda eller spetsa hörnet.
-        const runda = vaxlaRunt(plats.geometri.runda, gest.index)
         sparaGeometri(
-          plats,
-          plats.geometri.punkter,
-          runda,
-          arRund(runda, gest.index) ? 'runda hörnet' : 'spetsa hörnet',
+          plats ?? utkast,
+          utkast.geometri.punkter,
+          utkast.geometri.runda,
+          'flytta hörnet',
         )
+      } else if (!gest.flyttad) {
+        // Klick utan rörelse = markera hörnet. Då, och bara då, syns knapparna.
+        setValtHorn((nu) => (nu === gest.index ? undefined : gest.index))
       }
       setUtkast(undefined)
       return
@@ -322,17 +340,21 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
     if (gest.typ === 'form') {
       const plats = iTradgarden.find((p) => p.id === gest.platsId)
       if (utkast?.geometri && gest.flyttad) {
-        sparaGeometri(plats ?? utkast, utkast.geometri.punkter, utkast.geometri.runda, 'flytta platsen')
+        sparaGeometri(
+          plats ?? utkast,
+          utkast.geometri.punkter,
+          utkast.geometri.runda,
+          'flytta platsen',
+        )
       } else if (!gest.flyttad) {
-        setValtId(gest.platsId)
+        valjPlats(gest.platsId)
       }
       setUtkast(undefined)
       return
     }
-    if (gest.typ === 'pan' && gest.totalPx < 8) setValtId(undefined)
+    if (gest.typ === 'pan' && gest.totalPx < 8) valjPlats(undefined)
   }
 
-  /** Avbruten gest: släng utkastet utan att persistera. */
   function vidPekareAvbruten(e: ReactPointerEvent<SVGSVGElement>) {
     const gest = gestRef.current
     if (!gest || e.pointerId !== gest.pekarId) return
@@ -356,7 +378,6 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
     const vaxt = vaxter.find((v) => v.id === armerad)
     if (!vaxt) return
     if (!plats) {
-      // Tyst misslyckande var det gamla beteendet — säg i stället varför.
       setPlaceringsfel('Klicka inuti en plats. Växten måste stå någonstans.')
       return
     }
@@ -376,13 +397,33 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
     })
   }
 
-  const [placeringsfel, setPlaceringsfel] = useState<string>()
+  function rundaValtHorn() {
+    if (!valt?.geometri || valtHorn === undefined) return
+    const runda = vaxlaRunt(valt.geometri.runda, valtHorn)
+    sparaGeometri(
+      valt,
+      valt.geometri.punkter,
+      runda,
+      arRund(runda, valtHorn) ? 'runda hörnet' : 'spetsa hörnet',
+    )
+  }
+
+  function taBortValtHorn() {
+    if (!valt?.geometri || valtHorn === undefined) return
+    const kvar = taBortPunkt(valt.geometri.punkter, valt.geometri.runda, valtHorn)
+    if (kvar.punkter.length === valt.geometri.punkter.length) return
+    sparaGeometri(valt, kvar.punkter, kvar.runda, 'ta bort hörnet')
+    setValtHorn(undefined)
+  }
+
   const ritVisning = hovrad && ritPunkter.length > 0 ? [...ritPunkter, hovrad] : ritPunkter
+  const hornPunkt =
+    valt?.geometri && valtHorn !== undefined ? valt.geometri.punkter[valtHorn] : undefined
+  const hornSkarm = hornPunkt ? tillSkarm(hornPunkt) : undefined
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* Ritläget ska synas på en meter håll. */}
-      <div className="flex flex-nowrap items-center gap-3 overflow-x-auto border-b-2 border-fermob/60 bg-fermob/10 px-4 py-2.5">
+      <div className="flex flex-nowrap items-center gap-3 overflow-x-auto border-b border-linje px-4 py-2.5">
         <Link
           to="/ritning"
           aria-label="Tillbaka till ritningen"
@@ -390,20 +431,14 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
         >
           <TillbakaIkon />
         </Link>
-        <span className="mono rounded bg-fermob px-2 py-0.5 text-[11px] font-medium tracking-[0.1em] text-white uppercase">
-          Ritläge
-        </span>
         <h1 className="font-display text-lg font-semibold text-tusch">{tradgard.namn}</h1>
         <TomtMatt tradgard={tradgard} />
 
         <div className="ml-auto flex items-center gap-2">
-          {/* Fast bredd och fast text: en etikett som växer med åtgärdens
-              namn radbryter verktygsraden, och då hoppar hela ritytan. Vad
-              som ångras står i hjälpraden nedanför i stället. */}
           <Knapp
             onClick={angra.angra}
             disabled={!angra.kanAngra}
-            aria-label={angra.nastaEtikett ? `Ångra ${angra.nastaEtikett}` : 'Ångra'}
+            title={angra.nastaEtikett ? `Ångra ${angra.nastaEtikett}` : 'Inget att ångra'}
           >
             Ångra
           </Knapp>
@@ -418,52 +453,38 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
             {matar ? 'Sluta mäta' : 'Mät'}
           </Knapp>
           {ritar ? (
-            <Knapp onClick={avbrytRitning}>Avbryt ritandet</Knapp>
+            <Knapp onClick={avbrytRitning}>Avbryt</Knapp>
           ) : (
+            // Enda röda i vyn: det man faktiskt är här för.
             <Knapp
+              variant="primar"
               onClick={() => {
-                setValtId(undefined)
+                valjPlats(undefined)
                 setArmerad(undefined)
+                setMatar(false)
                 setRitar(true)
               }}
             >
               Rita ny plats
             </Knapp>
           )}
-          <Knapp variant="primar" onClick={() => navigera('/ritning')}>
-            Klar
-          </Knapp>
+          <Knapp onClick={() => navigera('/ritning')}>Klar</Knapp>
         </div>
       </div>
 
-      <div className="flex items-baseline justify-between gap-4 border-b border-linje px-4 py-1.5">
-        <p className="text-xs text-dis">
-          {ritar
-            ? 'Klicka ut hörnen · Enter avslutar · Esc ångrar senaste hörnet'
-            : matar
-              ? 'Klicka två punkter för att mäta avståndet. Tredje klicket börjar om.'
-              : armerad
-              ? `Klicka inuti en plats för att sätta ${vaxter.find((v) => v.id === armerad)?.namn} där.`
-              : valt
-                ? 'Dra ett hörn för att ändra · klicka det för att runda · klicka en + mellan hörnen för att lägga till ett · ⌥-klicka för att ta bort'
-                : 'Dra formen för att flytta · markera den för att ändra hörnen'}
-        </p>
-        {angra.nastaEtikett && (
-          <p className="shrink-0 text-xs text-dis-svag">Ångra: {angra.nastaEtikett}</p>
-        )}
-      </div>
-
-      {/* Fast höjd på desktop, och flex-none så att flex-basis inte äter upp
-          den: annars växer raden med panelens innehåll och hela sidan börjar
-          scrolla — då hoppar ritytan under handen medan man ritar. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:h-[72vh] lg:flex-none lg:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:h-[calc(100dvh-8.5rem)] lg:flex-none lg:flex-row">
         <div
           ref={behallareRef}
           data-testid="ritredigering"
-          className={`relative min-h-64 flex-1 touch-none overflow-hidden select-none ${
+          className={`relative min-h-64 flex-1 touch-none overflow-hidden ring-1 ring-linje ring-inset select-none ${
             ritar || armerad || matar ? 'cursor-crosshair' : ''
           }`}
         >
+          {/* Diskret markering av läget — ingen färgad list. */}
+          <span className="pointer-events-none absolute top-3 left-3 z-10 rounded bg-panel/90 px-2 py-0.5 text-[11px] tracking-[0.08em] text-dis uppercase ring-1 ring-linje ring-inset">
+            Ritläge
+          </span>
+
           {vb && (
             <svg
               className="absolute inset-0 h-full w-full"
@@ -484,7 +505,6 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
               />
               <VaxtPrickLager prickar={prickar} mpp={mpp} fotoRefAvVaxt={fotoAvVaxt} />
 
-              {/* Pågående ritning, med segmentlängder i mono. */}
               {ritar && ritVisning.length > 0 && (
                 <g className="pointer-events-none">
                   <polyline
@@ -507,7 +527,7 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
                         textAnchor="middle"
                         fontSize={10 * mpp}
                         className="mono"
-                        style={{ fill: 'var(--color-tra)' }}
+                        style={{ fill: 'var(--color-dis)' }}
                       >
                         {formatMeter(langd)}
                       </text>
@@ -519,7 +539,7 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
                       cx={p[0]}
                       cy={p[1]}
                       r={4 * mpp}
-                      fill="var(--color-botten)"
+                      fill="var(--color-panel)"
                       stroke="var(--color-fermob-text)"
                       strokeWidth={1.5}
                       vectorEffect="non-scaling-stroke"
@@ -528,7 +548,6 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
                 </g>
               )}
 
-              {/* Måttband */}
               {matPunkter.length > 0 && (
                 <g className="pointer-events-none">
                   {matPunkter.map((p, i) => (
@@ -537,7 +556,7 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
                       cx={p[0]}
                       cy={p[1]}
                       r={4 * mpp}
-                      fill="var(--color-botten)"
+                      fill="var(--color-panel)"
                       stroke="var(--color-fermob-text)"
                       strokeWidth={2}
                       vectorEffect="non-scaling-stroke"
@@ -570,67 +589,62 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
                 </g>
               )}
 
-              {/* Mittpluppar: klicka för att lägga till ett hörn i efterhand. */}
+              {/* Osynliga träffremsor längs kanterna: klicka för nytt hörn. */}
               {valt?.geometri &&
                 !ritar &&
                 !matar &&
-                segmentMitter(valt.geometri.punkter).map((p, i) => (
-                  <g key={`mitt-${i}`} data-mitt-index={i} cursor="copy">
-                    <circle cx={p[0]} cy={p[1]} r={14 * mpp} fill="transparent" />
-                    <circle
-                      cx={p[0]}
-                      cy={p[1]}
-                      r={4.5 * mpp}
-                      fill="var(--color-botten)"
-                      stroke="var(--color-fermob-text)"
-                      strokeOpacity={0.75}
-                      strokeWidth={1.5}
-                      strokeDasharray="2 2"
+                !armerad &&
+                valt.geometri.punkter.map((p, i) => {
+                  const n = valt.geometri!.punkter
+                  const b = n[(i + 1) % n.length]!
+                  return (
+                    <line
+                      key={`kant-${i}`}
+                      data-kant-index={i}
+                      x1={p[0]}
+                      y1={p[1]}
+                      x2={b[0]}
+                      y2={b[1]}
+                      stroke="transparent"
+                      strokeWidth={16}
                       vectorEffect="non-scaling-stroke"
+                      cursor="copy"
                     />
-                    <path
-                      d={`M ${p[0] - 2.2 * mpp} ${p[1]} h ${4.4 * mpp} M ${p[0]} ${p[1] - 2.2 * mpp} v ${4.4 * mpp}`}
-                      stroke="var(--color-fermob-text)"
-                      strokeWidth={1.4}
-                      vectorEffect="non-scaling-stroke"
-                      strokeLinecap="round"
-                    />
-                  </g>
-                ))}
+                  )
+                })}
 
-              {/* Hörnhandtag. Rund = mjukt hörn, fyrkant = spetsigt. */}
               {valt?.geometri &&
                 !ritar &&
                 valt.geometri.punkter.map((p, i) => {
                   const rund = arRund(valt.geometri!.runda, i)
-                  const r = 6 * mpp
-                  return rund ? (
-                    <circle
-                      key={`horn-${i}`}
-                      data-horn-index={i}
-                      cx={p[0]}
-                      cy={p[1]}
-                      r={r}
-                      fill="var(--color-lov)"
-                      stroke="var(--color-botten)"
-                      strokeWidth={2}
-                      vectorEffect="non-scaling-stroke"
-                      cursor="grab"
-                    />
-                  ) : (
-                    <rect
-                      key={`horn-${i}`}
-                      data-horn-index={i}
-                      x={p[0] - r}
-                      y={p[1] - r}
-                      width={r * 2}
-                      height={r * 2}
-                      fill="var(--color-botten)"
-                      stroke="var(--color-fermob-text)"
-                      strokeWidth={2}
-                      vectorEffect="non-scaling-stroke"
-                      cursor="grab"
-                    />
+                  const markerat = valtHorn === i
+                  const r = (markerat ? 7 : 5.5) * mpp
+                  return (
+                    <g key={`horn-${i}`} data-horn-index={i} cursor="grab">
+                      <circle cx={p[0]} cy={p[1]} r={16 * mpp} fill="transparent" />
+                      {rund ? (
+                        <circle
+                          cx={p[0]}
+                          cy={p[1]}
+                          r={r}
+                          fill={markerat ? 'var(--color-fermob-text)' : 'var(--color-orm)'}
+                          stroke="var(--color-panel)"
+                          strokeWidth={2}
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      ) : (
+                        <rect
+                          x={p[0] - r}
+                          y={p[1] - r}
+                          width={r * 2}
+                          height={r * 2}
+                          fill="var(--color-panel)"
+                          stroke={markerat ? 'var(--color-fermob-text)' : 'var(--color-tusch)'}
+                          strokeWidth={2}
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      )}
+                    </g>
                   )
                 })}
             </svg>
@@ -638,24 +652,64 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
 
           {vb && <Skalstock mpp={mpp} />}
 
+          {/* Hörnets knappar — riktiga knappar, fungerar på pekskärm. */}
+          {hornSkarm && valt?.geometri && valtHorn !== undefined && (
+            <div
+              data-testid="hornknappar"
+              className="fixed z-30 flex -translate-x-1/2 gap-1"
+              style={{ left: hornSkarm.x, top: hornSkarm.y + 18 }}
+            >
+              <button
+                type="button"
+                onClick={rundaValtHorn}
+                className="min-h-9 rounded-lg border border-linje bg-panel px-3 text-sm text-tusch shadow-sm hover:bg-upphojd"
+              >
+                {arRund(valt.geometri.runda, valtHorn) ? 'Gör spetsig' : 'Runda'}
+              </button>
+              <button
+                type="button"
+                onClick={taBortValtHorn}
+                disabled={valt.geometri.punkter.length <= 3}
+                className="min-h-9 rounded-lg border border-linje bg-panel px-3 text-sm text-dis shadow-sm hover:text-tusch disabled:opacity-40"
+              >
+                Ta bort
+              </button>
+            </div>
+          )}
+
           {placeringsfel && (
             <p
               role="alert"
-              className="absolute inset-x-3 top-3 rounded-xl border border-fermob-text/40 bg-panel px-4 py-3 text-sm text-tusch"
+              className="absolute inset-x-3 top-12 rounded-xl border border-fermob-text/40 bg-panel px-4 py-3 text-sm text-tusch"
             >
               {placeringsfel}
             </p>
           )}
 
+          {/* Visas en gång, aldrig mer. */}
+          {visaHint && iTradgarden.length > 0 && (
+            <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-center gap-3 rounded-xl border border-linje bg-panel px-4 py-3 shadow-sm">
+              <p className="flex-1 text-sm text-dis">
+                Dra ett hörn för att flytta det. Klicka ett hörn eller en kant för att ändra formen.
+              </p>
+              <button
+                type="button"
+                onClick={stangHint}
+                className="pointer-events-auto min-h-9 shrink-0 px-2 text-sm font-medium text-tusch"
+              >
+                Uppfattat
+              </button>
+            </div>
+          )}
+
           {iTradgarden.length === 0 && !ritar && (
             <p className="pointer-events-none absolute inset-x-0 top-1/3 mx-auto max-w-xs px-6 text-center text-sm/6 text-dis">
-              {tradgard.namn} är tom än. Tryck "Rita ny plats" och klicka ut hörnen — börja gärna
-              med altanen eller boden.
+              {tradgard.namn} är tom än. Tryck "Rita ny plats" och klicka ut hörnen.
             </p>
           )}
         </div>
 
-        <aside className="flex w-full min-h-0 flex-col gap-5 overflow-y-auto border-t border-linje p-4 lg:w-80 lg:border-t-0 lg:border-l">
+        <aside className="flex min-h-0 w-full flex-col gap-5 overflow-y-auto border-t border-linje p-4 lg:w-80 lg:border-t-0 lg:border-l">
           {valt && !ritar ? (
             <PlatsPanel
               key={valt.id}
@@ -663,14 +717,15 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
               antalVaxter={vaxter.filter((v) => v.platsId === valt.id).length}
               onGeometri={sparaGeometri}
               onMinns={angra.minns}
-              onTaBort={() => setValtId(undefined)}
+              onTaBort={() => valjPlats(undefined)}
             />
           ) : (
             <p className="text-sm text-dis">
-              Markera en plats för att ändra namn, typ och mått — eller rita en ny.
+              Markera en plats för att ändra den — eller rita en ny.
             </p>
           )}
 
+          {vaxter.length > 0 && (
           <div className="border-t border-linje pt-4">
             <h2 className="mb-2 text-xs font-medium tracking-[0.08em] text-dis-svag uppercase">
               Utan position
@@ -685,6 +740,7 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
                       vald={armerad === v.id}
                       onClick={() => {
                         setPlaceringsfel(undefined)
+                        setMatar(false)
                         setArmerad(armerad === v.id ? undefined : v.id)
                       }}
                     >
@@ -695,6 +751,7 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
               </ul>
             )}
           </div>
+          )}
         </aside>
       </div>
     </div>
@@ -705,7 +762,6 @@ function mattText(varde: number): string {
   return String(Number(varde.toFixed(2))).replace('.', ',')
 }
 
-/** Ritningens mått, redigerbara direkt i verktygsraden. */
 function TomtMatt({ tradgard }: { tradgard: Tradgard }) {
   const uid = useDataRot()
   const [bredd, setBredd] = useState(mattText(tradgard.widthM ?? 0))
@@ -763,6 +819,15 @@ function TomtMatt({ tradgard }: { tradgard: Tradgard }) {
   )
 }
 
+/**
+ * Panelen i den ordning saker faktiskt används: namn och typ överst, sedan
+ * siffrorna man arbetar med. Planerad, anteckning och radering ligger bakom
+ * "Fler detaljer" — de sätts sällan och ska inte äta höjd.
+ *
+ * "Mått (m)" är borttaget. Det var formens omslutande rektangel och sa
+ * ingenting om en böjd rabatt; area och omkrets är siffrorna man beställer
+ * jord och kantsten efter.
+ */
 function PlatsPanel({
   plats,
   antalVaxter,
@@ -781,16 +846,8 @@ function PlatsPanel({
   const [namn, setNamn] = useState(plats.namn)
   const [skriverEgenTyp, setSkriverEgenTyp] = useState(false)
   const [anteckning, setAnteckning] = useState(plats.anteckning ?? '')
-  const rekt = omslutandeRektangel(plats.geometri?.punkter ?? [])
-  const [bredd, setBredd] = useState(mattText(rekt.bredd))
-  const [hojd, setHojd] = useState(mattText(rekt.hojd))
+  const [visaMer, setVisaMer] = useState(false)
 
-  useEffect(() => {
-    setBredd(mattText(rekt.bredd))
-    setHojd(mattText(rekt.hojd))
-  }, [rekt.bredd, rekt.hojd])
-
-  /** Skriver och lägger motsatsen på ångra-stacken. */
   function uppdatera(falt: Partial<PlatsFalt>, etikett: string, fore: Partial<PlatsFalt>) {
     void (async () => {
       const repo = await import('../data/repo')
@@ -811,28 +868,23 @@ function PlatsPanel({
     uppdatera({ egenTyp: eget || undefined }, 'den egna typen', { egenTyp: plats.egenTyp })
   }
 
-  function sparaMatt() {
-    const nyBredd = tolkaMeter(bredd, 0.1)
-    const nyHojd = tolkaMeter(hojd, 0.1)
-    const punkter = plats.geometri?.punkter
-    if (!punkter || !nyBredd || !nyHojd) {
-      setBredd(mattText(rekt.bredd))
-      setHojd(mattText(rekt.hojd))
-      return
-    }
-    if (Math.abs(nyBredd - rekt.bredd) < 0.005 && Math.abs(nyHojd - rekt.hojd) < 0.005) return
-    onGeometri(plats, skalaTillMatt(punkter, nyBredd, nyHojd), plats.geometri?.runda, 'ändra måtten')
-  }
-
+  const kurva = plats.geometri
+    ? formTillPolygon(plats.geometri.punkter, plats.geometri.runda)
+    : undefined
   const antalHorn = plats.geometri?.punkter.length ?? 0
   const allaAr = antalHorn > 0 && (plats.geometri?.runda?.length ?? 0) === antalHorn
 
   return (
-    <div className="flex flex-col gap-4">
-      <Falt etikett="Namn">
+    <div className="flex flex-col gap-5">
+      {/* Rubriken ÄR namnet — det ska inte stå två gånger i panelen. */}
+      <div>
+        <span className="text-xs font-medium tracking-[0.08em] text-dis-svag uppercase">
+          Markerad plats
+        </span>
         <input
           type="text"
           value={namn}
+          aria-label="Namn"
           onChange={(e) => setNamn(e.target.value)}
           onBlur={() => {
             const trimmat = namn.trim()
@@ -840,202 +892,184 @@ function PlatsPanel({
               uppdatera({ namn: trimmat }, 'namnbytet', { namn: plats.namn })
             } else if (!trimmat) setNamn(plats.namn)
           }}
-          className={inmatningsStil}
+          className="mt-1 w-full border-0 bg-transparent p-0 font-display text-xl font-semibold text-tusch focus:outline-none"
         />
-      </Falt>
+      </div>
 
-      <div className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium text-dis">Typ</span>
-        <div className="flex flex-wrap gap-1.5">
-          {PLATSTYPER.map((typ) => (
-            <Chip
-              key={typ}
-              vald={typ === plats.typ && !plats.egenTyp}
-              onClick={() =>
-                uppdatera({ typ, egenTyp: undefined }, 'typbytet', {
-                  typ: plats.typ,
-                  egenTyp: plats.egenTyp,
-                })
-              }
-            >
-              {platstypEtikett(typ)}
-            </Chip>
-          ))}
-          {/* Allt får inte plats i en fast lista — stenparti, kompost, damm. */}
+      <div className="flex flex-col gap-2">
+        {TYPGRUPPER.map((grupp) => (
+          <div key={grupp.rubrik} className="flex flex-wrap items-center gap-1.5">
+            <span className="w-12 shrink-0 text-[11px] text-dis-svag">{grupp.rubrik}</span>
+            {grupp.typer.map((typ) => (
+              <Chip
+                key={typ}
+                vald={typ === plats.typ && !plats.egenTyp}
+                onClick={() =>
+                  uppdatera({ typ, egenTyp: undefined }, 'typbytet', {
+                    typ: plats.typ,
+                    egenTyp: plats.egenTyp,
+                  })
+                }
+              >
+                {platstypEtikett(typ)}
+              </Chip>
+            ))}
+          </div>
+        ))}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="w-12 shrink-0 text-[11px] text-dis-svag">Eget</span>
+          <Chip
+            vald={plats.typ === 'annat' && !plats.egenTyp}
+            onClick={() =>
+              uppdatera({ typ: 'annat', egenTyp: undefined }, 'typbytet', {
+                typ: plats.typ,
+                egenTyp: plats.egenTyp,
+              })
+            }
+          >
+            Annat
+          </Chip>
           <Chip vald={!!plats.egenTyp} onClick={() => setSkriverEgenTyp(true)}>
             {plats.egenTyp ? plats.egenTyp : 'Egen…'}
           </Chip>
         </div>
         {skriverEgenTyp && (
-          <div className="mt-1 flex gap-2">
-            <input
-              type="text"
-              autoFocus
-              defaultValue={plats.egenTyp ?? ''}
-              placeholder="Stenparti"
-              aria-label="Egen typ"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') sparaEgenTyp((e.target as HTMLInputElement).value)
-                if (e.key === 'Escape') setSkriverEgenTyp(false)
-              }}
-              onBlur={(e) => sparaEgenTyp(e.target.value)}
-              className={inmatningsStil}
-            />
-          </div>
-        )}
-        {plats.egenTyp && (
-          <p className="text-xs text-dis-svag">
-            Ritas som {platstypEtikett(plats.typ).toLowerCase()}. Byt standardtyp ovan för att
-            ändra utseendet.
-          </p>
+          <input
+            type="text"
+            autoFocus
+            defaultValue={plats.egenTyp ?? ''}
+            placeholder="Kompost"
+            aria-label="Egen typ"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') sparaEgenTyp((e.target as HTMLInputElement).value)
+              if (e.key === 'Escape') setSkriverEgenTyp(false)
+            }}
+            onBlur={(e) => sparaEgenTyp(e.target.value)}
+            className={inmatningsStil}
+          />
         )}
       </div>
 
-      {/* Kurvor: trädgården har sällan bara raka kanter. */}
+      {/* Siffrorna man faktiskt använder — utan scroll. */}
+      {kurva && (
+        <dl className="flex gap-3">
+          <div className="flex-1 rounded-xl bg-salvia px-3 py-2">
+            <dt className="text-[11px] text-dis">Area</dt>
+            <dd className="mono text-base text-tusch">{formatArea(area(kurva))}</dd>
+          </div>
+          <div className="flex-1 rounded-xl bg-salvia px-3 py-2">
+            <dt className="text-[11px] text-dis">Omkrets</dt>
+            <dd className="mono text-base text-tusch">{formatMeter(omkrets(kurva))}</dd>
+          </div>
+        </dl>
+      )}
+
       {antalHorn >= 3 && (
         <div className="flex flex-col gap-1.5">
           <span className="text-sm font-medium text-dis">Kanter</span>
-          <div className="flex flex-wrap gap-1.5">
-            <Chip
-              onClick={() =>
-                onGeometri(
-                  plats,
-                  plats.geometri!.punkter,
-                  allaAr ? [] : allaRunda(antalHorn),
-                  allaAr ? 'spetsa kanterna' : 'runda kanterna',
-                )
-              }
-            >
-              {allaAr ? 'Gör spetsiga' : 'Runda alla'}
-            </Chip>
-          </div>
-          <p className="text-xs text-dis-svag">
-            Klicka ett enskilt hörn i ritningen för att runda just det — så blir en rabatt
-            D-formad.
-          </p>
-        </div>
-      )}
-
-      <div className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium text-dis">Mått (m)</span>
-        <div className="flex items-center gap-1.5">
-          <label className="sr-only" htmlFor="plats-bredd">
-            Platsens bredd i meter
-          </label>
-          <input
-            id="plats-bredd"
-            type="text"
-            inputMode="decimal"
-            value={bredd}
-            onChange={(e) => setBredd(e.target.value)}
-            onBlur={sparaMatt}
-            className={`${inmatningsStil} mono w-20 py-1.5 text-center text-sm`}
-          />
-          <span className="text-dis-svag">×</span>
-          <label className="sr-only" htmlFor="plats-hojd">
-            Platsens höjd i meter
-          </label>
-          <input
-            id="plats-hojd"
-            type="text"
-            inputMode="decimal"
-            value={hojd}
-            onChange={(e) => setHojd(e.target.value)}
-            onBlur={sparaMatt}
-            className={`${inmatningsStil} mono w-20 py-1.5 text-center text-sm`}
-          />
-        </div>
-      </div>
-
-      <Chip
-        vald={plats.status === 'planerad'}
-        onClick={() =>
-          uppdatera(
-            { status: plats.status === 'planerad' ? 'finns' : 'planerad' },
-            'planerad-växlingen',
-            { status: plats.status },
-          )
-        }
-        className="self-start"
-      >
-        Planerad
-      </Chip>
-
-      <Falt etikett="Anteckning">
-        <textarea
-          rows={2}
-          value={anteckning}
-          onChange={(e) => setAnteckning(e.target.value)}
-          onBlur={() => {
-            const trimmat = anteckning.trim()
-            if ((plats.anteckning ?? '') !== trimmat) {
-              uppdatera({ anteckning: trimmat || undefined }, 'anteckningen', {
-                anteckning: plats.anteckning,
-              })
+          <Chip
+            className="self-start"
+            onClick={() =>
+              onGeometri(
+                plats,
+                plats.geometri!.punkter,
+                allaAr ? [] : allaRunda(antalHorn),
+                allaAr ? 'spetsa kanterna' : 'runda kanterna',
+              )
             }
-          }}
-          className={inmatningsStil}
-        />
-      </Falt>
-
-      {/* Area och omkrets: hur mycket bark, jord eller kantsten som behövs. */}
-      {plats.geometri && (
-        <dl className="flex flex-col gap-1 rounded-lg border border-linje px-3 py-2">
-          <div className="flex items-baseline justify-between gap-3">
-            <dt className="text-xs text-dis-svag">Area</dt>
-            <dd className="mono text-sm text-tusch">
-              {formatArea(area(formTillPolygon(plats.geometri.punkter, plats.geometri.runda)))}
-            </dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-3">
-            <dt className="text-xs text-dis-svag">Omkrets</dt>
-            <dd className="mono text-sm text-tusch">
-              {formatMeter(omkrets(formTillPolygon(plats.geometri.punkter, plats.geometri.runda)))}
-            </dd>
-          </div>
-        </dl>
+          >
+            {allaAr ? 'Gör alla spetsiga' : 'Runda alla'}
+          </Chip>
+        </div>
       )}
 
       <p className="mono text-xs text-dis-svag">
         {antalVaxter === 1 ? '1 växt här' : `${antalVaxter} växter här`}
       </p>
 
-      <div className="border-t border-linje pt-4">
-        <TaBortKnapp
-          onBekraftad={() => {
-            const vaxterDar = vaxter.filter((v) => v.platsId === plats.id)
-            const platsFore = plats
-            const placeringar = vaxterDar.map((v) => ({
-              id: v.id,
-              platsId: v.platsId,
-              position: v.position,
-            }))
-            void (async () => {
-              const repo = await import('../data/repo')
-              repo.taBortPlats(
-                uid,
-                plats.id,
-                vaxterDar,
-                handelser.filter((h) => h.platsId === plats.id),
-              )
-              onTaBort()
-            })()
-            onMinns('ta bort platsen', () => {
-              void (async () => {
-                const repo = await import('../data/repo')
-                repo.aterskapaPlats(uid, platsFore)
-                for (const p of placeringar) {
-                  repo.aterstallVaxtPlacering(uid, p.id, p.platsId, p.position)
-                }
-              })()
-            })
-          }}
+      <div className="border-t border-linje pt-3">
+        <button
+          type="button"
+          onClick={() => setVisaMer((n) => !n)}
+          className="text-sm text-dis hover:text-tusch"
         >
-          Ta bort platsen
-        </TaBortKnapp>
-        <p className="mt-2 text-xs text-dis-svag">
-          Växterna här blir kvar — de hamnar under "Utan plats". Går att ångra.
-        </p>
+          {visaMer ? 'Färre detaljer' : 'Fler detaljer'}
+        </button>
+
+        {visaMer && (
+          <div className="mt-4 flex flex-col gap-4">
+            <Chip
+              vald={plats.status === 'planerad'}
+              onClick={() =>
+                uppdatera(
+                  { status: plats.status === 'planerad' ? 'finns' : 'planerad' },
+                  'planerad-växlingen',
+                  { status: plats.status },
+                )
+              }
+              className="self-start"
+            >
+              Planerad
+            </Chip>
+
+            <Falt etikett="Anteckning">
+              <textarea
+                rows={2}
+                value={anteckning}
+                onChange={(e) => setAnteckning(e.target.value)}
+                onBlur={() => {
+                  const trimmat = anteckning.trim()
+                  if ((plats.anteckning ?? '') !== trimmat) {
+                    uppdatera({ anteckning: trimmat || undefined }, 'anteckningen', {
+                      anteckning: plats.anteckning,
+                    })
+                  }
+                }}
+                className={inmatningsStil}
+              />
+            </Falt>
+
+            {/* Lågmäld och sist. Rött är signalfärg, inte "radera". */}
+            <div className="pt-1">
+              <TaBortKnapp
+                variant="lank"
+                onBekraftad={() => {
+                  const vaxterDar = vaxter.filter((v) => v.platsId === plats.id)
+                  const platsFore = plats
+                  const placeringar = vaxterDar.map((v) => ({
+                    id: v.id,
+                    platsId: v.platsId,
+                    position: v.position,
+                  }))
+                  void (async () => {
+                    const repo = await import('../data/repo')
+                    repo.taBortPlats(
+                      uid,
+                      plats.id,
+                      vaxterDar,
+                      handelser.filter((h) => h.platsId === plats.id),
+                    )
+                    onTaBort()
+                  })()
+                  onMinns('ta bort platsen', () => {
+                    void (async () => {
+                      const repo = await import('../data/repo')
+                      repo.aterskapaPlats(uid, platsFore)
+                      for (const p of placeringar) {
+                        repo.aterstallVaxtPlacering(uid, p.id, p.platsId, p.position)
+                      }
+                    })()
+                  })
+                }}
+              >
+                Ta bort platsen
+              </TaBortKnapp>
+              <p className="mt-1 text-xs text-dis-svag">
+                Växterna blir kvar under "Utan plats". Går att ångra.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
