@@ -25,7 +25,9 @@ export default defineConfig({
   ],
   webServer: {
     // Egen port så vi aldrig krockar med andra dev-servrar på 5173.
-    command: 'npm run dev -- --port 5273 --strictPort',
+    // dev:lokal tvingar lokalt läge — annars fastnar testerna på
+    // inloggningsskärmen på en maskin som har .env.local ifylld.
+    command: 'npm run dev:lokal -- --port 5273 --strictPort',
     url: 'http://localhost:5273',
     reuseExistingServer: true,
     timeout: 30_000,

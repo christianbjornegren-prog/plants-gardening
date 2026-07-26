@@ -1,132 +1,71 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { gorBild, nyVaxt } from './hjalp'
 
-async function skapaYta(page: Page, namn: string) {
-  await page.goto('/ytor/ny')
-  await page.getByLabel('Namn').fill(namn)
-  await page.getByRole('button', { name: 'Spara' }).click()
-  await expect(page.getByRole('heading', { name: namn })).toBeVisible()
-}
-
-async function skapaVaxt(page: Page, namn: string, ytaNamn: string) {
-  await page.goto('/vaxter/ny')
-  await page.getByLabel('Namn').fill(namn)
-  await page.getByLabel('Yta').selectOption({ label: ytaNamn })
-  await page.getByRole('button', { name: 'Spara' }).click()
-  await expect(page.getByRole('heading', { name: namn })).toBeVisible()
-}
-
-test('vattna en växt på tre tryck från växtfliken', async ({ page }) => {
-  await skapaYta(page, 'Rabatten')
-  await skapaVaxt(page, 'Hortensia', 'Rabatten')
-
-  // De tre trycken: fliken Växter → växten → Vattnat
+test('Hem svarar på "vad har jag och vad hände senast?"', async ({ page }) => {
   await page.goto('/')
+  const bild = await gorBild(page, 'ormbunke')
+  await nyVaxt(page, 'Ormbunken', bild)
+  await page.getByRole('button', { name: /^Vattnat/ }).click()
+
+  await page.getByRole('link', { name: 'Hem' }).first().click()
+
+  // Öppnar med ett foto, inte med en rubrik.
+  await expect(page.getByRole('img', { name: 'Ormbunken' }).first()).toBeVisible()
+  await expect(page.getByText('1 växt')).toBeVisible()
+  await expect(page.getByText('Den här veckan')).toBeVisible()
+  await expect(page.getByTestId('tidslinje').getByText('Vattnat')).toBeVisible()
+})
+
+test('globala loggen filtrerar på trädgård och typ', async ({ page }) => {
+  await page.goto('/')
+  await nyVaxt(page, 'Basilikan')
+  await page.getByRole('button', { name: /^Vattnat/ }).click()
+  await page.getByRole('button', { name: /^Gödslat/ }).click()
+
+  await page.getByRole('link', { name: 'Logg' }).first().click()
+  await expect(page.getByText('2 händelser')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Vattnat' }).click()
+  await expect(page.getByText('1 händelse', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Alla slag' }).click()
+  await page.getByRole('button', { name: 'Utan plats' }).click()
+  await expect(page.getByText('2 händelser')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Baksidan' }).click()
+  await expect(page.getByText('0 händelser')).toBeVisible()
+  await expect(page.getByText('Inget matchar filtret')).toBeVisible()
+})
+
+test('växtlistan grupperar på plats och går att söka i', async ({ page }) => {
+  await page.goto('/')
+  await nyVaxt(page, 'Hortensian')
+  await page.getByRole('button', { name: '+ Sort' }).click()
+  await page.getByRole('textbox', { name: 'Sort' }).fill('Annabelle')
+  await page.getByRole('button', { name: 'Spara' }).click()
+  await nyVaxt(page, 'Basilikan')
+
   await page.getByRole('link', { name: 'Växter' }).first().click()
-  await page.getByText('Hortensia').click()
-  await page.getByRole('button', { name: 'Vattnat' }).click()
+  await expect(page.getByText('2 växter')).toBeVisible()
 
-  await expect(page.getByRole('status')).toHaveText('Vattnat — antecknat.')
-  const loggsektion = page.locator('section', { has: page.getByRole('heading', { name: 'Logg' }) })
-  await expect(loggsektion.getByText('Vattnat', { exact: true })).toBeVisible()
+  await page.getByRole('searchbox', { name: 'Sök' }).fill('annabelle')
+  await expect(page.getByRole('link', { name: /Hortensian/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Basilikan/ })).toHaveCount(0)
+
+  await page.getByRole('searchbox', { name: 'Sök' }).fill('finns inte')
+  await expect(page.getByText('Inga växter matchar')).toBeVisible()
 })
 
-test('nyskapad växt har en planterat-post i loggen', async ({ page }) => {
-  await skapaYta(page, 'Pallkragen')
-  await skapaVaxt(page, 'Dill', 'Pallkragen')
+test('startanimationen respekterar prefers-reduced-motion', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/ritning')
+  await page.getByRole('button', { name: 'Baksidan', exact: true }).click()
+  await page.getByRole('button', { name: /^Rita Baksidan/ }).click()
+  await page.getByRole('textbox', { name: 'Bredd (m)' }).fill('16')
+  await page.getByRole('textbox', { name: 'Djup (m)' }).fill('11')
+  await page.getByRole('button', { name: 'Skapa ritningen' }).click()
 
-  await expect(page.getByText('Planterat', { exact: true })).toBeVisible()
-
-  await page.goto('/logg')
-  await expect(page.getByText('Planterat', { exact: true })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Dill' })).toBeVisible()
-})
-
-test('ångra tar bort loggposten', async ({ page }) => {
-  await skapaYta(page, 'Köksfönstret')
-  await skapaVaxt(page, 'Basilika', 'Köksfönstret')
-
-  await page.getByRole('button', { name: 'Gödslat' }).click()
-  await expect(page.getByRole('status')).toHaveText('Gödslat — antecknat.')
-  await page.getByRole('button', { name: 'Ångra' }).click()
-
-  await expect(page.getByText('Gödslat', { exact: true })).toHaveCount(1) // bara snabbknappen
-  await page.goto('/logg')
-  await expect(page.getByText('Gödslat', { exact: true })).toHaveCount(0)
-})
-
-test('anteckning på en yta hamnar i ytans och globala loggen', async ({ page }) => {
-  await skapaYta(page, 'Bersån')
-
-  await page.getByRole('button', { name: 'Skriv anteckning' }).click()
-  await page.getByLabel('Anteckning').fill('Rensade ogräs runt rosorna.')
-  await page.getByRole('button', { name: 'Spara anteckning' }).click()
-
-  await expect(page.getByText('Rensade ogräs runt rosorna.')).toBeVisible()
-
-  await page.goto('/logg')
-  await expect(page.getByText('Rensade ogräs runt rosorna.')).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Bersån' })).toBeVisible()
-})
-
-test('ytans logg visar växternas poster med länk', async ({ page }) => {
-  await skapaYta(page, 'Trappan')
-  await skapaVaxt(page, 'Funkia', 'Trappan')
-  await page.getByRole('button', { name: 'Vattnat' }).click()
-  await expect(page.getByRole('status')).toBeVisible()
-
-  await page.goto('/ytor')
-  await page.getByText('Trappan').click()
-  const loggsektion = page.locator('section', { has: page.getByRole('heading', { name: 'Logg' }) })
-  await expect(loggsektion.getByText('Vattnat', { exact: true })).toBeVisible()
-  await expect(loggsektion.getByRole('link', { name: 'Funkia' }).first()).toBeVisible()
-})
-
-const TEST_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-  'base64',
-)
-
-test('foto via snabbloggen blir en daterad post i fototidslinjen', async ({ page }) => {
-  await skapaYta(page, 'Rabatten vid staketet')
-
-  await page.getByLabel('Välj loggfoto').setInputFiles({
-    name: 'april.png',
-    mimeType: 'image/png',
-    buffer: TEST_PNG,
-  })
-  await expect(page.getByRole('status')).toHaveText('Anteckning — antecknat.')
-
-  const loggsektion = page.locator('section', { has: page.getByRole('heading', { name: 'Logg' }) })
-  await expect(loggsektion.locator('img[src^="blob:"]')).toBeVisible()
-
-  await page.getByRole('link', { name: 'Logg' }).first().click()
-  await expect(page.locator('img[src^="blob:"]')).toBeVisible()
-})
-
-test('foto på växtdetaljen loggas också i tidslinjen', async ({ page }) => {
-  await skapaYta(page, 'Pallkragen')
-  await skapaVaxt(page, 'Salvia', 'Pallkragen')
-
-  await page.getByLabel('Välj foto').setInputFiles({
-    name: 'foto.png',
-    mimeType: 'image/png',
-    buffer: TEST_PNG,
-  })
-  const loggsektion = page.locator('section', { has: page.getByRole('heading', { name: 'Logg' }) })
-  await expect(loggsektion.locator('img[src^="blob:"]')).toBeVisible()
-})
-
-test('borttagen växt försvinner ur loggen', async ({ page }) => {
-  await skapaYta(page, 'Uterummet')
-  await skapaVaxt(page, 'Rosmarin', 'Uterummet')
-  await page.getByRole('button', { name: 'Vattnat' }).click()
-  await expect(page.getByRole('status')).toBeVisible()
-
-  await page.getByRole('button', { name: 'Ta bort växten' }).click()
-  await page.getByRole('button', { name: 'Tryck igen för att ta bort' }).click()
-  await expect(page).toHaveURL(/\/vaxter$/)
-
-  // SPA-navigering (ingen omladdning) så att raderingarna hinner persisteras
-  await page.getByRole('link', { name: 'Logg' }).first().click()
-  await expect(page.getByText('Inget loggat än', { exact: false })).toBeVisible()
+  // Ingen väntan: tomtgränsen ska vara framme direkt.
+  await expect(page.getByTestId('tomtgrans')).toBeVisible()
+  await expect(page.getByTestId('tomtgrans')).toHaveCSS('fill-opacity', '1')
 })

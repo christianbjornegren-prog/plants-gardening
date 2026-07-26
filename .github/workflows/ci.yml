@@ -1,0 +1,113 @@
+name: Kontroll och deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Två deployer samtidigt mot samma sajt är alltid fel.
+concurrency:
+  group: ripvagen-11-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kontroll:
+    name: Typecheck, tester, e2e, bygge
+    runs-on: ubuntu-latest
+    outputs:
+      # secrets-kontexten går inte att läsa i ett job-level `if`, så den vägs
+      # om till en output här.
+      kan_deploya: ${{ steps.hemlighet.outputs.kan }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Enhetstester
+        run: npm run test
+
+      - name: Playwright-webbläsare
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E (desktop + mobil 390×844)
+        run: npm run e2e
+
+      - name: Bygge
+        run: npm run build
+
+      - name: Har vi deploy-nyckel?
+        id: hemlighet
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -n "$SA" ]; then echo "kan=ja" >> "$GITHUB_OUTPUT"; else echo "kan=nej" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Spara e2e-spår vid fel
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-rapport
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
+  deploy:
+    name: Deploy till Firebase
+    needs: kontroll
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.kontroll.outputs.kan_deploya == 'ja'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Bygget i kontroll-jobbet saknar Firebase-config och blir därför en
+      # LOKAL bundle. Produktionsbygget måste göras om med riktiga värden.
+      - name: Bygg med molnkonfig
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+        run: npm run build
+
+      # Utan config bygger Vite en app som sparar allt i webbläsaren och aldrig
+      # visar inloggningen. Den får aldrig nå hostingen.
+      - name: Vägra deploya en lokal-bundle
+        run: |
+          if ! grep -rq "plants-gardeing" dist/assets/*.js; then
+            echo "::error::Bundlen saknar Firebase-projektet — VITE_*-hemligheterna är inte satta."
+            exit 1
+          fi
+          echo "Molnkonfig verifierad i bundlen."
+
+      - name: Deploy (hosting + regler)
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/sa.json
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > sa.json
+          npx firebase-tools@15 deploy \
+            --only hosting,firestore:rules,storage:rules \
+            --project plants-gardeing \
+            --non-interactive \
+            --message "${GITHUB_SHA::7}"
+          rm -f sa.json
