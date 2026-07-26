@@ -14,16 +14,23 @@ Uppdateras varje session.
   fotokomprimering (max 1600 px, JPEG) + photoStore (IndexedDB lokalt /
   Storage i moln), tvåstegsborttagning, skydd mot att ta bort yta med växter.
 
+- **Fas 2 — Skötsellogg:** snabbloggning (Vattnat/Gödslat/Beskuret) med ett
+  tryck på växt- och ytdetaljen (= tre tryck totalt från fliken), Ångra i 6 s,
+  anteckningar, automatisk "Planterat"-post när växt skapas, tidslinjer per
+  växt, per yta (inkl. växternas poster) och globalt med länkar till målet.
+  Loggposter städas när växt/yta tas bort.
+
 ## Pågår
 
-- **Fas 2 — Skötsellogg:** logga vattnat/gödslat/beskuret på max tre tryck;
-  tidslinje per växt och yta.
+- **Fas 3 — Kartan:** meterkoordinater, polygonredigering (desktop),
+  typfärger, växtprickar, mobil pan/zoom + dra-för-att-flytta,
+  startanimationen.
 
 ## Senare
-- **Fas 3 — Kartan:** meterkoordinater, polygonredigering (desktop), typfärger,
-  växtprickar, mobil pan/zoom + dra-för-att-flytta, startanimationen.
 - **Fas 4 — Polish:** fototidslinje, årstidston, offline-finslipning.
 - Ta bort enskilda foton från en växt (nu tas foton bara bort med växten).
+- Ta bort enskilda loggposter i efterhand (nu bara Ångra direkt efteråt).
+- Foto på loggpost (`photoRef` finns i schemat men saknar UI).
 
 ## Ingår inte i v1
 

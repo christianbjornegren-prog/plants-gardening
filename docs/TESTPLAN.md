@@ -27,6 +27,10 @@
 | Foto | uppladdning → komprimering → visas som blob-URL | e2e |
 | Borttagning | växt (två tryck), yta blockeras med växter, tom yta kan tas bort | e2e |
 | Tomtillstånd | växtformulär utan ytor leder till "skapa yta" | e2e |
+| Loggfilter | `loggForVaxt`/`loggForYta` (ytans + växternas poster, följer flytt) | enhet |
+| Snabblogg | tre tryck från fliken till Vattnat, kvittens, Ångra tar bort posten | e2e |
+| Loggposter | auto-Planterat vid ny växt, anteckning på yta, ytlogg med växtlänkar | e2e |
+| Loggstädning | borttagen växt lämnar inga loggposter | e2e |
 
 ## Kända luckor
 

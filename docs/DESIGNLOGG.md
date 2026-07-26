@@ -37,3 +37,17 @@ Designbeslut + vad som provats och förkastats.
   vardagsexempel ("Rabatten vid staketet"). Autofokus på namnfältet.
 - **Yta-skydd:** en yta med växter visar en förklaring i stället för en
   inaktiverad knapp — hellre säga varför än gråa ut.
+
+## Fas 2
+
+- **Snabbloggen:** tre gröna knappar (droppe/gödsel/sax) i orm/lov-toner —
+  medvetet INTE fermob, skötsel är vardag, inte accent. Kvittensen
+  "Vattnat — antecknat." med Ångra-länk i 6 s ersätter både toast och
+  per-rad-borttagning.
+- **Tidslinjen:** rund lov-tonad ikonbricka per typ, datum högerställt
+  ("i dag"/"i går"/"14 maj"), mål som orm-länk bara när sammanhanget kräver
+  (globala loggen och ytans logg).
+- **Auto-"Planterat":** varje växt får en startpost — tidslinjen är aldrig tom
+  och känns levande från första stund.
+- **Provat och förkastat:** loggformulär med typ-väljare (för många steg);
+  per-rad-radering i tidslinjen (för plottrigt, Ångra täcker felslag).

@@ -1,11 +1,13 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useUid } from '../auth/AuthProvider'
-import type { Area, Plant } from './types'
+import type { Area, LogEntry, Plant } from './types'
 
 export interface DataVarde {
   ytor: Area[]
   vaxter: Plant[]
-  /** false tills båda lyssnarna gett sitt första svar — visa inget innan dess. */
+  /** Sorterad med nyaste först. */
+  logg: LogEntry[]
+  /** false tills alla lyssnare gett sitt första svar — visa inget innan dess. */
   laddad: boolean
 }
 
@@ -15,6 +17,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const uid = useUid()
   const [ytor, setYtor] = useState<Area[]>()
   const [vaxter, setVaxter] = useState<Plant[]>()
+  const [logg, setLogg] = useState<LogEntry[]>()
 
   useEffect(() => {
     let aktiv = true
@@ -29,6 +32,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         repo.lyssnaPaVaxter(uid, (nya) => {
           if (aktiv) setVaxter(nya)
         }),
+        repo.lyssnaPaLogg(uid, (nya) => {
+          if (aktiv) setLogg(nya)
+        }),
       )
     })()
     return () => {
@@ -40,7 +46,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const varde: DataVarde = {
     ytor: ytor ?? [],
     vaxter: vaxter ?? [],
-    laddad: ytor !== undefined && vaxter !== undefined,
+    logg: logg ?? [],
+    laddad: ytor !== undefined && vaxter !== undefined && logg !== undefined,
   }
   return <DataContext.Provider value={varde}>{children}</DataContext.Provider>
 }

@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore'
 import { getDb } from '../lib/firebase'
 import { utanUndefined } from '../lib/rensa'
-import type { Area, Plant, PlantMove, SunExposure } from './types'
+import type { Area, LogEntry, LogType, Plant, PlantMove, SunExposure } from './types'
 
 /**
  * Datalagret. Importeras alltid dynamiskt (await import) så att Firebase
@@ -34,6 +34,10 @@ function ytaCol(uid: string) {
 
 function vaxtCol(uid: string) {
   return collection(getDb(), 'users', uid, 'plants')
+}
+
+function loggCol(uid: string) {
+  return collection(getDb(), 'users', uid, 'logEntries')
 }
 
 function tillYta(snap: QueryDocumentSnapshot<DocumentData>): Area {
@@ -73,6 +77,44 @@ export function lyssnaPaVaxter(uid: string, mottagare: (vaxter: Plant[]) => void
   })
 }
 
+function tillLoggpost(snap: QueryDocumentSnapshot<DocumentData>): LogEntry {
+  const data = snap.data()
+  return {
+    id: snap.id,
+    plantId: data.plantId as string | undefined,
+    areaId: data.areaId as string | undefined,
+    type: (data.type as LogType | undefined) ?? 'anteckning',
+    date: typeof data.date === 'string' ? data.date : '',
+    note: data.note as string | undefined,
+    photoRef: data.photoRef as string | undefined,
+  }
+}
+
+/** Sorterad med nyaste först (ISO-strängar jämförs lexikografiskt). */
+export function lyssnaPaLogg(uid: string, mottagare: (poster: LogEntry[]) => void): () => void {
+  return onSnapshot(loggCol(uid), (snap) => {
+    mottagare(snap.docs.map(tillLoggpost).sort((a, b) => b.date.localeCompare(a.date)))
+  })
+}
+
+export interface LoggFalt {
+  plantId?: string
+  areaId?: string
+  type: LogType
+  note?: string
+  photoRef?: string
+}
+
+export function skapaLoggpost(uid: string, falt: LoggFalt): string {
+  const ny = doc(loggCol(uid))
+  void setDoc(ny, utanUndefined({ ...falt, date: new Date().toISOString() })).catch(loggaFel)
+  return ny.id
+}
+
+export function taBortLoggpost(uid: string, id: string): void {
+  void deleteDoc(doc(loggCol(uid), id)).catch(loggaFel)
+}
+
 export interface YtaFalt {
   name: string
   sunExposure?: SunExposure
@@ -95,8 +137,10 @@ export function uppdateraYta(uid: string, id: string, falt: YtaFalt): void {
   }).catch(loggaFel)
 }
 
-export function taBortYta(uid: string, id: string): void {
+/** Tar även bort ytans egna loggposter (skickas in från vyn som redan har dem). */
+export function taBortYta(uid: string, id: string, loggIds: string[]): void {
   void deleteDoc(doc(ytaCol(uid), id)).catch(loggaFel)
+  for (const loggId of loggIds) taBortLoggpost(uid, loggId)
 }
 
 export interface VaxtFalt {
@@ -118,6 +162,8 @@ export function skapaVaxt(uid: string, falt: VaxtFalt): string {
       moveHistory: [],
     }),
   ).catch(loggaFel)
+  // Varje växt börjar sin tidslinje med en planterad-post.
+  skapaLoggpost(uid, { plantId: ny.id, type: 'planterat' })
   return ny.id
 }
 
@@ -149,8 +195,10 @@ export function laggTillVaxtFoto(uid: string, vaxt: Plant, fotoRef: string): voi
   }).catch(loggaFel)
 }
 
-export function taBortVaxt(uid: string, vaxt: Plant): void {
+/** Tar även bort växtens loggposter (skickas in från vyn som redan har dem). */
+export function taBortVaxt(uid: string, vaxt: Plant, loggIds: string[]): void {
   void deleteDoc(doc(vaxtCol(uid), vaxt.id)).catch(loggaFel)
+  for (const loggId of loggIds) taBortLoggpost(uid, loggId)
   void (async () => {
     const { taBortFoto } = await import('../lib/photoStore')
     await Promise.all(vaxt.photoRefs.map(taBortFoto))

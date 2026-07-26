@@ -3,13 +3,16 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useUid } from '../auth/AuthProvider'
 import { FotoBild } from '../components/FotoBild'
 import { Knapp, LankKnapp, TaBortKnapp } from '../components/Knapp'
+import { SnabbLogg } from '../components/SnabbLogg'
+import { Tidslinje } from '../components/Tidslinje'
 import { SaknasVy, VyHuvud } from '../components/VyHuvud'
 import { useData, ytaNamn } from '../data/DataProvider'
 import { formatDatum } from '../lib/format'
+import { loggForVaxt } from '../lib/logg'
 
 export function VaxtDetaljView() {
   const { id } = useParams()
-  const { vaxter, ytor, laddad } = useData()
+  const { vaxter, ytor, logg, laddad } = useData()
   const uid = useUid()
   const navigate = useNavigate()
   const filInput = useRef<HTMLInputElement>(null)
@@ -20,6 +23,7 @@ export function VaxtDetaljView() {
   const hittad = vaxter.find((v) => v.id === id)
   if (!hittad) return <SaknasVy text="Växten finns inte längre." tillbakaTill="/vaxter" />
   const vaxt = hittad
+  const vaxtLogg = loggForVaxt(logg, vaxt.id)
 
   const visatFoto = vaxt.photoRefs[valtFoto] ?? vaxt.photoRefs[0]
 
@@ -45,7 +49,11 @@ export function VaxtDetaljView() {
   function taBort() {
     void (async () => {
       const { taBortVaxt } = await import('../data/repo')
-      taBortVaxt(uid, vaxt)
+      taBortVaxt(
+        uid,
+        vaxt,
+        vaxtLogg.map((post) => post.id),
+      )
       navigate('/vaxter', { replace: true })
     })()
   }
@@ -112,6 +120,15 @@ export function VaxtDetaljView() {
       </dl>
 
       {vaxt.note && <p className="mt-4 whitespace-pre-wrap text-panel/85">{vaxt.note}</p>}
+
+      <div className="mt-6">
+        <SnabbLogg plantId={vaxt.id} />
+      </div>
+
+      <section className="mt-8">
+        <h2 className="mb-1 font-display text-lg font-semibold">Logg</h2>
+        <Tidslinje poster={vaxtLogg} tom="Inget loggat än." />
+      </section>
 
       {vaxt.moveHistory.length > 0 && (
         <section className="mt-8">

@@ -1,14 +1,17 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { useUid } from '../auth/AuthProvider'
 import { LankKnapp, TaBortKnapp } from '../components/Knapp'
+import { SnabbLogg } from '../components/SnabbLogg'
+import { Tidslinje } from '../components/Tidslinje'
 import { VaxtRad } from '../components/VaxtRad'
 import { SaknasVy, VyHuvud } from '../components/VyHuvud'
 import { useData } from '../data/DataProvider'
 import { sollageEtikett } from '../lib/etiketter'
+import { loggForYta } from '../lib/logg'
 
 export function YtaDetaljView() {
   const { id } = useParams()
-  const { ytor, vaxter, laddad } = useData()
+  const { ytor, vaxter, logg, laddad } = useData()
   const uid = useUid()
   const navigate = useNavigate()
 
@@ -19,11 +22,17 @@ export function YtaDetaljView() {
 
   const vaxterHar = vaxter.filter((v) => v.areaId === yta.id)
   const detaljer = [yta.sunExposure && sollageEtikett(yta.sunExposure), yta.soil].filter(Boolean)
+  const ytaLogg = loggForYta(logg, vaxter, yta.id)
+  const vaxtNamn = new Map(vaxter.map((v) => [v.id, v.name]))
 
   function taBort() {
     void (async () => {
       const { taBortYta } = await import('../data/repo')
-      taBortYta(uid, yta.id)
+      taBortYta(
+        uid,
+        yta.id,
+        logg.filter((post) => post.areaId === yta.id).map((post) => post.id),
+      )
       navigate('/ytor', { replace: true })
     })()
   }
@@ -40,6 +49,10 @@ export function YtaDetaljView() {
         <p className="mb-3 text-sm text-panel/70">{detaljer.join(' · ')}</p>
       )}
       {yta.note && <p className="mb-3 whitespace-pre-wrap text-panel/85">{yta.note}</p>}
+
+      <div className="mt-6">
+        <SnabbLogg areaId={yta.id} />
+      </div>
 
       <section className="mt-8">
         <div className="mb-3 flex items-center justify-between">
@@ -59,6 +72,19 @@ export function YtaDetaljView() {
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="mt-8">
+        <h2 className="mb-1 font-display text-lg font-semibold">Logg</h2>
+        <Tidslinje
+          poster={ytaLogg}
+          mal={(post) => {
+            if (!post.plantId) return undefined
+            const namn = vaxtNamn.get(post.plantId)
+            return namn ? { text: namn, lank: `/vaxter/${post.plantId}` } : undefined
+          }}
+          tom="Inget loggat här än."
+        />
       </section>
 
       <section className="mt-12 border-t border-panel/10 pt-6">

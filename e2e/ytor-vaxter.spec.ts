@@ -66,7 +66,7 @@ test('skapa växt i en yta och se den i listor', async ({ page }) => {
   await page.goto('/ytor')
   await page.getByText('Altanen').click()
   await expect(page.getByRole('heading', { name: 'Växter här' })).toBeVisible()
-  await expect(page.getByText('Hortensia')).toBeVisible()
+  await expect(page.locator('ul').getByRole('link', { name: 'Hortensia' })).toBeVisible()
 })
 
 test('ändra växtens namn och anteckning', async ({ page }) => {
@@ -129,7 +129,7 @@ test('yta med växter kan inte tas bort — tom yta kan', async ({ page }) => {
     page.getByText('Ytan har växter — flytta eller ta bort dem innan ytan kan tas bort.'),
   ).toBeVisible()
 
-  await page.getByText('Lavendel').click()
+  await page.locator('ul').getByRole('link', { name: 'Lavendel' }).click()
   await page.getByRole('button', { name: 'Ta bort växten' }).click()
   await page.getByRole('button', { name: 'Tryck igen för att ta bort' }).click()
   await expect(page).toHaveURL(/\/vaxter$/)

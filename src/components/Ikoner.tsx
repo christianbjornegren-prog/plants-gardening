@@ -52,6 +52,41 @@ export function LoggIkon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function DroppeIkon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...ikonProps(props)}>
+      <path d="M12 3.8c3.4 4.1 5.3 6.9 5.3 9.3a5.3 5.3 0 1 1-10.6 0c0-2.4 1.9-5.2 5.3-9.3Z" />
+    </svg>
+  )
+}
+
+export function GodselIkon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...ikonProps(props)}>
+      <path d="M12 4v5M8.5 6.5 10 10M15.5 6.5 14 10" />
+      <path d="M4.5 17.5c2.4-2 5-2 7.5 0s5.1 2 7.5 0" />
+    </svg>
+  )
+}
+
+export function SaxIkon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...ikonProps(props)}>
+      <circle cx="6" cy="7" r="2.3" />
+      <circle cx="6" cy="17" r="2.3" />
+      <path d="M7.9 8.3 19 19M7.9 15.7 19 5" />
+    </svg>
+  )
+}
+
+export function PennaIkon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...ikonProps(props)}>
+      <path d="m4.5 19.5 1.2-3.6L17 4.6a1.7 1.7 0 0 1 2.4 2.4L8.1 18.3l-3.6 1.2Z" />
+    </svg>
+  )
+}
+
 export function PlusIkon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...ikonProps(props)}>
