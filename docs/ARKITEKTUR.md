@@ -44,6 +44,30 @@ Foton från `plants.photoRefs` saknar datum i v1. De dateras till växtens älds
 loggpost och flaggas `datumOkant: true`; UI:t visar `≈ maj 2026`. Att gissa ett
 exakt datum vore att ljuga i en journal.
 
+## Behörighet (v0.1)
+
+Appen är privat för två personer. Låset ligger i **säkerhetsreglerna**, som
+körs på servern: `request.auth.token.email` måste stå i en fast lista OCH
+`email_verified` måste vara true. Utan verifieringskravet skulle vem som helst
+kunna registrera ett lösenordskonto på en av adresserna och komma in.
+Isoleringen per uid finns kvar — Christian och Elin ser fortfarande varsin
+trädgård.
+
+Samma lista finns i `src/lib/behorighet.ts`, men **appens kontroll är bara
+artighet**: den ger ett begripligt nej i stället för en app som ser ut att
+fungera men inte kan läsa något. `behorighet.test.ts` bevakar att listan i
+koden och de två regelfilerna inte glider isär.
+
+Inloggning sker med Google (`signInWithPopup`, med `signInWithRedirect` som
+fallback när popup blockeras — vilket händer i installerade PWA:er).
+`prompt: 'select_account'` tvingar fram kontoväljaren; två personer delar ofta
+en dator och en app som tyst loggar in fel konto är svår att förstå.
+
+Popup valdes framför redirect som förstahandsval eftersom `authDomain`
+(`plants-gardeing.firebaseapp.com`) är en annan origin än appen
+(`plants-gardeing.web.app`), och `signInWithRedirect` är känsligt för
+cookie-partitionering i Safari i den konstellationen.
+
 ## Kuben
 
 Växt, plats och ritning nås från varandras håll, utan påtvingad ingång:

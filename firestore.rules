@@ -1,12 +1,24 @@
 rules_version = '2';
 
-// Ripvägen 11 — all data ligger under users/{uid}/… och får bara läsas och
-// skrivas av den inloggade ägaren. En användare, ingen delning (se CLAUDE.md).
+// Ripvägen 11 — bara Christian och Elin kommer in, och var och en ser bara
+// sin egen data. Listan speglas i src/lib/behorighet.ts och storage.rules;
+// behorighet.test.ts bevakar att de tre hålls i synk.
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+    function behorig() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+             'christian.bjornegren@gmail.com',
+             'elinkristinaeriksson@gmail.com'
+           ];
     }
+
+    match /users/{uid}/{document=**} {
+      allow read, write: if behorig() && request.auth.uid == uid;
+    }
+
     // Allt annat är stängt.
     match /{document=**} {
       allow read, write: if false;
