@@ -30,6 +30,7 @@ export default defineConfig({
     command: 'npm run dev:lokal -- --port 5273 --strictPort',
     url: 'http://localhost:5273',
     reuseExistingServer: true,
-    timeout: 30_000,
+    // Kall CI-runner måste hinna förbunta beroenden första gången.
+    timeout: 120_000,
   },
 })

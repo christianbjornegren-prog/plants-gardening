@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { angeMatt, gorBild, nyVaxt, ritaPlats, tryckIRitningen } from './hjalp'
+import { angeMatt, gaTill, gorBild, nyVaxt, ritaPlats, tryckIRitningen } from './hjalp'
 
 const RUTA: [number, number][] = [
   [0.2, 0.3],
@@ -38,7 +38,7 @@ test.describe('ritläget', () => {
     )
     await expect(page.locator('[data-plats-id]')).toHaveCount(1)
 
-    await page.goto('/ritning')
+    await page.getByRole('link', { name: 'Tillbaka till ritningen' }).click()
     await expect(page.locator('[data-plats-id]')).toHaveCount(1)
   })
 
@@ -96,7 +96,12 @@ test.describe('ritläget', () => {
     await page.getByRole('button', { name: 'Ta bort platsen' }).click()
     await page.getByRole('button', { name: 'Tryck igen för att ta bort' }).click()
 
-    await page.goto('/vaxter')
+    // Vänta på kvittensen i ritningen — formen OCH pricken ska vara borta —
+    // innan vi navigerar vidare och tittar på listan.
+    await expect(page.locator('[data-plats-id]')).toHaveCount(0)
+    await expect(page.locator('[data-vaxt-id]')).toHaveCount(0)
+
+    await gaTill(page, 'Växter')
     await expect(page.locator('h2', { hasText: 'Utan plats' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Hortensian' })).toBeVisible()
   })
@@ -111,14 +116,14 @@ test('kuben: en plats på ritningen kan ta emot en befintlig växt', async ({ pa
   await angeMatt(page, 'Baksidan', '16', '11')
   await page.getByRole('link', { name: 'Redigera' }).click()
   await ritaPlats(page, RUTA, 'Rabatten')
-  await page.goto('/ritning')
+  await page.getByRole('link', { name: 'Tillbaka till ritningen' }).click()
 
   await tryckIRitningen(page, 0.45, 0.5)
   await page.getByRole('button', { name: 'Lägg till växt här' }).click()
   await page.getByRole('button', { name: /Pionen/ }).click()
 
   await expect(page.locator('[data-vaxt-id]')).toHaveCount(1)
-  await page.goto('/vaxter')
+  await gaTill(page, 'Växter')
   await expect(page.getByRole('link', { name: /Rabatten/ })).toBeVisible()
 })
 
@@ -131,7 +136,7 @@ test('kuben: växtkortet kan skicka en växt till ritningen', async ({ page }) =
   await ritaPlats(page, RUTA, 'Rabatten')
 
   // Ge växten platsen, gå sedan till kortet och placera den på ritningen.
-  await page.goto('/vaxter')
+  await gaTill(page, 'Växter')
   await page.getByRole('link', { name: 'Hortensian' }).click()
   await page.getByRole('button', { name: 'Välj plats' }).click()
   await page.getByRole('button', { name: 'Rabatten', exact: true }).click()
@@ -148,7 +153,7 @@ test('planerad växt ritas streckad och listas under Planerat', async ({ page })
   await angeMatt(page, 'Baksidan', '16', '11')
   await page.getByRole('link', { name: 'Redigera' }).click()
   await ritaPlats(page, RUTA, 'Rabatten')
-  await page.goto('/ritning')
+  await page.getByRole('link', { name: 'Tillbaka till ritningen' }).click()
 
   await tryckIRitningen(page, 0.45, 0.5)
   await page.getByRole('button', { name: 'Lägg till växt här' }).click()
@@ -158,7 +163,7 @@ test('planerad växt ritas streckad och listas under Planerat', async ({ page })
   await page.waitForURL(/\/vaxter\//)
 
   await expect(page.getByText('Planerad — inte planterad än')).toBeVisible()
-  await page.goto('/')
+  await gaTill(page, 'Hem')
   await expect(page.getByText('Planerat')).toBeVisible()
   await expect(page.getByRole('link', { name: /Magnolian/ })).toBeVisible()
 

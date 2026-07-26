@@ -50,9 +50,29 @@ export async function nyVaxt(page: Page, namn: string, bild?: string): Promise<v
   await page.getByRole('heading', { name: namn }).waitFor()
 }
 
+/**
+ * Navigera som en människa gör — via appens egna länkar.
+ *
+ * En `page.goto` direkt efter en skrivning kan riva sidan innan Firestore
+ * hunnit persistera till IndexedDB; i lokalt läge finns ingen server som
+ * ackar, så skrivningen är helt enkelt borta. SPA-navigering river inte
+ * sidan och undviker hela klassen. Se docs/ARKITEKTUR.md.
+ */
+export async function gaTill(
+  page: Page,
+  flik: 'Hem' | 'Ritningen' | 'Växter' | 'Logg',
+): Promise<void> {
+  await page.getByRole('link', { name: flik }).first().click()
+}
+
 /** Sätter trädgårdens mått, vilket skapar dess ritning. */
 export async function angeMatt(page: Page, tradgard: string, bredd: string, djup: string) {
-  await page.goto('/ritning')
+  // Finns skalet redan? Gå via länken; annars är detta testets första steg.
+  if (await page.getByRole('link', { name: 'Ritningen' }).count()) {
+    await gaTill(page, 'Ritningen')
+  } else {
+    await page.goto('/ritning')
+  }
   await page.getByRole('button', { name: tradgard, exact: true }).click()
   await page.getByRole('button', { name: new RegExp(`^Rita ${tradgard}`) }).click()
   await page.getByRole('textbox', { name: 'Bredd (m)' }).fill(bredd)

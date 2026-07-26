@@ -147,6 +147,12 @@ Bekräftade fynd som åtgärdats — mönster värda att minnas:
 Playwrights `webServer` startar `npm run dev -- --port 5273 --strictPort` och
 återanvänder en redan startad server på samma port.
 
+**CI körde först rött på precis denna race.** Testet som tar bort en plats
+gjorde `page.goto('/vaxter')` direkt efter raderingen och tappade skrivningen
+på en långsammare maskin. Regeln är därför skärpt: e2e navigerar via appens
+egna länkar (`gaTill`-hjälparen), och `page.goto` används bara som ett
+testets FÖRSTA steg, aldrig efter en skrivning.
+
 **Testmönster mot omladdningsracen:** i lokalt läge ackas skrivningar aldrig
 av en server, så en `page.goto` (helsidesladdning) omedelbart efter en
 skrivning kan riva sidan innan mutationen persisterats. Testerna väntar därför
