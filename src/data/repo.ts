@@ -15,6 +15,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore'
 import { getDb } from '../lib/firebase'
+import { rapporteraDataFel } from './fel'
 import { utanUndefined } from '../lib/rensa'
 import { franLagradGeometri, tillLagradGeometri, tolkaPlatsTyp } from './kartkonvertering'
 import {
@@ -50,8 +51,17 @@ import type {
 
 const sorterare = new Intl.Collator('sv')
 
+/**
+ * Skrivfel går till felkanalen så att UI:t kan säga till. Tidigare hamnade de
+ * bara i konsolen, vilket gjorde en nekad skrivning omöjlig att skilja från
+ * en app som hängt sig.
+ */
 function loggaFel(fel: unknown): void {
-  console.error('Ripvägen 11: skrivning misslyckades', fel)
+  rapporteraDataFel(fel, 'skrivning')
+}
+
+function loggaLasfel(fel: unknown): void {
+  rapporteraDataFel(fel, 'lasning')
 }
 
 const tradgardCol = (uid: string) => collection(getDb(), 'users', uid, 'tradgardar')
@@ -128,31 +138,65 @@ function tillHandelse(snap: QueryDocumentSnapshot<DocumentData>): Handelse {
 }
 
 export function lyssnaPaTradgardar(uid: string, mottagare: (v: Tradgard[]) => void): () => void {
-  return onSnapshot(tradgardCol(uid), (snap) => {
-    mottagare(snap.docs.map(tillTradgard).sort((a, b) => a.ordning - b.ordning))
-  })
+  return onSnapshot(
+    tradgardCol(uid),
+    (snap) => mottagare(snap.docs.map(tillTradgard).sort((a, b) => a.ordning - b.ordning)),
+    loggaLasfel,
+  )
 }
 
 export function lyssnaPaPlatser(uid: string, mottagare: (v: Plats[]) => void): () => void {
-  return onSnapshot(platsCol(uid), (snap) => {
-    mottagare(snap.docs.map(tillPlats).sort((a, b) => sorterare.compare(a.namn, b.namn)))
-  })
+  return onSnapshot(
+    platsCol(uid),
+    (snap) => mottagare(snap.docs.map(tillPlats).sort((a, b) => sorterare.compare(a.namn, b.namn))),
+    loggaLasfel,
+  )
 }
 
 export function lyssnaPaVaxter(uid: string, mottagare: (v: Vaxt[]) => void): () => void {
-  return onSnapshot(vaxtCol(uid), (snap) => {
-    mottagare(snap.docs.map(tillVaxt).sort((a, b) => sorterare.compare(a.namn, b.namn)))
-  })
+  return onSnapshot(
+    vaxtCol(uid),
+    (snap) => mottagare(snap.docs.map(tillVaxt).sort((a, b) => sorterare.compare(a.namn, b.namn))),
+    loggaLasfel,
+  )
 }
 
 /** Sorterad med nyaste först (ISO-strängar jämförs lexikografiskt). */
 export function lyssnaPaHandelser(uid: string, mottagare: (v: Handelse[]) => void): () => void {
-  return onSnapshot(handelseCol(uid), (snap) => {
-    mottagare(snap.docs.map(tillHandelse).sort((a, b) => b.datum.localeCompare(a.datum)))
-  })
+  return onSnapshot(
+    handelseCol(uid),
+    (snap) => mottagare(snap.docs.map(tillHandelse).sort((a, b) => b.datum.localeCompare(a.datum))),
+    loggaLasfel,
+  )
 }
 
 /* ---------------------------------------------------------------- trädgårdar */
+
+export interface TradgardFalt {
+  namn: string
+  ordning: number
+  widthM?: number
+  heightM?: number
+}
+
+/**
+ * Ny ritning. Används för att skissa om en trädgård utan att röra nuläget —
+ * "Baksidan" bredvid "Baksidan kommande".
+ */
+export function skapaTradgard(uid: string, falt: TradgardFalt): string {
+  const ny = doc(tradgardCol(uid))
+  void setDoc(ny, utanUndefined({ ...falt })).catch(loggaFel)
+  return ny.id
+}
+
+/** Tar bort ritningen OCH platserna som hör till den. Växterna blir hemlösa. */
+export function taBortTradgard(uid: string, id: string, platser: Plats[], vaxter: Vaxt[]): void {
+  for (const plats of platser) {
+    const dar = vaxter.filter((v) => v.platsId === plats.id)
+    taBortPlats(uid, plats.id, dar, [])
+  }
+  void deleteDoc(doc(tradgardCol(uid), id)).catch(loggaFel)
+}
 
 export function sparaTradgardMatt(uid: string, id: string, widthM: number, heightM: number): void {
   void setDoc(doc(tradgardCol(uid), id), { widthM, heightM }, { merge: true }).catch(loggaFel)
@@ -169,6 +213,7 @@ export interface PlatsFalt {
   namn: string
   typ: PlatsTyp
   punkter?: PunktM[]
+  runda?: number[]
   sol?: Sol
   jord?: string
   vetterMot?: string
@@ -182,7 +227,9 @@ function platsPayload(falt: PlatsFalt): Record<string, unknown> {
     tradgardId: falt.tradgardId,
     namn: falt.namn,
     typ: falt.typ,
-    geometri: falt.punkter?.length ? tillLagradGeometri({ punkter: falt.punkter }) : undefined,
+    geometri: falt.punkter?.length
+      ? tillLagradGeometri({ punkter: falt.punkter, runda: falt.runda })
+      : undefined,
     sol: falt.sol,
     jord: falt.jord,
     vetterMot: falt.vetterMot,
@@ -198,6 +245,35 @@ export function skapaPlats(uid: string, falt: PlatsFalt): string {
   return ny.id
 }
 
+/**
+ * Skriver tillbaka en plats med SAMMA id. Finns för ångra-funktionen i
+ * ritläget: en borttagen plats ska kunna återuppstå exakt som den var, så att
+ * växternas platsId fortfarande pekar rätt.
+ */
+export function aterskapaPlats(uid: string, plats: Plats): void {
+  const { id, geometri, ...falt } = plats
+  void setDoc(
+    doc(platsCol(uid), id),
+    utanUndefined({ ...falt, geometri: geometri ? tillLagradGeometri(geometri) : undefined }),
+  ).catch(loggaFel)
+}
+
+/**
+ * Sätter växtens plats och läge UTAN att skriva en händelse. Bara för ångra —
+ * en ångrad flytt ska inte lämna spår i historiken.
+ */
+export function aterstallVaxtPlacering(
+  uid: string,
+  vaxtId: string,
+  platsId: string | undefined,
+  position: { x: number; y: number } | undefined,
+): void {
+  void updateDoc(doc(vaxtCol(uid), vaxtId), {
+    platsId: platsId ?? deleteField(),
+    position: position ?? deleteField(),
+  }).catch(loggaFel)
+}
+
 /** Bara de fält som skickas med rörs; undefined raderar fältet. */
 export function uppdateraPlats(uid: string, id: string, falt: Partial<PlatsFalt>): void {
   const uppdatering: Record<string, unknown> = {}
@@ -207,7 +283,7 @@ export function uppdateraPlats(uid: string, id: string, falt: Partial<PlatsFalt>
   if ('status' in falt) uppdatering.status = falt.status ?? 'finns'
   if ('punkter' in falt) {
     uppdatering.geometri = falt.punkter?.length
-      ? tillLagradGeometri({ punkter: falt.punkter })
+      ? tillLagradGeometri({ punkter: falt.punkter, runda: falt.runda })
       : deleteField()
   }
   for (const nyckel of ['sol', 'jord', 'vetterMot', 'vaderstreck', 'anteckning'] as const) {
@@ -217,9 +293,14 @@ export function uppdateraPlats(uid: string, id: string, falt: Partial<PlatsFalt>
   void updateDoc(doc(platsCol(uid), id), uppdatering).catch(loggaFel)
 }
 
-export function sparaPlatsGeometri(uid: string, id: string, punkter: PunktM[]): void {
+export function sparaPlatsGeometri(
+  uid: string,
+  id: string,
+  punkter: PunktM[],
+  runda?: number[],
+): void {
   void updateDoc(doc(platsCol(uid), id), {
-    geometri: tillLagradGeometri({ punkter }),
+    geometri: tillLagradGeometri({ punkter, runda }),
   }).catch(loggaFel)
 }
 

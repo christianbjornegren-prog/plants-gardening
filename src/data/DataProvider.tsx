@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useUid } from '../auth/AuthProvider'
+import { lyssnaPaDataFel } from './fel'
 import type { Handelse, Plats, Tradgard, Vaxt } from './types'
 
 export interface DataVarde {
@@ -20,6 +21,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [platser, setPlatser] = useState<Plats[]>()
   const [vaxter, setVaxter] = useState<Vaxt[]>()
   const [handelser, setHandelser] = useState<Handelse[]>()
+  const [lasfel, setLasfel] = useState(false)
+
+  // En nekad lyssnare svarar aldrig, och då fastnade `laddad` på false för
+  // alltid — appen blev vit utan förklaring. Nu släpps vyerna fram och
+  // FelVakt talar om vad som hänt.
+  useEffect(() => lyssnaPaDataFel((fel) => fel.typ === 'lasning' && setLasfel(true)), [])
 
   useEffect(() => {
     let aktiv = true
@@ -50,12 +57,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
       vaxter: vaxter ?? [],
       handelser: handelser ?? [],
       laddad:
-        tradgardar !== undefined &&
-        platser !== undefined &&
-        vaxter !== undefined &&
-        handelser !== undefined,
+        lasfel ||
+        (tradgardar !== undefined &&
+          platser !== undefined &&
+          vaxter !== undefined &&
+          handelser !== undefined),
     }),
-    [tradgardar, platser, vaxter, handelser],
+    [tradgardar, platser, vaxter, handelser, lasfel],
   )
 
   return <DataContext.Provider value={varde}>{children}</DataContext.Provider>

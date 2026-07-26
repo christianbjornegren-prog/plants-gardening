@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { Layout } from './components/Layout'
+import { FelVakt } from './components/FelVakt'
 import { NyVaxtProvider } from './components/NyVaxt'
 import { RullaUpp } from './components/RullaUpp'
 import { DataProvider } from './data/DataProvider'
@@ -24,6 +25,7 @@ function AppRoutes() {
       <PlaceraProvider>
         <NyVaxtProvider>
           <RullaUpp />
+          <FelVakt />
           <Routes>
             <Route element={<Layout />}>
               <Route index element={<HemView />} />
