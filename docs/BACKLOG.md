@@ -4,50 +4,60 @@ Uppdateras varje session.
 
 ## Klart
 
-- **Fas 0 — Fundament:** Vite + React 19 + TS strict, Tailwind v4 med
-  designtokens, typsnitt (Fontsource), PWA (manifest + ikoner), Firebase-grund
-  med lokalt läge/molnläge, router med fyra vyer, adresskylt, test-setup
-  (Vitest + Playwright desktop/mobil), docs-struktur.
-- **Fas 1 — Ytor & växter:** datalager (repo + DataProvider med
-  onSnapshot-lyssnare), CRUD för ytor (solläge/jordmån/anteckning) och växter
-  (namn, yta, anteckning, foton), flytt mellan ytor loggas i moveHistory,
-  fotokomprimering (max 1600 px, JPEG) + photoStore (IndexedDB lokalt /
-  Storage i moln), tvåstegsborttagning, skydd mot att ta bort yta med växter.
+### v1 (arkiv)
+Fas 0 fundament, Fas 1 ytor & växter, Fas 2 skötsellogg, Fas 3 kartan,
+Fas 4 polish. Ersatt av omtaget nedan — begreppsmodellen bar inte.
 
-- **Fas 2 — Skötsellogg:** snabbloggning (Vattnat/Gödslat/Beskuret) med ett
-  tryck på växt- och ytdetaljen (= tre tryck totalt från fliken), Ångra i 6 s,
-  anteckningar, automatisk "Planterat"-post när växt skapas, tidslinjer per
-  växt, per yta (inkl. växternas poster) och globalt med länkar till målet.
-  Loggposter städas när växt/yta tas bort.
+### v2 — omtaget
 
-- **Fas 3 — Kartan:** setup med tomtmått, meterkoordinater, polygonritning
-  och hörn-/objektdragning med snap 0,1 m i redigeringsläget, typfärger +
-  trallmönster, namnetiketter, koppling objekt↔yta (inkl. "skapa yta från
-  objektet"), växtprickar (sparad position eller autoplacering), pan/pinch/
-  hjulzoom, infokort med snabblogg (Vattnat på 3 tryck från kartan!),
-  dra-prick-för-att-flytta med moveHistory, startanimationen med
-  prefers-reduced-motion-stöd.
-
-- **Fas 4 — Polish:** foton är daterade loggposter (kameraknapp i snabb-
-  loggen + växtdetaljens foton loggas) → fototidslinje per yta/växt i
-  tidslinjerna ("samma rabatt, april vs juli"); årstidston på levande kartan
-  (CSS-filter per säsong); fotostädning vid borttagning av växt/yta och vid
-  Ångra; PWA-bygget verifierat (manifest + service worker + ikoner).
+- **Fas 0 — Dokument:** CLAUDE.md och alla fem docs-filer omskrivna till
+  Plats-modellen, brutna färger med kromtak, kuben, hållbarhetsreglerna.
+- **Fas 1 — Datamodell:** `Tradgard/Plats/Vaxt/Handelse` i svensk namngivning,
+  nytt repo, `migreraV1TillV2` som ren funktion (14 tester), `sakerstallDatamodell`
+  som kör migrering + sådd före lyssnarna. `moveHistory`, `photoRefs`, `Area`
+  och `VAXTBARA_TYPER` borttagna.
+- **Fas 2 — Palett & skal:** mörk bark-ramp (H≈100°) i `@theme`, `lib/palett.ts`
+  som spegel + 20 tester som verifierar kromtak och kontrast, bottenrad med fyra
+  flikar och `+` i mitten, `+`-flödet med kamera direkt.
+- **Fas 3 — Växtkortet:** fototidslinje (embla, äldst först), fyra
+  händelseknappar med "senast"-datum, kvittens med Ångra i 6 s och "Ta en bild"
+  vid beskärning, metadata som chips → rader.
+- **Fas 4 — Hem:** hjältebild från senaste fotot, antal, veckans händelser,
+  Planerat, "inte fotad på länge", länk till hela loggen.
+- **Fas 5 — Ritningen & kuben:** hatchmönster per platstyp, linjeviktshierarki,
+  skalstock + norrpil, platsnamn satta i ritningen, växtprickar med miniatyr,
+  planerat streckat, trädgårdsväxlare, ritläge på desktop med segmentlängder i
+  mono, placering av växter från ritningen / växtkortet / platskortet.
+- **Fas 6 — Listor & logg:** växtlistan som bildkort med segment, sök och
+  gruppering på plats; platskortet; global logg med filter; offline verifierat.
+- **Verktyg:** `npm run dev:lokal` (`VITE_LAGE=lokal`) så att e2e och
+  skärmdumpar fungerar på en maskin med ifylld `.env.local`.
 
 ## Pågår
 
 —
 
+## Nästa
+
+- **Kör migreringen skarpt mot molndatan.** Koden är testad som ren funktion;
+  drivaren har inte körts mot det riktiga projektet (`plants-gardeing`) än.
+  Gamla kollektioner (`areas`, `plants`, `logEntries`, `garden/map`) ligger kvar
+  orörda tills det är verifierat.
+- Städa bort v1-kollektionerna när v2 är verifierad i molnet.
+
 ## Senare
-- Ta bort enskilda foton från en växt (nu tas foton bara bort med växten).
-- Ta bort enskilda loggposter i efterhand (nu bara Ångra direkt efteråt).
-- Foto på loggpost (`photoRef` finns i schemat men saknar UI).
-- Lägga till/ta bort enskilda hörn på befintlig polygon.
+
+- Ta bort enskilda foton (nu tas de bort med växten/platsen eller via Ångra).
+- Ta bort enskilda händelser i efterhand (nu bara Ångra direkt efteråt).
+- Lägga till/ta bort enskilda hörn på en befintlig polygon.
 - Zoomknappar (+/−) som komplement till pinch/hjul.
-- Migreringsverktyg lokal→moln (lokalt läge och molnläge är skilda
-  datamängder; dokumenterat i src/lib/lage.ts och .env.example).
-- Uttrycklig z-ordningskontroll för kartobjekt (nu: ritordning).
+- Uttrycklig z-ordningskontroll för platser (nu: ritordning).
+- Migreringsverktyg lokal→moln (skilda datamängder, se `src/lib/lage.ts`).
+- Säkerhetsreglerna mot emulatorn (kräver Java, se TESTPLAN.md).
+- Utvärdera om **Logg-fliken** förtjänar sin plats efter en säsong. Används den
+  inte tas fliken bort och "Hela loggen →" på Hem får bära den.
 
 ## Ingår inte i v1
 
-Artdatabaser, såddkalendrar, påminnelser, väder-API, delning, AI, export/import.
+Artdatabaser, såddkalendrar, påminnelser, väder-API, delning, AI, export/import,
+årstidston (prövad och struken, se DESIGNLOGG.md).

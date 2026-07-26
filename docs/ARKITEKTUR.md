@@ -2,6 +2,57 @@
 
 Uppdateras vid varje arkitekturval, i samma commit som ändringen.
 
+## Omtaget (v2) — begreppsmodellen
+
+Den ursprungliga modellen hade **två begrepp för samma sak**: `Area` (yta) och
+`MapObject` (kartobjekt), sammankopplade via `mapObjectId`, plus en regel
+(`VAXTBARA_TYPER`) om vilka objekttyper som fick kopplas. Det gav tre fel som
+alla hängde ihop:
+
+1. Ingen kunde förklara vad en yta var i förhållande till en polygon.
+2. `Plant.areaId` var obligatorisk ⇒ man **tvingades skapa en yta** innan man
+   fick lägga till en växt.
+3. Foton låg på två ställen (`Plant.photoRefs` och `LogEntry.photoRef`) och de
+   förstnämnda **saknade datum** — därför kunde en fototidslinje aldrig fungera.
+
+**Beslut:** slå ihop till ett begrepp, `Plats`. Geometrin blir ett valfritt fält
+på platsen. Konsekvenser:
+
+- `platsId` på växt är valfri. Hemlös växt = giltigt tillstånd.
+- `VAXTBARA_TYPER` borttagen. Typen styr bara ritstil. Att boden inte har växter
+  är ett faktum om trädgården, inte en regel appen upprätthåller.
+- **Foton är händelser.** En källa, alltid daterad.
+- **`moveHistory` borttagen.** En flytt är en `flyttat`-händelse. En historik,
+  inte två.
+- Flera trädgårdar (Framsidan/Baksidan/Inomhus), var och en med egen ritning
+  eller ingen alls.
+
+**Språk:** modellen är svensk hela vägen ner (`Tradgard`, `Plats`, `Vaxt`,
+`Handelse`; kollektioner `tradgardar/platser/vaxter/handelser`). Tidigare hette
+samma sak `Area` i typen, `skapaYta` i funktionen och "Yta" i UI:t — tre ord för
+en sak, och översättningslagret var precis där förvirringen kunde gömma sig.
+
+### Migrering
+
+`src/data/migrering.ts` innehåller en **ren funktion** `migreraV1TillV2` som tar
+hela den gamla datamängden och returnerar den nya. Den är testad mot fixtures
+och vet ingenting om Firestore. `korMigrering` är den tunna drivaren som läser,
+skriver och stämplar `meta/migrering`. Gamla kollektioner raderas aldrig —
+migreringen är därmed rullbar tillbaka genom att nollställa stämpeln.
+
+Foton från `plants.photoRefs` saknar datum i v1. De dateras till växtens äldsta
+loggpost och flaggas `datumOkant: true`; UI:t visar `≈ maj 2026`. Att gissa ett
+exakt datum vore att ljuga i en journal.
+
+## Kuben
+
+Växt, plats och ritning nås från varandras håll, utan påtvingad ingång:
+ritningen kan placera en befintlig växt, växtkortet kan hoppa till ritningen i
+placeringsläge, platskortet kan skapa växt på plats. Implementeras med ett
+delat `PlaceraContext` (`src/data/PlaceraProvider.tsx`) som håller "vad ska
+placeras härnäst" över navigering, i stället för att skicka state via
+router-parametrar genom fyra vyer.
+
 ## Stack (Fas 0)
 
 - **React 19 + TypeScript (strict) + Vite 8.** CLAUDE.md angav React 18; mallen

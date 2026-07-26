@@ -6,110 +6,177 @@
 
 Appen ska hjälpa henne att:
 - Dokumentera trädgården (foton, anteckningar, skötsel)
-- Hålla koll på vilka växter som står var — inklusive krukväxter inomhus
-- Se sin tomt som en skalenlig, vacker karta
+- Hålla koll på vilka växter som står var — framsida, baksida och inomhus
+- Se sina tomter som skalenliga, vackra ritningar
+- Skissa hur det *ska* bli, inte bara hur det är
 
 **Kärnprincip i datamodellen:** appen handlar om *platser och individer*, inte arter. Inga frödatabaser, inga såddkalendrar, ingen artdata. "Den här hortensian, som står där, som jag flyttade i maj."
 
 ## Icke förhandlingsbart
 
-1. **Mobile-first i användning, desktop-first i redigering.** Kartan ritas och kalibreras på dator (mus, stor skärm). Allt dagligt — titta, fota, logga, flytta växtprickar — ska vara friktionsfritt i mobilen. Samma responsiva app, aldrig två appar.
+1. **Mobile-first i användning, desktop-first i ritande.** Ritningen kalibreras på dator (mus, stor skärm). Allt dagligt — titta, fota, logga, flytta växtprickar, placera växter — ska vara friktionsfritt i mobilen. Samma responsiva app, aldrig två appar.
 2. **Minimalistisk och självförklarande.** Ingen onboarding, inga tooltips-karuseller. Max tre tryck till varje vanlig handling.
 3. **All UI-text på svenska.** Vardagligt trädgårdsspråk: "Vattnat", "Flytta", "Rabatten vid staketet" — aldrig systemspråk.
-4. **Robusthet före features.** En halvfärdig feature ska aldrig ligga i main. Se Arbetsflöde nedan.
-5. **En användare.** Ingen delning, inga roller. Auth = en enda inloggning (Firebase Auth, e-post/lösenord), hårdkodat konto i prototypen.
+4. **Allt utom namnet är valfritt.** En växt behöver ett namn. Foto, plats, sol, jord, kartposition — allt annat kan läggas till när som helst, eller aldrig. Inga obligatoriska fält, inga wizards.
+5. **Man ska aldrig behöva skapa något för att skapa något annat.** En växt kan ligga hemlös och tilldelas plats senare. En plats kan sakna form. Ett tomt tillstånd bjuder in, det spärrar aldrig.
+6. **Robusthet före features.** En halvfärdig feature ska aldrig ligga i main. Se Arbetsflöde nedan.
+7. **En användare.** Ingen delning, inga roller. Auth = en enda inloggning (Firebase Auth, e-post/lösenord).
 
-## Stack och installation (första sessionen)
+## Stack
 
-Kör detta först, verifiera att allt fungerar innan någon kod skrivs:
-
-```bash
-npm create vite@latest ripvagen-11 -- --template react-ts
-cd ripvagen-11
-npm install firebase react-router-dom
-npm install -D tailwindcss @tailwindcss/vite
-npm install -D vite-plugin-pwa
-npm install -D vitest @testing-library/react @testing-library/user-event @testing-library/jest-dom jsdom
-npm install -D @playwright/test && npx playwright install chromium
-```
-
-- **React 18 + TypeScript + Vite** — strikt TS (`"strict": true`), inga `any`.
+- **React 19 + TypeScript + Vite** — strikt TS (`"strict": true`), inga `any`.
 - **Tailwind v4** (via `@tailwindcss/vite`) — alla designtokens definieras i `@theme`, aldrig godtyckliga färger inline.
-- **Firebase**: Firestore (data), Storage (foton), Auth, Hosting. Offline-persistens PÅ från dag 1 (`persistentLocalCache`) — trädgården har dålig täckning ibland.
+- **Firebase**: Firestore (data), Storage (foton), Auth, Hosting. Offline-persistens PÅ från dag 1 (`persistentLocalCache`).
 - **vite-plugin-pwa** — installbar på hemskärmen, manifest med namn "Ripvägen 11".
-- **Kartan är handbyggd SVG.** Inget kartbibliotek, ingen canvas-lib. Pointer events + SVG viewBox räcker och ger full kontroll.
+- **Ritningen är handbyggd SVG.** Inget kartbibliotek, ingen canvas-lib. Pointer events + SVG viewBox.
 - **Ingen state-lib.** React context + Firestore-lyssnare. Lägg inte till zustand/redux.
 - **Inga datumbibliotek.** Native `Intl` och `Date`.
 - Testning: **Vitest + Testing Library** (enhet/komponent), **Playwright** (flöden, körs i både desktop- och mobilviewport 390×844).
 
+### Tillåtna UI-bibliotek
+
+| Paket | Till vad | Varför inte själv |
+|---|---|---|
+| `motion` | Sheet-fysik, sidövergångar, delade element | Fjäderfysik och avbrytbara övergångar är svåra att få rätt |
+| `vaul` | Bottensheets | Draggesten, snappunkter och fokusfångst |
+| `sonner` | Toasts och Ångra | Kö, timers, svep-bort, tillgänglighet |
+| `embla-carousel-react` | Fototidslinjen | Fritt svep med tröghet, 5 kB |
+
+**shadcn/ui används INTE.** `npx shadcn init` skriver om `index.css` till sitt eget tokensystem och skulle skriva över `@theme`-paletten nedan. Behövs en tillgänglig primitiv som inte finns ovan, ta motsvarande `@radix-ui/react-*` direkt.
+
 ## Arkitektur och datamodell
+
+### Begreppsmodellen
+
+```
+Trädgård        Framsidan · Baksidan · Inomhus
+  └─ Plats      Rabatten vid staketet · Boden · Köksfönstret · Pallkrage 1
+       └─ Växt  Hortensian · Basilikan
+            └─ Händelse   foto · vattnat · gödslat · beskuret · planterat · flyttat · anteckning
+```
+
+Fyra begrepp, inga fler. Framför allt: **"yta" finns inte.** Det som ritas på ritningen och det som innehåller växter är **samma sak — en plats**. Ordet "yta" får inte förekomma i UI eller kod.
+
+- **En plats är en plats i trädgården.** Den kan *ha* en form på ritningen, men behöver inte. "Köksfönstret" är en plats utan form. Boden är en plats med form men utan växter. Rabatten har både och.
+- **Alla platser kan hålla växter.** Typen (`bod`, `staket`, `rabatt` …) styr bara ritstil och namnförslag — aldrig vad som är tillåtet. Att boden inte har växter är ett faktum om trädgården, inte en regel appen upprätthåller.
+- **Varje trädgård har sin egen ritning.** Framsidan och Baksidan är två separata ritningar med egna mått. Inomhus har ingen ritning alls.
+- **Foton är händelser.** Det finns ingen annan fotolagring. Varje foto har ett datum, vilket är hela förutsättningen för fototidslinjen.
+- **Historik finns på ett ställe.** Flyttar, planteringar och skötsel är alla händelser. Ingen parallell `moveHistory`.
 
 ### Koordinatsystem: allt i meter
 
-Kartans koordinatsystem är **verkliga meter**, origo i tomtens ena hörn. SVG:s `viewBox` sköter skala, zoom och panorering. "Skalenligt" är alltså inte en feature — det är datamodellen. Användaren anger tomtens mått en gång vid setup; därefter är allt som ritas automatiskt i skala.
+Ritningens koordinatsystem är **verkliga meter**, origo i tomtens ena hörn, per trädgård. SVG:s `viewBox` sköter skala, zoom och panorering. "Skalenligt" är inte en feature — det är datamodellen.
 
 ### Firestore-struktur
 
 ```
 users/{uid}/
-  garden/map              ← ETT dokument: hela kartan
-    { widthM, heightM, objects: [ {id, type, name, points: [[x,y],...], note} ] }
-  areas/{areaId}          ← ytor som kan innehålla växter (rabatt, pallkrage, fönsterbräda…)
-    { name, mapObjectId?, sunExposure?, soil?, note? }
-  plants/{plantId}
-    { name, areaId, position?: {x,y}, photoRefs: [], note,
-      moveHistory: [ {fromAreaId, toAreaId, date} ] }
-  logEntries/{entryId}
-    { plantId?, areaId?, type: 'vattnat'|'gödslat'|'beskuret'|'planterat'|'anteckning',
-      date, note?, photoRef? }
+  tradgardar/{tradgardId}
+    { namn, ordning, widthM?, heightM? }        ← saknas mått ⇒ ingen ritning
+  platser/{platsId}
+    { tradgardId, namn, typ, geometri?: {punkter:[{x,y}…]},
+      sol?, jord?, vetterMot?, vaderstreck?, status, anteckning? }
+  vaxter/{vaxtId}
+    { namn, platsId?, position?: {x,y}, status,
+      sort?, planterad?, antal?, sol?, jord?, anteckning? }
+  handelser/{handelseId}
+    { typ, datum, vaxtId?, platsId?, fotoRef?, anteckning?,
+      franPlatsId?, tillPlatsId?, datumOkant? }
+  meta/migrering
+    { version }
 ```
 
-- **Kartobjekt är polygoner + typ.** Rektangel är ett specialfall. Typer: `bod | altan | rabatt | gräsmatta | pallkrage | häck | träd | staket | annat`. Typen styr färg/stil på kartan och logik: `rabatt`, `pallkrage` (m.fl.) kan kopplas till en yta som innehåller växter; `bod` kan inte.
-- **Yta ≠ kartobjekt.** En yta kan sakna kartposition (t.ex. "Köksfönstret"). Ett kartobjekt kan sakna yta (t.ex. staketet). Koppling via `mapObjectId` när båda finns.
-- Foton i Firebase Storage: `users/{uid}/photos/{id}.jpg`, komprimerade klientside till max 1600 px innan uppladdning.
+- `status: 'finns' | 'planerad'` på både plats och växt. Planerat ritas streckat och listas separat på Hem.
+- `vetterMot` (trädgårds-id) och `vaderstreck` erbjuds bara på platser utan geometri — det är så en fönsterbräda får ett läge.
+- Firestore stödjer inte nästlade arrayer, därför lagras punkter som `[{x,y}]` men är tupler `[x,y]` i appen.
+- Foton i Firebase Storage: `users/{uid}/photos/{id}.jpg`, komprimerade klientside till max 1600 px.
 
-### Kartinteraktion
+### Kuben — allt nås från alla håll
 
-- **Desktop (redigeringsläge):** rita polygon genom att klicka ut hörn, dubbelklick avslutar. Markera objekt → dra hörnpunkter, sätt typ/namn, ange mått. Snap till 0,1 m.
-- **Mobil (levande läge):** panorera/zooma (pinch), tryck på objekt → infokort, dra växtprickar för att flytta (skapar automatiskt en post i `moveHistory`). Ingen polygonritning i mobilen i v1.
-- Redigeringsläget är en explicit toggle, inte skärmstorleksdetektering — men UI:t föreslår rätt läge per enhet.
+Växt, plats och ritning ska nås från varandras håll. Ingen påtvingad ingång.
+
+- Från **ritningen**: tryck tom yta → *Placera en växt här* → lista över alla växter (sektionen **Utan plats** överst) eller *Fota en ny växt*.
+- Från **växtkortet**: *Placera på ritningen* → hårkors → tryck → tillbaka.
+- Från **platskortet**: växterna som står där, plus *Lägg till växt här*.
+- På desktop i ritläge: panel med växter utan position, dragbara rakt in i formerna.
+
+### Ritinteraktion
+
+- **Desktop (ritläge):** rita polygon genom att klicka ut hörn, dubbelklick eller Enter avslutar, Esc ångrar sista hörnet. Markera objekt → dra hörnpunkter, sätt typ/namn/mått. Snap 0,1 m. Segmentlängder visas i mono under ritandet.
+- **Mobil (läsläge):** panorera/zooma (pinch), tryck på plats → bottensheet, dra växtprickar för att flytta (skapar en `flyttat`-händelse), placera växter, döpa om platser. Ingen polygonritning i mobilen.
+- Ritläget är en explicit toggle och knappen visas bara ≥1024 px.
 
 ## Design — "Ripvägen 11"
 
-Appen ska kännas som en **trädgårdsjournal för just den här tomten**, inte som en generisk app. Första intrycket ska vara "wow, det här är vår trädgård".
+Appen ska kännas som en **trädgårdsjournal för just den här tomten**. Fotona är det verkliga innehållet och ska bära det visuella.
 
-### Palett — hämtad från den verkliga trädgården
+### Brutna färger
 
-Definiera som Tailwind-tokens i `@theme`:
+Paletten är genomgående **brutna färger** — den nordiska målartraditionens lågmättade jordtoner. Inget är rent, allt matchar. Uttryckt som regel:
 
-| Token | Hex | Från |
-|---|---|---|
-| `--color-panel` | `#232823` | Svartbetsad bod och staket — mörk yta, header, kartans linjer |
-| `--color-tra` | `#C9B694` | Altantrallens obehandlade trä — varma ytor, kort |
-| `--color-orm` | `#4E6B44` | Ormbunkar och grönska — primär grön, växtprickar |
-| `--color-lov` | `#8FA96F` | Ljusare lövverk — sekundär grön, gräsytor på kartan |
-| `--color-fermob` | `#D3442E` | Den röda trädgårdssoffan — ENDA accentfärgen, används mycket sparsamt (primär knapp, aktiv markering) |
-| `--color-ljus` | `#F7F5F0` | Bakgrund |
+> **Kromtak: C ≤ 0,09 i OKLCH.** Varje färg i appen måste ligga under det. Enda undantaget är `fermob`, som ligger på 0,183 och är därför den enda färg som *kan* signalera. Regeln verifieras i test (`src/lib/palett.test.ts`).
+
+Gränssnittet är mörkt — samma svartbetsade ton som boden och staketet. Mot mörk botten lyser trädgårdsfoton och gränssnittet försvinner till förmån för innehållet.
+
+**Bark-rampen** — en enda kulör, H = 100° (mellan träets 82° och lövets 128°), jämna L-steg:
+
+| Token | Hex | Roll | Kontrast mot panel |
+|---|---|---|---|
+| `--color-botten` | `#12110B` | App-bakgrund | — |
+| `--color-panel` | `#24231B` | Kort, sheets, bottenrad. Boden och staketet | — |
+| `--color-upphojd` | `#36342B` | Tryckt, valt, chips | — |
+| `--color-linje` | `#49483E` | Hårlinjer, avdelare | 1,7:1 (avsiktligt) |
+| `--color-dis-svag` | `#76756C` | Inaktivt, hjälptext | 3,4:1 |
+| `--color-dis` | `#A09F96` | Sekundärtext, datum | 5,9:1 |
+| `--color-ljus` | `#F7F5F0` | Primärtext | 14,5:1 |
+
+**Trädgårdsfärgerna** — oförändrade sedan första dagen:
+
+| Token | Hex | Från | Regel |
+|---|---|---|---|
+| `--color-tra` | `#C9B694` | Altantrallens obehandlade trä | Mått i mono, platsnamn på ritningen. 8,0:1 |
+| `--color-lov` | `#8FA96F` | Ljusare lövverk | Läsbar grön, växtprickar. 6,1:1 |
+| `--color-orm` | `#4E6B44` | Ormbunkar | **Endast fyllnad** — 2,6:1, aldrig text |
+| `--color-fermob` | `#D3442E` | Den röda trädgårdssoffan | **Endast fylld yta**, ljus text ovanpå (4,5:1) |
+| `--color-fermob-lyft` | `#E5644F` | — | Röd som *text*: aktiv flik, länk. 4,7:1 |
+
+Fermob används mycket sparsamt — primär knapp, aktiv markering. Inget annat.
 
 ### Typografi
 
-- **Display** (rubriker, appnamnet): *Bricolage Grotesque* — karaktär utan att vara gullig.
+- **Display** (rubriker, appnamnet): *Bricolage Grotesque*.
 - **Brödtext/UI:** *Instrument Sans*.
-- **Mått och koordinater:** *IBM Plex Mono* — en diskret CAD-blinkning: alla metervärden ("4,2 m") sätts alltid i mono.
+- **Mått, datum och antal:** *IBM Plex Mono* — en diskret CAD-blinkning. Allt som är en mätning eller ett datum sätts i mono, utan undantag: `4,2 m` · `12 juni` · `14 växter`.
 
 Ladda via Fontsource (npm), inte Google Fonts-CDN.
 
-### Signaturmomentet (wow)
+### Signaturmomentet: Ritningen
 
-**Startvyn ÄR kartan.** När appen öppnas ritas tomten fram som en tuschritning: kartobjektens konturer animeras med SVG stroke-dashoffset (~1,2 s totalt, orkestrerat: tomtgräns → altan → bod → rabatter), därefter tonar fyllnadsfärgerna in och växtprickarna landar. Appnamnet "Ripvägen 11" visas som en liten adresskylt (mörk panel, ljus text) i kartans hörn. Respektera `prefers-reduced-motion` — då visas kartan direkt.
+Kartan är inte en karta, den är en **ritning** — och den har ritningens material:
 
-Detta är den enda stora animationen. Allt annat är stilla och precist. I minimalistisk design ligger kvaliteten i spacing, typografi och detaljer — lägg omsorgen där.
+- **Hatchning per platstyp** som SVG-mönster: trall = parallella linjer, gräsmatta = stipplande punkter, rabatt = fin prickraster, häck = små bågar, träd = krona med skuggning.
+- **Linjeviktshierarki:** tomtgräns grövst, byggnader därnäst, planteringar tunnare, växtprickar tunnast. Det är detta som skiljer en ritning från en wireframe.
+- **Skalstock och norrpil** i mono, alltid synliga.
+- **Platsnamn satta i ritningen** — versaler, spärrade, i trä-tonen, i formens tyngdpunkt.
+- **Växtprickar bär miniatyren.** Tryck → pricken växer till en cirkulär bild av just den plantan.
+- **Planerat ritas streckat.** Ritningskonvention, gratis semantik.
+- **Startanimationen:** konturerna tecknas med SVG stroke-dashoffset (~1,2 s, orkestrerat: tomtgräns → altan → bod → rabatter), därefter tonar fyllnaderna in och prickarna landar. Respektera `prefers-reduced-motion`.
+
+Det andra beatet är **fototidslinjen på växtkortet**: samma planta i april, juni och september bredvid varandra, datum i mono under varje bild. Det är den vy hon öppnar om tre år.
+
+### Hållbarhet
+
+Designen ska hålla i tio år, inte se ut som 2026.
+
+1. **Ingen glasmorfism, inga gradienter, inget sken.** Ytor skiljs med ton och hårlinje.
+2. **Typografi och spacing gör jobbet.** Åtta spacingsteg, fyra textstorlekar, hållna strikt.
+3. **En rörelseidé, återanvänd.** Sheets, sidbyten och fototidslinjen delar samma kurva och varaktighet (220 ms, `cubic-bezier(.2,.8,.2,1)`, token `--ease-mjuk`). Ritningens tuschanimation är enda undantaget.
 
 ### Övrigt
 
-- Kartans färgton skiftar diskret med årstid (beräknat från datum): svalare grön april–maj, mättad juni–aug, varmare ton sep–okt, avmättad nov–mars. Subtilt — en tonjustering, inte ett tema.
-- Tomma vyer är inbjudningar: "Här bor inga växter än. Lägg till den första." — aldrig bara tomt.
+- Tomma vyer är inbjudningar: "Här bor inga växter än. Börja med att fota något som växer." — aldrig bara tomt.
 - Touchytor minst 44×44 px. Synligt tangentbordsfokus på desktop.
+- Bottensheets i mobilen, aldrig modaler.
 
 ## Arbetsflöde och robusthet
 
@@ -125,7 +192,7 @@ docs/
   DESIGNLOGG.md      ← designbeslut + noteringar om vad som provats och förkastats
 ```
 
-Uppdatera relevant md-fil **i samma commit** som ändringen. Dokument som släpar efter är värre än inga dokument.
+Uppdatera relevant md-fil **i samma commit** som ändringen.
 
 ### Iterationsloop — gäller varje feature
 
@@ -140,30 +207,19 @@ Uppdatera relevant md-fil **i samma commit** som ändringen. Dokument som släpa
 - [ ] Tester gröna (enhet + flöde)
 - [ ] Fungerar i mobilviewport, verifierat med skärmdump
 - [ ] Fungerar offline (Firestore-cache) där det är rimligt
-- [ ] All text på svenska, följer designtokens
+- [ ] All text på svenska, följer designtokens, inga färger utanför kromtaket
 - [ ] Relevanta docs-filer uppdaterade
 - [ ] Inga TS-fel, inga console-varningar
 
-## Byggordning
-
-**Fas 0 — Fundament:** Vite + Tailwind + Firebase-init + PWA + test-setup körbart. Designtokens och typografi på plats. En tom men snygg skal-app med adresskylten.
-
-**Fas 1 — Ytor & växter:** CRUD för ytor (med solläge/jordmån som valfria fält) och växtkort (namn, foto, yta, anteckning). Fotouppladdning med komprimering.
-
-**Fas 2 — Skötsellogg:** Logga vattnat/gödslat/beskuret på max tre tryck. Tidslinje per växt och per yta.
-
-**Fas 3 — Kartan:** Meter-koordinatsystem, polygonredigering på desktop, typer med färger, växtprickar, mobil pan/zoom + dra-för-att-flytta. Startanimationen.
-
-**Fas 4 — Polish:** Fototidslinje ("samma rabatt, april vs juli"), årstidston, offline-finslipning.
-
 ## Ingår INTE i v1 (lägg inte till)
 
-- Artdatabaser, växtlexikon, såddkalendrar
+- Artdatabaser, växtlexikon, såddkalendrar (fältet **Sort** är fri text, hennes egna ord)
 - Påminnelser/notiser
 - Väder-API
 - Delning, flera användare
 - AI-funktioner
 - Export/import
+- Årstidston på ritningen (prövat och struket, se DESIGNLOGG.md)
 
 ---
 *Byggd med kärlek för trädgården på Ripvägen 11.*

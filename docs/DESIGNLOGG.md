@@ -2,6 +2,112 @@
 
 Designbeslut + vad som provats och förkastats.
 
+## Omtaget (v2) — mörkt, brutna färger
+
+**Diagnosen:** den ljusa versionen såg ut som en wireframe. Felet var inte
+ljusheten i sig — det var att **ritningen saknade material**. En vit yta med en
+kontur och en platt fyllnad läser som en skiss oavsett palett.
+
+### Brutna färger, med kromtak
+
+Paletten mättes om i OKLCH. Resultatet var att CLAUDE.md-paletten **redan** var
+brutna färger utan att det stod någonstans:
+
+| | krom (C) |
+|---|---|
+| ljus `#F7F5F0` | 0,007 |
+| panel (gammal) `#232823` | 0,012 |
+| trä `#C9B694` | 0,051 |
+| ormbunke `#4E6B44` | 0,069 |
+| löv `#8FA96F` | 0,086 |
+| **fermob `#D3442E`** | **0,183** |
+
+Fermob är 2,1× mer mättat än allt annat. Det är därför regeln "enda accentfärgen"
+fungerar — den är den enda färg som *kan* signalera. Regeln formaliserades till
+**kromtak C ≤ 0,09**, verifierat i `src/lib/palett.test.ts`.
+
+### Bark-rampen
+
+En kulör, H = 100° (mellan träets 82° och lövets 128°), jämna L-steg, C ≤ 0,016:
+`botten #12110B` → `panel #24231B` → `upphojd #36342B` → `linje #49483E` →
+`dis-svag #76756C` → `dis #A09F96` → `ljus #F7F5F0`.
+
+**Panel ändrades från `#232823` till `#24231B`.** Samma mörkhet (L 0,255 mot
+0,270), men kulör 145° → 100°. Vid 145° är den en kall grönsvart som läser som
+skiffer; vid 100° läser den som betsat trä. Det spelade ingen roll när den bara
+var en header på ljus botten — nu är den hela appens grund och allt ärver tonen.
+
+**Röd i två steg:** `fermob #D3442E` ger bara 3,3:1 mot panel och underkänns som
+text. Den används därför **enbart som fylld yta** (ljus text ovanpå = 4,5:1), och
+`fermob-lyft #E5644F` (4,7:1) används när rött ska vara text.
+
+### Ritningen som signaturmoment
+
+Kartan är inte en karta utan en **ritning**, med ritningens material: hatchning
+per platstyp (trall = parallella linjer, gräsmatta = stippel, rabatt =
+prickraster, häck = bågar, träd = krona), linjeviktshierarki (tomtgräns grövst →
+växtprickar tunnast), skalstock och norrpil i mono, platsnamn spärrade i
+trä-tonen, växtprickar som bär miniatyren, planerat streckat.
+
+Motivet: ingen av de undersökta apparna (Planta, Vera, Gardenize, Greg, Plant
+Parent) har någon rumslighet alls — de vet inte var något står. Gardenizes
+närmaste motsvarighet är att rita ovanpå ett foto. Att tala landskapsingenjörens
+visuella språk är det enda som inte går att kopiera.
+
+### Hållbarhet
+
+1. Ingen glasmorfism, inga gradienter, inget sken. Ton + hårlinje skiljer ytor.
+2. Typografi och spacing gör jobbet: åtta spacingsteg, fyra textstorlekar.
+3. **En** rörelseidé: 220 ms, `cubic-bezier(.2,.8,.2,1)` (`--ease-mjuk`), delad
+   av sheets, sidbyten och fototidslinjen. Ritningens tuschanimation är enda
+   undantaget.
+
+### Provat och förkastat i omtaget
+
+- **shadcn/ui.** `npx shadcn init` skriver om `index.css` till sitt eget
+  tokensystem (`--background`/`--foreground`, oklch) — rakt ovanpå `@theme`. Den
+  drar dessutom in Radix + CVA + tailwind-merge + lucide för att ge oss knapp och
+  fält, som redan fanns och var testade. Sheet kom från vaul, toast från sonner,
+  karusell från embla, ikoner fanns handritade. Nettovärdet var negativt.
+- **Årstidstonen — struken.** Ett CSS-filter över hela ritningen. På mörk botten
+  blir det grumligt i stället för subtilt, och en effekt som "ska vara knappt
+  märkbar" går inte att skilja från en bugg. `lib/arstid.ts` raderad.
+- **Auto-"Planterat" vid ny växt — struken.** Den ljög: hortensian planterades
+  inte den dag hon fotade den. Tidslinjen startar i stället med första fotot,
+  vilket är sant. `planterat` skrivs numera bara när hon trycker "Planterad" på
+  något planerat.
+- **`+` som meny.** Provat: `+` öppnar val mellan "Ny växt" och "Ny plats". Det
+  åt upp hela kamerafördelen. `+` gör nu en enda sak — ny växt, kameran direkt.
+  Platser skapas där de hör hemma (rita på ritningen, eller "Ny plats…" i
+  platsväljaren).
+
+### Tre saker som bara upptäcktes genom att mäta och titta
+
+- **Ren vit på fermob, inte `ljus`.** `#F7F5F0` ger 4,2:1 mot `#D3442E` och
+  underkänns; ren vit ger 4,5:1. Skillnaden syns knappt men den är mätbar, så
+  primärknappen bär `text-white`. Konstanten heter `TEXT_PA_FERMOB`.
+- **"Planterad" betydde två saker.** Metadatafältet (ett datum) och knappen som
+  gör en planerad växt verklig hette likadant. Fältet heter numera
+  **"Planterades"**.
+- **"Flyttat" loggades när en hemlös växt fick sin första plats.** Efter varje
+  ny växt fylldes Hem av "Flyttat till …", vilket är fel: att fylla i var något
+  står är metadata, inte en händelse i trädgården. Nu loggas bara riktiga
+  flyttar (`repo.flyttaVaxt` returnerar tidigt när `franPlatsId` saknas).
+
+### Bilder på två ställen är en gång för mycket
+
+Första versionen visade fototidslinjen överst OCH samma bilder i full storlek i
+historiken under. Historiken blev oläslig och kortet oändligt. Tidslinjen
+(`bilder="sma"`) visar 56 px-miniatyrer på växt- och platskort; full storlek
+finns kvar i den globala loggen, som är den vy man bläddrar i.
+
+### Metadata utan formulär
+
+Ifyllda fält visas som rader, tomma erbjuds som chips (`+ Sol  + Jord  + Antal`).
+Chipraden krymper allteftersom och försvinner när allt är ifyllt. En växt med
+bara namn och foto ser ren ut; en hon bryr sig om blir rik. Ingen skillnad i
+flöde, inget formulär att "komma igenom".
+
 ## Fas 0
 
 - **Tokens:** paletten från CLAUDE.md rakt in i `@theme` (`panel`, `tra`,
