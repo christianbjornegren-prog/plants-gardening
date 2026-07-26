@@ -1,5 +1,5 @@
 import { useRef, useState, type ChangeEvent } from 'react'
-import { useUid } from '../auth/AuthProvider'
+import { useDataRot } from '../auth/AuthProvider'
 import type { Handelse, HandelseTyp } from '../data/types'
 import { formatDatumKort } from '../lib/format'
 import { KAMERA_ATTRIBUT, taEmotFoto } from '../lib/foto'
@@ -32,7 +32,7 @@ export function HandelseKnappar({
   /** Händelser för målet, nyaste först — visar "senast" under varje knapp. */
   handelser: Handelse[]
 }) {
-  const uid = useUid()
+  const uid = useDataRot()
   const kameraRef = useRef<HTMLInputElement>(null)
   const [fel, setFel] = useState<string>()
 

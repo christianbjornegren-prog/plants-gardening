@@ -7,6 +7,13 @@
  * en app som ser ut att fungera men inte kan läsa något. Det RIKTIGA låset är
  * säkerhetsreglerna, som körs på servern och inte går att kringgå.
  */
+/**
+ * All data ligger under EN rot som båda delar — Christian och Elin sköter
+ * samma trädgård. Rutan är alltså inte "min data" utan "vår data"; reglerna
+ * släpper in båda och isolerar mot alla andra.
+ */
+export const DELAD_DATAROT = 'delad'
+
 export const TILLATNA_EPOSTER: readonly string[] = [
   'christian.bjornegren@gmail.com',
   'elinkristinaeriksson@gmail.com',

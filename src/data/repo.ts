@@ -326,7 +326,10 @@ export function taBortPlats(uid: string, id: string, vaxterDar: Vaxt[], handelse
       position: deleteField(),
     }).catch(loggaFel)
   }
-  void stadaHandelser(uid, 'platsId', id, handelser).catch(loggaFel)
+  // BARA platsens EGNA händelser. Växternas händelser bär också platsId (de
+  // loggas med platsen de stod på), och att radera dem skulle förstöra
+  // växternas historik och foton — trots att UI:t lovar att växterna blir kvar.
+  void stadaHandelser(uid, 'platsId', id, handelser, (h) => h.vaxtId === undefined).catch(loggaFel)
 }
 
 /* --------------------------------------------------------------------- växter */
@@ -510,6 +513,8 @@ async function stadaHandelser(
   falt: 'vaxtId' | 'platsId',
   varde: string,
   kanda: Handelse[],
+  /** Extra filter: bara händelser som passerar raderas. */
+  galler: (h: Handelse) => boolean = () => true,
 ): Promise<void> {
   let cachade: Handelse[] = []
   try {
@@ -518,7 +523,9 @@ async function stadaHandelser(
   } catch {
     cachade = []
   }
-  const alla = new Map([...kanda, ...cachade].map((h) => [h.id, h]))
+  const alla = new Map(
+    [...kanda, ...cachade].filter(galler).map((h) => [h.id, h] as const),
+  )
   for (const handelse of alla.values()) taBortHandelse(uid, handelse.id)
   stadaFoton([...alla.values()].flatMap((h) => (h.fotoRef ? [h.fotoRef] : [])))
 }
@@ -545,7 +552,7 @@ async function hamtaAlla<T>(
  * OBS: lokalt läge och molnläge är SKILDA datamängder och migreras var för sig.
  * Gamla kollektioner raderas aldrig — det är hela rollbacken.
  */
-export async function sakerstallDatamodell(uid: string): Promise<void> {
+export async function sakerstallDatamodell(uid: string, personligUid?: string): Promise<void> {
   const db = getDb()
   let redanGjord = false
   try {
@@ -556,10 +563,20 @@ export async function sakerstallDatamodell(uid: string): Promise<void> {
   }
   if (redanGjord) return
 
+  // Trädgården blev gemensam. Data som skrevs medan den låg under det
+  // personliga kontot flyttas hit — kopieras, aldrig raderas.
+  if (personligUid && personligUid !== uid) {
+    const flyttad = await flyttaHitPersonligData(uid, personligUid)
+    if (flyttad) return
+  }
+
+  // v1-data ligger under det personliga kontot — trädgården blev gemensam
+  // först i v2. Läs därifrån, inte från den (tomma) delade roten.
+  const v1Rot = personligUid ?? uid
   const [karta, areas, plants, logEntries] = await Promise.all([
     (async () => {
       try {
-        const snap = await getDoc(doc(db, 'users', uid, 'garden', 'map'))
+        const snap = await getDoc(doc(db, 'users', v1Rot, 'garden', 'map'))
         if (!snap.exists()) return null
         const d = snap.data()
         return {
@@ -579,15 +596,15 @@ export async function sakerstallDatamodell(uid: string): Promise<void> {
         return null
       }
     })(),
-    hamtaAlla<V1Area>(collection(db, 'users', uid, 'areas'), (s) => ({
+    hamtaAlla<V1Area>(collection(db, 'users', v1Rot, 'areas'), (s) => ({
       id: s.id,
       ...(s.data() as Omit<V1Area, 'id'>),
     })),
-    hamtaAlla<V1Plant>(collection(db, 'users', uid, 'plants'), (s) => ({
+    hamtaAlla<V1Plant>(collection(db, 'users', v1Rot, 'plants'), (s) => ({
       id: s.id,
       ...(s.data() as Omit<V1Plant, 'id'>),
     })),
-    hamtaAlla<V1LegacyLogg>(collection(db, 'users', uid, 'logEntries'), (s) => ({
+    hamtaAlla<V1LegacyLogg>(collection(db, 'users', v1Rot, 'logEntries'), (s) => ({
       id: s.id,
       ...(s.data() as Omit<V1LegacyLogg, 'id'>),
     })),
@@ -605,7 +622,8 @@ export async function sakerstallDatamodell(uid: string): Promise<void> {
   for (const tradgard of v2.tradgardar) {
     if (befintligaTradgardar.has(tradgard.id)) continue
     const { id, ...falt } = tradgard
-    batch.set(doc(tradgardCol(uid), id), utanUndefined(falt))
+    // merge: en befintlig trädgård får aldrig tappa sina mått.
+    batch.set(doc(tradgardCol(uid), id), utanUndefined(falt), { merge: true })
   }
   for (const plats of v2.platser) {
     const { id, geometri, ...falt } = plats
@@ -629,6 +647,48 @@ export async function sakerstallDatamodell(uid: string): Promise<void> {
 
   // Fire-and-forget mot cachen, precis som övriga skrivningar.
   void batch.commit().catch(loggaFel)
+}
+
+/**
+ * Kopierar en v2-datamängd från det personliga kontot till den delade roten.
+ * Dokument-id:n behålls, så alla referenser (platsId, vaxtId, fotoRef) fortsätter
+ * peka rätt. Returnerar true om något faktiskt fanns att flytta.
+ *
+ * Foton rörs inte: fotoRef är en lagringsväg under det gamla kontot, och
+ * storage-reglerna släpper in båda ägarna överallt under users/.
+ */
+async function flyttaHitPersonligData(till: string, fran: string): Promise<boolean> {
+  const db = getDb()
+  const namn = ['tradgardar', 'platser', 'vaxter', 'handelser'] as const
+
+  const kallor = await Promise.all(
+    namn.map(async (n) => {
+      try {
+        const snap = await getDocs(collection(db, 'users', fran, n))
+        return { n, docs: snap.docs }
+      } catch {
+        return { n, docs: [] }
+      }
+    }),
+  )
+
+  // Räkna ALLT — en personlig rot med bara trädgårdar och händelser är också
+  // data som inte får överges.
+  const totalt = kallor.reduce((n, k) => n + k.docs.length, 0)
+  if (totalt === 0) return false
+
+  const batch = writeBatch(db)
+  let antal = 0
+  for (const { n, docs } of kallor) {
+    for (const d of docs) {
+      batch.set(doc(collection(db, 'users', till, n), d.id), d.data())
+      antal++
+    }
+  }
+  batch.set(migreringDoc(till), { version: MIGRERINGSVERSION, flyttadFran: fran })
+  void batch.commit().catch(loggaFel)
+  console.info(`Ripvägen 11: flyttade ${antal} dokument till den delade trädgården.`)
+  return true
 }
 
 type V1LegacyLogg = V1LogEntry

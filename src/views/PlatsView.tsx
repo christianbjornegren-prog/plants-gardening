@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useUid } from '../auth/AuthProvider'
+import { useDataRot } from '../auth/AuthProvider'
 import { Ark } from '../components/Ark'
 import { Chip, Uppgift } from '../components/Chip'
 import { inmatningsStil } from '../components/Falt'
@@ -15,6 +15,9 @@ import { useData } from '../data/DataProvider'
 import type { PlatsFalt } from '../data/repo'
 import { VADERSTRECK } from '../data/types'
 import { antalVaxter, platsEtikett, SOLLAGEN, solEtikett, vaderstreckEtikett } from '../lib/etiketter'
+import { formTillPolygon } from '../lib/form'
+import { formatArea, formatMeter } from '../lib/format'
+import { area, omkrets } from '../lib/geometri'
 import { fototidslinje, handelserForPlats, senasteFotoPerVaxt } from '../lib/handelser'
 
 /**
@@ -24,7 +27,7 @@ import { fototidslinje, handelserForPlats, senasteFotoPerVaxt } from '../lib/han
 export function PlatsView() {
   const { id } = useParams()
   const { platser, vaxter, tradgardar, handelser, laddad } = useData()
-  const uid = useUid()
+  const uid = useDataRot()
   const navigera = useNavigate()
 
   const [visaSol, setVisaSol] = useState(false)
@@ -145,6 +148,16 @@ export function PlatsView() {
       </section>
 
       <dl className="mt-8 divide-y divide-linje/60 border-y border-linje/60">
+        {plats.geometri && (
+          <>
+            <Uppgift etikett="Area" mono>
+              {formatArea(area(formTillPolygon(plats.geometri.punkter, plats.geometri.runda)))}
+            </Uppgift>
+            <Uppgift etikett="Omkrets" mono>
+              {formatMeter(omkrets(formTillPolygon(plats.geometri.punkter, plats.geometri.runda)))}
+            </Uppgift>
+          </>
+        )}
         {plats.sol && (
           <Uppgift etikett="Sol">
             <button type="button" onClick={() => setVisaSol(true)}>

@@ -19,8 +19,10 @@ describe('behörighetslistan speglas i säkerhetsreglerna', () => {
     expect(las(fil)).toContain('email_verified == true')
   })
 
-  it.each(REGELFILER)('%s håller kvar isoleringen per uid', (fil) => {
-    expect(las(fil)).toContain('request.auth.uid == uid')
+  it.each(REGELFILER)('%s ger båda tillgång till HELA den delade trädgården', (fil) => {
+    // Christian och Elin sköter samma trädgård — ingen isolering dem emellan.
+    expect(las(fil)).not.toContain('request.auth.uid == uid')
+    expect(las(fil)).toMatch(/match \/users\/\{rot\}/)
   })
 
   it.each(REGELFILER)('%s stänger allt utanför users/', (fil) => {

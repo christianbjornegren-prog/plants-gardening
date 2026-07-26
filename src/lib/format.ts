@@ -10,6 +10,11 @@ export function formatMeter(varde: number): string {
   return `${meterFormat.format(varde)} m`
 }
 
+/** 12.35 → "12,4 m²". Areor i mono, precis som alla andra mått. */
+export function formatArea(kvm: number): string {
+  return `${meterFormat.format(kvm)} m\u00b2`
+}
+
 /** Tolkar "12,5" eller "12.5" som meter. undefined om ogiltigt eller orimligt. */
 export function tolkaMeter(text: string, min = 0.1, max = 200): number | undefined {
   const varde = Number.parseFloat(text.replace(',', '.'))

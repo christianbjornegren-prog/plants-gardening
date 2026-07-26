@@ -93,3 +93,50 @@ describe('formTillPolygon', () => {
     expect(punktIPolygon([20, 20], polygon)).toBe(false)
   })
 })
+
+describe('tangenten begränsas så kurvan inte slår öglor', () => {
+  /**
+   * Triangeln som gav den synliga krumeluren: två långa sidor och en mycket
+   * kort. Tangenten räknas på avståndet mellan grannarna, så det korta
+   * segmentet fick förr en tangent längre än sig självt.
+   */
+  const OJAMN: PunktM[] = [
+    [0, 0],
+    [10, 1],
+    [9.6, 1.2],
+    [1, 8],
+  ]
+
+  it('kontrollpunkterna hamnar inte utanför sitt eget segment', () => {
+    const d = formTillPath(OJAMN, allaRunda(4))
+    const tal = [...d.matchAll(/-?\d+(?:\.\d+)?/g)].map((m) => Number(m[0]))
+    // Inga vilda värden långt utanför formen — det är så en ögla ser ut.
+    for (const v of tal) expect(Math.abs(v)).toBeLessThan(20)
+  })
+
+  it('kurvan korsar inte sig själv', () => {
+    const polygon = formTillPolygon(OJAMN, allaRunda(4), true, 16)
+    expect(harSjalvkorsning(polygon)).toBe(false)
+  })
+
+  it('en jämn form är fortfarande mjuk', () => {
+    expect(formTillPath(RUTA, allaRunda(4))).toContain('C')
+  })
+})
+
+/** Enkel O(n²)-koll: korsar två icke-grannsegment varandra? */
+function harSjalvkorsning(p: PunktM[]): boolean {
+  const n = p.length
+  const korsar = (a: PunktM, b: PunktM, c: PunktM, d: PunktM) => {
+    const t = (q: PunktM, r: PunktM, s: PunktM) =>
+      Math.sign((r[0] - q[0]) * (s[1] - q[1]) - (r[1] - q[1]) * (s[0] - q[0]))
+    return t(a, b, c) !== t(a, b, d) && t(c, d, a) !== t(c, d, b)
+  }
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 2; j < n; j++) {
+      if (i === 0 && j === n - 1) continue
+      if (korsar(p[i]!, p[(i + 1) % n]!, p[j]!, p[(j + 1) % n]!)) return true
+    }
+  }
+  return false
+}

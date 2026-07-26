@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { formTillPolygon } from './form'
 import type { PunktM } from '../data/types'
 import {
   avstand,
@@ -11,6 +12,7 @@ import {
   skalaTillMatt,
   snappa,
   snappaPunkt,
+  area,
 } from './geometri'
 
 const kvadrat: PunktM[] = [
@@ -156,5 +158,31 @@ describe('skalaTillMatt', () => {
       [4, 0],
     ]
     expect(skalaTillMatt(linje, 2, 2)).toEqual(linje)
+  })
+})
+
+describe('area', () => {
+  it('räknar en rektangel rätt', () => {
+    expect(area([[0, 0], [4, 0], [4, 3], [0, 3]])).toBe(12)
+  })
+
+  it('bryr sig inte om ritordningen på hörnen', () => {
+    const medsols: [number, number][] = [[0, 0], [4, 0], [4, 3], [0, 3]]
+    expect(area([...medsols].reverse())).toBe(area(medsols))
+  })
+
+  it('klarar en triangel', () => {
+    expect(area([[0, 0], [4, 0], [0, 3]])).toBe(6)
+  })
+
+  it('ger 0 för degenererade former', () => {
+    expect(area([])).toBe(0)
+    expect(area([[0, 0], [1, 1]])).toBe(0)
+    expect(area([[0, 0], [1, 1], [2, 2]])).toBe(0)
+  })
+
+  it('en rundad form är större än sin polygon', () => {
+    const ruta: [number, number][] = [[0, 0], [4, 0], [4, 4], [0, 4]]
+    expect(area(formTillPolygon(ruta, [0, 1, 2, 3]))).toBeGreaterThan(area(ruta))
   })
 })

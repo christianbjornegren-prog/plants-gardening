@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useUid } from '../auth/AuthProvider'
+import { useDataRot } from '../auth/AuthProvider'
 import type { Status } from '../data/types'
 import { BIBLIOTEK_ATTRIBUT, KAMERA_ATTRIBUT, taEmotFoto } from '../lib/foto'
 import { Ark } from './Ark'
@@ -50,7 +50,7 @@ export function useNyVaxt(): NyVaxtApi {
 }
 
 export function NyVaxtProvider({ children }: { children: ReactNode }) {
-  const uid = useUid()
+  const uid = useDataRot()
   const navigera = useNavigate()
   const kameraRef = useRef<HTMLInputElement>(null)
   const biblioteksRef = useRef<HTMLInputElement>(null)

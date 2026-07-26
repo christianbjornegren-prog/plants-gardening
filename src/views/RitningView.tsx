@@ -6,7 +6,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { Link } from 'react-router-dom'
-import { useUid } from '../auth/AuthProvider'
+import { useDataRot } from '../auth/AuthProvider'
 import { Adresskylt } from '../components/Adresskylt'
 import { FotoBild } from '../components/FotoBild'
 import { Ark } from '../components/Ark'
@@ -18,15 +18,17 @@ import { PilIkon } from '../components/Ikoner'
 import { PlaceraVaxtArk } from '../components/ritning/PlaceraVaxtArk'
 import { PlatsLager } from '../components/ritning/PlatsLager'
 import { Skalstock } from '../components/ritning/Skalstock'
+import { SpokLager } from '../components/ritning/SpokLager'
 import { useRitYta } from '../components/ritning/useRitYta'
 import { VaxtPrickLager } from '../components/ritning/VaxtPrickLager'
 import { useData } from '../data/DataProvider'
 import { usePlacera } from '../data/PlaceraProvider'
 import type { Plats, Tradgard } from '../data/types'
 import { antalVaxter, platsEtikett } from '../lib/etiketter'
-import { tolkaMeter } from '../lib/format'
+import { formatArea, tolkaMeter } from '../lib/format'
 import { handelserForVaxt, senasteFotoPerVaxt } from '../lib/handelser'
-import { avstand, snappaPunkt } from '../lib/geometri'
+import { area, avstand, snappaPunkt } from '../lib/geometri'
+import { formTillPolygon } from '../lib/form'
 import { beraknaPrickar, platsVidPunkt } from '../lib/vaxtplacering'
 import { viewBoxAttribut } from '../lib/viewbox'
 
@@ -37,6 +39,7 @@ export function RitningView() {
   const { tradgardar, platser, laddad } = useData()
   const [valdId, setValdId] = useState<string>()
   const [visaNy, setVisaNy] = useState(false)
+  const [jamforId, setJamforId] = useState<string>()
 
   if (!laddad) return null
   if (tradgardar.length === 0) return null
@@ -48,6 +51,10 @@ export function RitningView() {
   )
   const medMatt = tradgardar.find((t) => t.widthM !== undefined)
   const vald = tradgardar.find((t) => t.id === valdId) ?? medInnehall ?? medMatt ?? tradgardar[0]!
+  // Bara ritningar med samma mått går att lägga ovanpå varandra rättvisande.
+  const jamforbara = tradgardar.filter(
+    (t) => t.id !== vald.id && t.widthM === vald.widthM && t.heightM === vald.heightM,
+  )
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -71,10 +78,33 @@ export function RitningView() {
         )}
       </div>
 
+      {/* Jämför: lägg en annan ritning som spöke under den aktuella. */}
+      {vald.widthM !== undefined && jamforbara.length > 0 && (
+        <div className="dolj-scroll flex items-center gap-2 border-b border-linje px-4 py-2">
+          <span className="shrink-0 text-xs text-dis-svag">Jämför med</span>
+          <Chip vald={!jamforId} onClick={() => setJamforId(undefined)}>
+            Ingen
+          </Chip>
+          {jamforbara.map((t) => (
+            <Chip
+              key={t.id}
+              vald={jamforId === t.id}
+              onClick={() => setJamforId(jamforId === t.id ? undefined : t.id)}
+            >
+              {t.namn}
+            </Chip>
+          ))}
+        </div>
+      )}
+
       {vald.widthM === undefined || vald.heightM === undefined ? (
         <UtanRitning tradgard={vald} />
       ) : (
-        <LevandeRitning key={vald.id} tradgard={vald} />
+        <LevandeRitning
+          key={vald.id}
+          tradgard={vald}
+          spokplatser={jamforId ? platser.filter((p) => p.tradgardId === jamforId) : undefined}
+        />
       )}
 
       <NyRitningArk
@@ -99,7 +129,7 @@ function NyRitningArk({
   forslag?: { bredd: number; djup: number }
   onSkapad: (id: string) => void
 }) {
-  const uid = useUid()
+  const uid = useDataRot()
   const { tradgardar } = useData()
   const [namn, setNamn] = useState('')
   const [bredd, setBredd] = useState('')
@@ -191,7 +221,7 @@ function NyRitningArk({
 
 /** Inomhus har ingen ritning — och det är avsiktligt, inte en lucka. */
 function UtanRitning({ tradgard }: { tradgard: Tradgard }) {
-  const uid = useUid()
+  const uid = useDataRot()
   const { platser, vaxter } = useData()
   const [visaMatt, setVisaMatt] = useState(false)
   const [bredd, setBredd] = useState('')
@@ -292,9 +322,15 @@ type Gest =
 
 type Val = { typ: 'plats'; id: string } | { typ: 'vaxt'; id: string }
 
-function LevandeRitning({ tradgard }: { tradgard: Tradgard }) {
+function LevandeRitning({
+  tradgard,
+  spokplatser,
+}: {
+  tradgard: Tradgard
+  spokplatser?: Plats[]
+}) {
   const { platser, vaxter, handelser } = useData()
-  const uid = useUid()
+  const uid = useDataRot()
   const placera = usePlacera()
   const { behallareRef, vb, mpp, tillMeter, panoreraPx, zoomaVid } = useRitYta(
     tradgard.widthM ?? 0,
@@ -500,6 +536,7 @@ function LevandeRitning({ tradgard }: { tradgard: Tradgard }) {
           onPointerUp={vidPekareUpp}
           onPointerCancel={vidPekareAvbruten}
         >
+          {spokplatser && <SpokLager platser={spokplatser} />}
           <PlatsLager
             tradgard={tradgard}
             platser={iTradgarden}
@@ -588,6 +625,13 @@ function LevandeRitning({ tradgard }: { tradgard: Tradgard }) {
                 </ul>
               )}
             </section>
+            {valdPlats.geometri && (
+              <p className="mono text-sm text-dis">
+                {formatArea(
+                  area(formTillPolygon(valdPlats.geometri.punkter, valdPlats.geometri.runda)),
+                )}
+              </p>
+            )}
             <HandelseKnappar
               platsId={valdPlats.id}
               handelser={handelser.filter((h) => h.platsId === valdPlats.id)}

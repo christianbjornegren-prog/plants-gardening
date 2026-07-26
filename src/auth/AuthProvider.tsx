@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
-import { arBehorig } from '../lib/behorighet'
+import { arBehorig, DELAD_DATAROT } from '../lib/behorighet'
 import { appLage } from '../lib/lage'
 
 /** Fast uid i lokalt läge — en enda användare, se CLAUDE.md. */
@@ -50,8 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!arBehorig(anvandare.email, anvandare.emailVerified)) {
           // Appen kan ändå inte läsa något — reglerna nekar. Logga ut direkt
           // och säg varför i stället för att visa en tom app.
-          avvisadRef.current = anvandare.email ?? 'okänt konto'
-          void signOut(auth)
+          const epost = anvandare.email ?? 'okänt konto'
+          avvisadRef.current = epost
+          // Misslyckas utloggningen får statusen inte fastna på 'laddar' —
+          // då blir appen en vit sida utan förklaring.
+          void signOut(auth).catch(() => setState({ status: 'ej-behorig', epost }))
           return
         }
         avvisadRef.current = undefined
@@ -71,11 +74,27 @@ export function useAuth(): AuthState {
   return useContext(AuthContext)
 }
 
-/** Får bara användas i vyer som renderas när användaren är inloggad. */
-export function useUid(): string {
+/**
+ * Roten som all data ligger under. I molnläge är den DELAD — Christian och
+ * Elin ser samma trädgård, samma ritningar, samma växter. I lokalt läge finns
+ * bara en användare ändå.
+ *
+ * Använd detta överallt utom i migreringen, som behöver det personliga uid:t
+ * för att hitta data som skrevs innan trädgården blev gemensam.
+ */
+export function useDataRot(): string {
   const state = useAuth()
   if (state.status !== 'inloggad') {
-    throw new Error('useUid kräver inloggad användare')
+    throw new Error('useDataRot kräver inloggad användare')
+  }
+  return appLage === 'lokal' ? LOKAL_UID : DELAD_DATAROT
+}
+
+/** Det egna kontots uid. Behövs bara för att flytta hem gammal privat data. */
+export function usePersonligUid(): string {
+  const state = useAuth()
+  if (state.status !== 'inloggad') {
+    throw new Error('usePersonligUid kräver inloggad användare')
   }
   return state.uid
 }

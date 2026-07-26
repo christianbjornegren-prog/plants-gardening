@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useUid } from '../auth/AuthProvider'
+import { useDataRot } from '../auth/AuthProvider'
 import { Ark } from '../components/Ark'
 import { Chip, Uppgift } from '../components/Chip'
 import { inmatningsStil } from '../components/Falt'
@@ -47,7 +47,7 @@ const PLATSHALLARE: Record<Falt, string> = {
 export function VaxtView() {
   const { id } = useParams()
   const { vaxter, platser, tradgardar, handelser, laddad } = useData()
-  const uid = useUid()
+  const uid = useDataRot()
   const navigera = useNavigate()
   const placera = usePlacera()
 

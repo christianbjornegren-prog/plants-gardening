@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useUid } from '../auth/AuthProvider'
-import { lyssnaPaDataFel } from './fel'
+import { useDataRot, usePersonligUid } from '../auth/AuthProvider'
+import { lyssnaPaDataFel, rapporteraDataFel } from './fel'
 import type { Handelse, Plats, Tradgard, Vaxt } from './types'
 
 export interface DataVarde {
@@ -16,7 +16,8 @@ export interface DataVarde {
 const DataContext = createContext<DataVarde | undefined>(undefined)
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const uid = useUid()
+  const uid = useDataRot()
+  const personligUid = usePersonligUid()
   const [tradgardar, setTradgardar] = useState<Tradgard[]>()
   const [platser, setPlatser] = useState<Plats[]>()
   const [vaxter, setVaxter] = useState<Vaxt[]>()
@@ -35,7 +36,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const repo = await import('./repo')
       // Migreringen körs FÖRE lyssnarna så att vyerna aldrig ser ett halvt
       // migrerat tillstånd (se docs/ARKITEKTUR.md).
-      await repo.sakerstallDatamodell(uid)
+      await repo.sakerstallDatamodell(uid, personligUid)
       if (!aktiv) return
       stangare.push(
         repo.lyssnaPaTradgardar(uid, (nya) => aktiv && setTradgardar(nya)),
@@ -43,12 +44,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
         repo.lyssnaPaVaxter(uid, (nya) => aktiv && setVaxter(nya)),
         repo.lyssnaPaHandelser(uid, (nya) => aktiv && setHandelser(nya)),
       )
-    })()
+    })().catch((fel) => {
+      // Utan detta kastar starten tyst och appen står vit för alltid.
+      rapporteraDataFel(fel, 'lasning')
+      if (aktiv) setLasfel(true)
+    })
     return () => {
       aktiv = false
       for (const stang of stangare) stang()
     }
-  }, [uid])
+  }, [uid, personligUid])
 
   const varde = useMemo<DataVarde>(
     () => ({

@@ -64,6 +64,21 @@ export function omkrets(punkter: PunktM[]): number {
   return summa
 }
 
+/**
+ * Polygonens area i kvadratmeter (skolformeln). Alltid positiv — ritordningen
+ * på hörnen ska inte spela roll.
+ */
+export function area(punkter: PunktM[]): number {
+  if (punkter.length < 3) return 0
+  let summa = 0
+  for (let i = 0; i < punkter.length; i++) {
+    const [x0, y0] = punkter[i]!
+    const [x1, y1] = punkter[(i + 1) % punkter.length]!
+    summa += x0 * y1 - x1 * y0
+  }
+  return Math.abs(summa) / 2
+}
+
 export interface Rektangel {
   x: number
   y: number

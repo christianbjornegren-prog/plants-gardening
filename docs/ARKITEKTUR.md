@@ -44,6 +44,24 @@ Foton från `plants.photoRefs` saknar datum i v1. De dateras till växtens älds
 loggpost och flaggas `datumOkant: true`; UI:t visar `≈ maj 2026`. Att gissa ett
 exakt datum vore att ljuga i en journal.
 
+## Delad trädgård
+
+Christian och Elin sköter SAMMA trädgård. All data ligger därför under en
+gemensam rot, `users/delad/…`, i stället för under varje konto.
+
+- `useDataRot()` ger den delade roten och används överallt.
+- `usePersonligUid()` ger det egna kontots uid och används BARA av migreringen,
+  som flyttar hem data som skrevs innan trädgården blev gemensam.
+- Reglerna släpper in båda överallt under `users/**` — både den delade roten och
+  gamla personliga rötter, så att en `fotoRef` som pekar på en gammal
+  lagringsväg fortsätter fungera.
+- Flytten kopierar, raderar aldrig. Dokument-id:n behålls, så `platsId`,
+  `vaxtId` och `fotoRef` fortsätter peka rätt.
+
+**v1-data läses från det PERSONLIGA kontot**, inte från den delade roten —
+trädgården blev gemensam först i v2, så all äldre data ligger kvar under
+kontot som skrev den.
+
 ## Behörighet (v0.1)
 
 Appen är privat för två personer. Låset ligger i **säkerhetsreglerna**, som

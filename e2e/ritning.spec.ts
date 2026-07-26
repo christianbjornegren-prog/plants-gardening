@@ -273,22 +273,26 @@ test.describe('platstyper', () => {
   test('häck erbjuds inte, och egen typ går att skriva in', async ({ page }) => {
     await angeMatt(page, 'Baksidan', '16', '11')
     await page.getByRole('link', { name: 'Redigera' }).click()
-    await ritaPlats(page, RUTA, 'Stenpartiet')
+    await ritaPlats(page, RUTA, 'Bakom boden')
 
     await expect(page.getByRole('button', { name: 'Häck', exact: true })).toHaveCount(0)
+    // …men de nya materialen finns.
+    for (const typ of ['Stenparti', 'Grus', 'Vatten']) {
+      await expect(page.getByRole('button', { name: typ, exact: true })).toBeVisible()
+    }
 
     await page.getByRole('button', { name: 'Egen…' }).click()
-    await page.getByRole('textbox', { name: 'Egen typ' }).fill('Stenparti')
+    await page.getByRole('textbox', { name: 'Egen typ' }).fill('Kompost')
     await page.getByRole('textbox', { name: 'Egen typ' }).blur()
 
     // Chipen visar det egna namnet, och ritstilen står kvar.
-    await expect(page.getByRole('button', { name: 'Stenparti' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Kompost' })).toBeVisible()
     await expect(page.getByText(/Ritas som rabatt/)).toBeVisible()
 
     // …och namnet följer med till platsens ark i läsläget.
     await page.getByRole('button', { name: 'Klar' }).click()
     await tryckIRitningen(page, 0.35, 0.4)
-    await expect(page.getByText('Stenparti', { exact: true })).toBeVisible()
+    await expect(page.getByText('Kompost', { exact: true })).toBeVisible()
   })
 })
 
@@ -306,4 +310,55 @@ test('loggens filter kapas inte — de radbryter', async ({ page }) => {
   })
   expect(overflow.length).toBeGreaterThan(0)
   expect(overflow.every(Boolean)).toBe(true)
+})
+
+test.describe('mätverktyg och area', () => {
+  test.skip(({ viewport }) => (viewport?.width ?? 0) < 1024, 'ritläget är desktop-först')
+
+  test('area och omkrets räknas ut åt en', async ({ page }) => {
+    await angeMatt(page, 'Baksidan', '20', '20')
+    await page.getByRole('link', { name: 'Redigera' }).click()
+    await ritaPlats(page, RUTA, 'Rabatten')
+
+    // Måtten sätts exakt, så arean går att kontrollräkna: 4 × 3 = 12 m².
+    await page.getByRole('textbox', { name: 'Platsens bredd i meter' }).fill('4')
+    await page.getByRole('textbox', { name: 'Platsens bredd i meter' }).blur()
+    await page.getByRole('textbox', { name: 'Platsens höjd i meter' }).fill('3')
+    await page.getByRole('textbox', { name: 'Platsens höjd i meter' }).blur()
+
+    await expect(page.getByText('12 m²')).toBeVisible()
+    await expect(page.getByText('14 m', { exact: true })).toBeVisible()
+  })
+
+  test('måttbandet mäter mellan två punkter', async ({ page }) => {
+    await angeMatt(page, 'Baksidan', '20', '20')
+    await page.getByRole('link', { name: 'Redigera' }).click()
+
+    await page.getByRole('button', { name: 'Mät', exact: true }).click()
+    await expect(page.getByText(/Klicka två punkter/)).toBeVisible()
+
+    await tryckIYta(page, 'ritredigering', 0.3, 0.5)
+    await tryckIYta(page, 'ritredigering', 0.6, 0.5)
+    await expect(page.locator('text').filter({ hasText: /^\d+(,\d)? m$/ }).first()).toBeVisible()
+
+    await page.getByRole('button', { name: 'Sluta mäta' }).click()
+    await expect(page.getByRole('button', { name: 'Mät', exact: true })).toBeVisible()
+  })
+})
+
+test('två ritningar med samma mått går att lägga över varandra', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await angeMatt(page, 'Baksidan', '16', '11')
+  await page.getByRole('link', { name: 'Redigera' }).click()
+  await ritaPlats(page, RUTA, 'Rabatten')
+  await page.getByRole('button', { name: 'Klar' }).click()
+
+  await page.getByRole('button', { name: '+ Ny ritning' }).click()
+  await page.getByRole('textbox', { name: 'Namn' }).fill('Baksidan kommande')
+  await page.getByRole('button', { name: 'Skapa ritningen' }).click()
+
+  // Nu står vi på den nya ritningen och kan lägga den gamla under som spöke.
+  await expect(page.getByText('Jämför med')).toBeVisible()
+  await page.getByRole('button', { name: 'Baksidan', exact: true }).last().click()
+  await expect(page.locator('g[aria-hidden] path[stroke-dasharray]').first()).toBeVisible()
 })

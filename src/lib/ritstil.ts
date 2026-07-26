@@ -41,6 +41,11 @@ export const RITSTIL: Record<PlatsTyp, PlatsStil> = {
   häck: { fyll: 'url(#h-hack)', kontur: GRONT_TUSCH, vikt: 1.2, etikett: 'var(--color-lov)' },
   träd: { fyll: 'url(#h-trad)', kontur: GRONT_TUSCH, vikt: 1.2, etikett: 'var(--color-lov)' },
 
+  // Mark och vatten.
+  stenparti: { fyll: 'url(#h-stenparti)', kontur: TUSCH_SVAG, vikt: 1.2, etikett: 'var(--color-tra)' },
+  grus: { fyll: 'url(#h-grus)', kontur: TUSCH_SVAG, vikt: 1, etikett: 'var(--color-tra)' },
+  vatten: { fyll: 'url(#h-vatten)', kontur: GRONT_TUSCH, vikt: 1.2, etikett: 'var(--color-lov)' },
+
   // Linjeobjekt.
   staket: { fyll: 'none', kontur: TUSCH_SVAG, vikt: 1.4, oppen: true, streckad: true },
 
@@ -60,6 +65,9 @@ export const RITPRIO: Record<PlatsTyp, number> = {
   häck: 3,
   träd: 4,
   staket: 4,
+  stenparti: 3,
+  grus: 3,
+  vatten: 3,
   annat: 5,
 }
 

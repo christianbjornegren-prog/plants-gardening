@@ -6,7 +6,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { useUid } from '../auth/AuthProvider'
+import { useDataRot } from '../auth/AuthProvider'
 import { Chip } from '../components/Chip'
 import { Falt, inmatningsStil } from '../components/Falt'
 import { TillbakaIkon } from '../components/Ikoner'
@@ -21,11 +21,13 @@ import { useData } from '../data/DataProvider'
 import type { PlatsFalt } from '../data/repo'
 import { PLATSTYPER, type Plats, type PlatsTyp, type PunktM, type Tradgard } from '../data/types'
 import { platstypEtikett } from '../lib/etiketter'
-import { allaRunda, arRund, vaxlaRunt } from '../lib/form'
-import { formatMeter, tolkaMeter } from '../lib/format'
+import { allaRunda, arRund, formTillPolygon, vaxlaRunt } from '../lib/form'
+import { formatArea, formatMeter, tolkaMeter } from '../lib/format'
 import {
+  area,
   avstand,
   flyttaPunkter,
+  omkrets,
   omslutandeRektangel,
   skalaTillMatt,
   snappa,
@@ -71,7 +73,7 @@ type Gest =
 
 function Ritare({ tradgard }: { tradgard: Tradgard }) {
   const { platser, vaxter, handelser } = useData()
-  const uid = useUid()
+  const uid = useDataRot()
   const navigera = useNavigate()
   const angra = useAngra()
   const { behallareRef, vb, mpp, tillMeter, panoreraPx } = useRitYta(
@@ -86,6 +88,9 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
   const [utkast, setUtkast] = useState<Plats>()
   /** Växt som väntar på att placeras: klicka i listan, klicka på ritningen. */
   const [armerad, setArmerad] = useState<string>()
+  /** Måttband: två klick ger ett avstånd. Tredje klicket börjar om. */
+  const [matar, setMatar] = useState(false)
+  const [matPunkter, setMatPunkter] = useState<PunktM[]>([])
   const gestRef = useRef<Gest | null>(null)
 
   const iTradgarden = platser.filter((p) => p.tradgardId === tradgard.id)
@@ -178,7 +183,7 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
   })
 
   function vidPekareNed(e: ReactPointerEvent<SVGSVGElement>) {
-    if (ritar || armerad) return
+    if (ritar || armerad || matar) return
     if (gestRef.current) return
     e.currentTarget.setPointerCapture(e.pointerId)
     const mal = e.target as Element
@@ -313,6 +318,10 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
       setRitPunkter((nu) => [...nu, punkt])
       return
     }
+    if (matar) {
+      setMatPunkter((nu) => (nu.length >= 2 ? [punkt] : [...nu, punkt]))
+      return
+    }
     if (!armerad) return
 
     const plats = platsVidPunkt(punkt, platser, tradgard.id)
@@ -370,6 +379,16 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
           >
             Ångra
           </Knapp>
+          <Knapp
+            onClick={() => {
+              setMatar((nu) => !nu)
+              setMatPunkter([])
+              setArmerad(undefined)
+            }}
+            className={matar ? 'border-fermob-lyft text-fermob-lyft' : ''}
+          >
+            {matar ? 'Sluta mäta' : 'Mät'}
+          </Knapp>
           {ritar ? (
             <Knapp onClick={avbrytRitning}>Avbryt ritandet</Knapp>
           ) : (
@@ -393,7 +412,9 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
         <p className="text-xs text-dis">
           {ritar
             ? 'Klicka ut hörnen · Enter avslutar · Esc ångrar senaste hörnet'
-            : armerad
+            : matar
+              ? 'Klicka två punkter för att mäta avståndet. Tredje klicket börjar om.'
+              : armerad
               ? `Klicka inuti en plats för att sätta ${vaxter.find((v) => v.id === armerad)?.namn} där.`
               : 'Dra formen för att flytta · dra ett hörn för att ändra · klicka ett hörn för att runda det'}
         </p>
@@ -410,7 +431,7 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
           ref={behallareRef}
           data-testid="ritredigering"
           className={`relative min-h-64 flex-1 touch-none overflow-hidden select-none ${
-            ritar || armerad ? 'cursor-crosshair' : ''
+            ritar || armerad || matar ? 'cursor-crosshair' : ''
           }`}
         >
           {vb && (
@@ -474,6 +495,48 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
                       vectorEffect="non-scaling-stroke"
                     />
                   ))}
+                </g>
+              )}
+
+              {/* Måttband */}
+              {matPunkter.length > 0 && (
+                <g className="pointer-events-none">
+                  {matPunkter.map((p, i) => (
+                    <circle
+                      key={`mat-${i}`}
+                      cx={p[0]}
+                      cy={p[1]}
+                      r={4 * mpp}
+                      fill="var(--color-botten)"
+                      stroke="var(--color-fermob-lyft)"
+                      strokeWidth={2}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  ))}
+                  {matPunkter.length === 2 && (
+                    <>
+                      <line
+                        x1={matPunkter[0]![0]}
+                        y1={matPunkter[0]![1]}
+                        x2={matPunkter[1]![0]}
+                        y2={matPunkter[1]![1]}
+                        stroke="var(--color-fermob-lyft)"
+                        strokeWidth={1.5}
+                        strokeDasharray="5 3"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                      <text
+                        x={(matPunkter[0]![0] + matPunkter[1]![0]) / 2}
+                        y={(matPunkter[0]![1] + matPunkter[1]![1]) / 2 - 8 * mpp}
+                        textAnchor="middle"
+                        fontSize={12 * mpp}
+                        className="mono"
+                        style={{ fill: 'var(--color-fermob-lyft)' }}
+                      >
+                        {formatMeter(avstand(matPunkter[0]!, matPunkter[1]!))}
+                      </text>
+                    </>
+                  )}
                 </g>
               )}
 
@@ -586,7 +649,7 @@ function mattText(varde: number): string {
 
 /** Ritningens mått, redigerbara direkt i verktygsraden. */
 function TomtMatt({ tradgard }: { tradgard: Tradgard }) {
-  const uid = useUid()
+  const uid = useDataRot()
   const [bredd, setBredd] = useState(mattText(tradgard.widthM ?? 0))
   const [djup, setDjup] = useState(mattText(tradgard.heightM ?? 0))
 
@@ -655,7 +718,7 @@ function PlatsPanel({
   onMinns: (etikett: string, gor: () => void) => void
   onTaBort: () => void
 }) {
-  const uid = useUid()
+  const uid = useDataRot()
   const { vaxter, handelser } = useData()
   const [namn, setNamn] = useState(plats.namn)
   const [skriverEgenTyp, setSkriverEgenTyp] = useState(false)
@@ -856,6 +919,24 @@ function PlatsPanel({
           className={inmatningsStil}
         />
       </Falt>
+
+      {/* Area och omkrets: hur mycket bark, jord eller kantsten som behövs. */}
+      {plats.geometri && (
+        <dl className="flex flex-col gap-1 rounded-lg border border-linje px-3 py-2">
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-xs text-dis-svag">Area</dt>
+            <dd className="mono text-sm text-ljus">
+              {formatArea(area(formTillPolygon(plats.geometri.punkter, plats.geometri.runda)))}
+            </dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-xs text-dis-svag">Omkrets</dt>
+            <dd className="mono text-sm text-ljus">
+              {formatMeter(omkrets(formTillPolygon(plats.geometri.punkter, plats.geometri.runda)))}
+            </dd>
+          </div>
+        </dl>
+      )}
 
       <p className="mono text-xs text-dis-svag">
         {antalVaxter === 1 ? '1 växt här' : `${antalVaxter} växter här`}

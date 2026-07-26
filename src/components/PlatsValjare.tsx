@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useUid } from '../auth/AuthProvider'
+import { useDataRot } from '../auth/AuthProvider'
 import { useData } from '../data/DataProvider'
 import { Ark } from './Ark'
 import { Knapp } from './Knapp'
@@ -21,7 +21,7 @@ export function PlatsValjare({
   onValj: (platsId: string | undefined) => void
 }) {
   const { platser, tradgardar } = useData()
-  const uid = useUid()
+  const uid = useDataRot()
   const [skaparI, setSkaparI] = useState<string>()
   const [nyttNamn, setNyttNamn] = useState('')
 

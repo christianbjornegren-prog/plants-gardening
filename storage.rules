@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Foton ligger under users/{uid}/photos/… Samma behörighetslista som
+// Foton delas av samma två personer som Firestore-datan. Samma lista som
 // firestore.rules och src/lib/behorighet.ts.
 service firebase.storage {
   match /b/{bucket}/o {
@@ -14,8 +14,10 @@ service firebase.storage {
            ];
     }
 
-    match /users/{uid}/{allPaths=**} {
-      allow read, write: if behorig() && request.auth.uid == uid;
+    // Både den delade roten och gamla personliga rötter — en fotoRef som
+    // skrevs före delningen ska fortsätta gå att visa.
+    match /users/{rot}/{allPaths=**} {
+      allow read, write: if behorig();
     }
 
     match /{allPaths=**} {

@@ -1,8 +1,8 @@
 rules_version = '2';
 
-// Ripvägen 11 — bara Christian och Elin kommer in, och var och en ser bara
-// sin egen data. Listan speglas i src/lib/behorighet.ts och storage.rules;
-// behorighet.test.ts bevakar att de tre hålls i synk.
+// Ripvägen 11 — Christian och Elin sköter SAMMA trädgård. Båda kommer åt all
+// data; ingen annan kommer åt något. Listan speglas i src/lib/behorighet.ts
+// och storage.rules; behorighet.test.ts bevakar att de hålls i synk.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -15,8 +15,10 @@ service cloud.firestore {
            ];
     }
 
-    match /users/{uid}/{document=**} {
-      allow read, write: if behorig() && request.auth.uid == uid;
+    // Delad rot (users/delad/…) plus gamla personliga rötter, så att data
+    // som skrevs innan trädgården blev gemensam går att flytta hem.
+    match /users/{rot}/{document=**} {
+      allow read, write: if behorig();
     }
 
     // Allt annat är stängt.

@@ -21,6 +21,9 @@ const PLATSTYP_ETIKETT: Record<PlatsTyp, string> = {
   häck: 'Häck',
   träd: 'Träd',
   staket: 'Staket',
+  stenparti: 'Stenparti',
+  grus: 'Grus',
+  vatten: 'Vatten',
   annat: 'Annat',
 }
 

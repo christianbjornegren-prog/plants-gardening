@@ -19,6 +19,9 @@ export type PlatsTyp =
   | 'häck'
   | 'träd'
   | 'staket'
+  | 'stenparti'
+  | 'grus'
+  | 'vatten'
   | 'annat'
 
 /** Allt som får finnas i databasen — inklusive äldre värden. */
@@ -31,6 +34,9 @@ export const ALLA_PLATSTYPER: readonly PlatsTyp[] = [
   'häck',
   'träd',
   'staket',
+  'stenparti',
+  'grus',
+  'vatten',
   'annat',
 ]
 
@@ -44,9 +50,12 @@ export const PLATSTYPER: readonly PlatsTyp[] = [
   'rabatt',
   'gräsmatta',
   'pallkrage',
+  'stenparti',
+  'grus',
+  'vatten',
+  'träd',
   'altan',
   'bod',
-  'träd',
   'staket',
   'annat',
 ]

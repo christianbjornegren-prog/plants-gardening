@@ -168,6 +168,35 @@ behåller sin stil). I stället finns **Egen…** — ett eget namn på typen
 (`egenTyp`) för stenparti, kompost, damm. Ritstilen kommer fortfarande från en
 standardtyp, så hatchning och linjevikt fungerar som vanligt.
 
+### Materialen ska gå att känna igen utan etikett
+
+Första omgången hatchning var prickar och streck i olika täthet — allt läste
+som "mönster", inget som "material". Nu har varje yta sitt eget formspråk:
+sten är runda klumpar i tre storlekar, grus är fint jämnt korn, gräs är strån i
+par, vatten är liggande vågor, rabatt är mylla med små plantmarkeringar, trall
+har både fog och ådring. Tre nya typer tillkom — **stenparti, grus och vatten**
+— eftersom en trädgård sällan består av bara rabatt och gräs.
+
+### Kurvan slog öglor
+
+Catmull-Rom räknar tangenten på avståndet mellan hörnets GRANNAR. Har två
+grannsegment mycket olika längd blir tangenten längre än det korta segmentet,
+och kurvan viker tillbaka över sig själv — det syntes som en liten krumelur vid
+ett hörn. Tangenten begränsas nu till 42 % av sitt eget segment. Ett test
+kontrollerar att den samplade kurvan inte korsar sig själv.
+
+### Ritningen som verktyg, inte bild
+
+Tre tillägg som gör ritningen till något man arbetar i:
+
+- **Area och omkrets** räknas ut per plats, på den samplade kurvan så att en
+  rundad kant räknas rätt. Det är siffran man behöver när man ska beställa jord
+  eller kantsten.
+- **Måttbandet** mäter mellan två punkter direkt i ritningen.
+- **Jämför ritningar** lägger en annan ritning över samma tomt som ett streckat
+  spöke under den aktuella. Poängen med "Baksidan" och "Baksidan kommande" är
+  att SE skillnaden, inte att bläddra mellan dem.
+
 ### Metadata utan formulär
 
 Ifyllda fält visas som rader, tomma erbjuds som chips (`+ Sol  + Jord  + Antal`).

@@ -15,6 +15,24 @@ import type { PunktM } from '../data/types'
 /** Catmull-Rom med spänning 0,5. Klassiskt värde; högre ger öglor. */
 const TANGENT = 1 / 6
 
+/**
+ * Tangenten begränsas till en andel av det egna segmentet.
+ *
+ * Utan detta blir kurvan fel så fort två grannsegment har mycket olika längd:
+ * tangenten räknas på avståndet mellan hörnets GRANNAR, så ett kort segment
+ * får en tangent längre än sig självt och kurvan slår en ögla. Det syntes som
+ * en liten krumelur vid ett hörn.
+ */
+const MAX_ANDEL = 0.42
+
+function begransadTangent(fran: PunktM, mot: PunktM, dx: number, dy: number): PunktM {
+  const langd = Math.hypot(dx, dy)
+  if (langd < 1e-9) return [fran[0], fran[1]]
+  const tak = MAX_ANDEL * Math.hypot(mot[0] - fran[0], mot[1] - fran[1])
+  const skala = tak > 0 && langd > tak ? tak / langd : 1
+  return [fran[0] + dx * skala, fran[1] + dy * skala]
+}
+
 export function arRund(runda: number[] | undefined, index: number): boolean {
   return runda?.includes(index) ?? false
 }
@@ -56,10 +74,10 @@ function segment(
 
   // Spetsigt hörn = ingen tangent, alltså kontrollpunkt i hörnet självt.
   const c1: PunktM = arRund(runda, ((i % n) + n) % n)
-    ? [p1[0] + (p2[0] - p0[0]) * TANGENT, p1[1] + (p2[1] - p0[1]) * TANGENT]
+    ? begransadTangent(p1, p2, (p2[0] - p0[0]) * TANGENT, (p2[1] - p0[1]) * TANGENT)
     : [p1[0], p1[1]]
   const c2: PunktM = arRund(runda, (((i + 1) % n) + n) % n)
-    ? [p2[0] - (p3[0] - p1[0]) * TANGENT, p2[1] - (p3[1] - p1[1]) * TANGENT]
+    ? begransadTangent(p2, p1, -(p3[0] - p1[0]) * TANGENT, -(p3[1] - p1[1]) * TANGENT)
     : [p2[0], p2[1]]
 
   return { fran: p1, c1, c2, till: p2 }

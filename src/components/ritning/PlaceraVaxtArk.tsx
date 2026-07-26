@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useUid } from '../../auth/AuthProvider'
+import { useDataRot } from '../../auth/AuthProvider'
 import { useData } from '../../data/DataProvider'
 import type { Plats } from '../../data/types'
 import { senasteFotoPerVaxt } from '../../lib/handelser'
@@ -27,7 +27,7 @@ export function PlaceraVaxtArk({
   position?: { x: number; y: number }
 }) {
   const { vaxter, handelser } = useData()
-  const uid = useUid()
+  const uid = useDataRot()
   const { oppna } = useNyVaxt()
   const [sok, setSok] = useState('')
 

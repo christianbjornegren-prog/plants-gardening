@@ -86,3 +86,44 @@ test('växten går att ta bort med två tryck', async ({ page }) => {
   await page.waitForURL(/\/vaxter$/)
   await expect(page.getByRole('link', { name: 'Misstaget' })).toHaveCount(0)
 })
+
+test('växtkortet nollställs när man byter växt', async ({ page }) => {
+  // Utan key på routen låg förra växtens state kvar i formuläret.
+  await page.goto('/')
+  await nyVaxt(page, 'Hortensian')
+  await page.getByRole('button', { name: '+ Sort' }).click()
+  await page.getByRole('textbox', { name: 'Sort' }).fill('Annabelle')
+  await page.getByRole('button', { name: 'Spara' }).click()
+  await expect(page.getByText('Annabelle')).toBeVisible()
+
+  await nyVaxt(page, 'Pionen')
+  await expect(page.getByRole('heading', { name: 'Pionen' })).toBeVisible()
+  await expect(page.getByText('Annabelle')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '+ Sort' })).toBeVisible()
+})
+
+test('att ta bort en plats sparar växtens historik och foton', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/')
+  const bild = await gorBild(page, 'hortensia')
+  await nyVaxt(page, 'Hortensian', bild)
+  await page.getByRole('button', { name: /^Vattnat/ }).click()
+
+  await page.getByRole('button', { name: 'Välj plats' }).click()
+  await page.getByRole('button', { name: 'Ny plats…' }).last().click()
+  await page.getByRole('textbox', { name: /Namn på ny plats i Inomhus/ }).fill('Köksfönstret')
+  await page.getByRole('button', { name: 'Spara' }).click()
+  await expect(page.getByText('Köksfönstret · Inomhus')).toBeVisible()
+
+  await page.getByRole('link', { name: 'Ritningen' }).first().click()
+  await page.getByRole('button', { name: 'Inomhus', exact: true }).click()
+  await page.getByRole('link', { name: /Köksfönstret/ }).click()
+  await page.getByRole('button', { name: 'Ta bort platsen' }).click()
+  await page.getByRole('button', { name: 'Tryck igen för att ta bort' }).click()
+
+  // Växten ska vara kvar MED sin historik och sin bild.
+  await page.getByRole('link', { name: 'Växter' }).first().click()
+  await page.getByRole('link', { name: 'Hortensian' }).click()
+  await expect(page.getByTestId('tidslinje').getByText('Vattnat')).toBeVisible()
+  await expect(page.getByTestId('fototidslinje')).toBeVisible()
+})
