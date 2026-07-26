@@ -89,17 +89,12 @@ export async function ritaPlats(
   typ = 'Rabatt',
 ) {
   await page.getByRole('button', { name: 'Rita ny plats' }).click()
-  const box = (await page.locator('[data-testid="ritredigering"]').boundingBox())!
-  const punkt = ([fx, fy]: [number, number]) => ({
-    x: box.x + fx * box.width,
-    y: box.y + fy * box.height,
-  })
   for (const h of horn) {
-    const p = punkt(h)
-    await page.mouse.click(p.x, p.y)
+    await tryckIYta(page, 'ritredigering', h[0], h[1])
   }
-  const sista = punkt(horn[horn.length - 1]!)
-  await page.mouse.dblclick(sista.x, sista.y)
+  const sista = horn[horn.length - 1]!
+  const box = (await page.locator('[data-testid="ritredigering"]').boundingBox())!
+  await page.mouse.dblclick(box.x + sista[0] * box.width, box.y + sista[1] * box.height)
   await page.getByRole('button', { name: typ, exact: true }).waitFor()
   await page.getByRole('button', { name: typ, exact: true }).click()
   const namnfalt = page.getByRole('textbox', { name: 'Namn' })
@@ -109,6 +104,20 @@ export async function ritaPlats(
 
 /** Tryck i ritningen på en andel av ytan. */
 export async function tryckIRitningen(page: Page, fx: number, fy: number) {
-  const box = (await page.locator('[data-testid="ritning"]').boundingBox())!
+  await tryckIYta(page, 'ritning', fx, fy)
+}
+
+/**
+ * Klick på en andel av en rityta. Boxen mäts om DIREKT före klicket —
+ * koordinater blir gamla så fort sidan scrollar eller layouten rör sig, och
+ * då hamnar klicket någon helt annanstans.
+ */
+export async function tryckIYta(
+  page: Page,
+  testid: 'ritning' | 'ritredigering',
+  fx: number,
+  fy: number,
+) {
+  const box = (await page.locator(`[data-testid="${testid}"]`).boundingBox())!
   await page.mouse.click(box.x + fx * box.width, box.y + fy * box.height)
 }

@@ -101,6 +101,34 @@ historiken under. Historiken blev oläslig och kortet oändligt. Tidslinjen
 (`bilder="sma"`) visar 56 px-miniatyrer på växt- och platskort; full storlek
 finns kvar i den globala loggen, som är den vy man bläddrar i.
 
+### Ritläget skulle inte gå att förväxla med läsläget
+
+Första versionen hade bara en "Redigera"-länk och sedan såg allt likadant ut.
+Nu: en fermob-tonad list med etiketten RITLÄGE, en hjälprad som säger vad man
+kan göra just nu, och en tydlig **Klar**-knapp. Man ska aldrig undra om man är
+i läget eller hur man tar sig ur det.
+
+**Ångra-knappen har en FAST etikett.** Första försöket skrev ut vad som skulle
+ångras på knappen ("Ångra placera Hortensian"). Det radbröt verktygsraden när
+texten växte, och då hoppade hela ritytan nedåt mitt under arbetet. Vad som
+ångras står i hjälpraden i stället, där bredden inte spelar roll.
+
+**Ritläget får inte tvinga fram sidscroll.** Panelen till höger växte förbi
+fönstret och puttade ut sidan; ritytan gled undan under handen. Raden har
+numera fast höjd på desktop (`lg:h-[72vh] lg:flex-none`) och panelen scrollar
+internt. Ett e2e-test vaktar att sidan inte kan scrolla i ritläget.
+
+### Kurvor: hörnet är växeln, inte ett eget verktyg
+
+En trädgård har sällan bara raka kanter. I stället för ett kurvverktyg är
+varje hörn en växel: klicka på det så blir det mjukt, klicka igen så blir det
+spetsigt. Handtaget visar vilket det är — cirkel för mjukt, fyrkant för
+spetsigt. En D-formad rabatt är fyra punkter där de två på ena sidan är runda.
+
+Det betyder att allt annat fungerar som förut: mått, snap till 0,1 m,
+dragning av hörn. Kurvan är en presentation av punkterna, inte en egen
+datamodell.
+
 ### Metadata utan formulär
 
 Ifyllda fält visas som rader, tomma erbjuds som chips (`+ Sol  + Jord  + Antal`).

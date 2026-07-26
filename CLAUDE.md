@@ -103,6 +103,9 @@ Växt, plats och ritning ska nås från varandras håll. Ingen påtvingad ingån
 ### Ritinteraktion
 
 - **Desktop (ritläge):** rita polygon genom att klicka ut hörn, dubbelklick eller Enter avslutar, Esc ångrar sista hörnet. Markera objekt → dra hörnpunkter, sätt typ/namn/mått. Snap 0,1 m. Segmentlängder visas i mono under ritandet.
+- **Kurvor:** varje hörn är en växel mellan mjukt och spetsigt (klicka på handtaget). Cirkel = mjukt, fyrkant = spetsigt. En D-formad rabatt är fyra punkter där de två på ena sidan är runda. Punkterna är sanningen, kurvan härleds (`lib/form.ts`).
+- **Ritläget är tydligt märkt** med en fermob-tonad list och har alltid en **Klar**-knapp och en **Ångra**-knapp (Cmd/Ctrl+Z). Ångra-knappens etikett är fast — en etikett som växer radbryter verktygsraden och får ritytan att hoppa.
+- **Flera ritningar per tomt:** "Baksidan" för nuläget, "Baksidan kommande" för hur det ska bli. Nya ritningar skapas från trädgårdsväxlaren.
 - **Mobil (läsläge):** panorera/zooma (pinch), tryck på plats → bottensheet, dra växtprickar för att flytta (skapar en `flyttat`-händelse), placera växter, döpa om platser. Ingen polygonritning i mobilen.
 - Ritläget är en explicit toggle och knappen visas bara ≥1024 px.
 
@@ -175,6 +178,7 @@ Designen ska hålla i tio år, inte se ut som 2026.
 ### Övrigt
 
 - Tomma vyer är inbjudningar: "Här bor inga växter än. Börja med att fota något som växer." — aldrig bara tomt.
+- **Fel är aldrig tysta.** Nekade skrivningar och läsningar går via `data/fel.ts` till `FelVakt` och visas. En knapp som "flimrar tillbaka" utan förklaring är en bugg, inte ett gränssnitt.
 - Touchytor minst 44×44 px. Synligt tangentbordsfokus på desktop.
 - Bottensheets i mobilen, aldrig modaler.
 

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { angeMatt, gaTill, gorBild, nyVaxt, ritaPlats, tryckIRitningen } from './hjalp'
+import { angeMatt, gaTill, gorBild, nyVaxt, ritaPlats, tryckIRitningen, tryckIYta } from './hjalp'
 
 const RUTA: [number, number][] = [
   [0.2, 0.3],
@@ -74,10 +74,9 @@ test.describe('ritläget', () => {
 
     await expect(page.getByRole('button', { name: 'Hortensian' })).toBeVisible()
     await page.getByRole('button', { name: 'Hortensian' }).click()
-    await expect(page.getByText('Klicka på en plats')).toBeVisible()
+    await expect(page.getByText(/Klicka inuti en plats/)).toBeVisible()
 
-    const box = (await page.locator('[data-testid="ritredigering"]').boundingBox())!
-    await page.mouse.click(box.x + box.width * 0.45, box.y + box.height * 0.5)
+    await tryckIYta(page, 'ritredigering', 0.45, 0.5)
     await expect(page.locator('[data-vaxt-id]')).toHaveCount(1)
   })
 
@@ -88,11 +87,10 @@ test.describe('ritläget', () => {
     await page.getByRole('link', { name: 'Redigera' }).click()
     await ritaPlats(page, RUTA, 'Rabatten')
     await page.getByRole('button', { name: 'Hortensian' }).click()
-    const box = (await page.locator('[data-testid="ritredigering"]').boundingBox())!
-    await page.mouse.click(box.x + box.width * 0.45, box.y + box.height * 0.5)
+    await tryckIYta(page, 'ritredigering', 0.45, 0.5)
     await expect(page.locator('[data-vaxt-id]')).toHaveCount(1)
 
-    await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.35)
+    await tryckIYta(page, 'ritredigering', 0.3, 0.35)
     await page.getByRole('button', { name: 'Ta bort platsen' }).click()
     await page.getByRole('button', { name: 'Tryck igen för att ta bort' }).click()
 
@@ -171,4 +169,100 @@ test('planerad växt ritas streckad och listas under Planerat', async ({ page })
   await page.getByRole('link', { name: /Magnolian/ }).click()
   await page.getByRole('button', { name: 'Planterad', exact: true }).click()
   await expect(page.getByTestId('tidslinje').getByText('Planterat')).toBeVisible()
+})
+
+test.describe('ritläget — kurvor, ångra och klar', () => {
+  test.skip(({ viewport }) => (viewport?.width ?? 0) < 1024, 'ritläget är desktop-först')
+
+  test('ett hörn kan rundas — så blir en rabatt D-formad', async ({ page }) => {
+    await angeMatt(page, 'Baksidan', '16', '11')
+    await page.getByRole('link', { name: 'Redigera' }).click()
+    await ritaPlats(page, RUTA, 'Rabatten')
+
+    const form = page.locator('[data-plats-id]').first()
+    // Spetsig form ritas med raka linjer.
+    expect(await form.getAttribute('d')).not.toContain('C')
+
+    await page.getByRole('button', { name: 'Runda alla' }).click()
+    await expect
+      .poll(async () => (await form.getAttribute('d')) ?? '')
+      .toContain('C')
+
+    // …och tillbaka igen.
+    await page.getByRole('button', { name: 'Gör spetsiga' }).click()
+    await expect
+      .poll(async () => ((await form.getAttribute('d')) ?? '').includes('C'))
+      .toBe(false)
+  })
+
+  test('ångra tar tillbaka en borttagen plats', async ({ page }) => {
+    await angeMatt(page, 'Baksidan', '16', '11')
+    await page.getByRole('link', { name: 'Redigera' }).click()
+    await ritaPlats(page, RUTA, 'Rabatten')
+    await expect(page.locator('[data-plats-id]')).toHaveCount(1)
+
+    await page.getByRole('button', { name: 'Ta bort platsen' }).click()
+    await page.getByRole('button', { name: 'Tryck igen för att ta bort' }).click()
+    await expect(page.locator('[data-plats-id]')).toHaveCount(0)
+
+    await expect(page.getByLabel('Ångra ta bort platsen')).toBeEnabled()
+    await page.getByLabel('Ångra ta bort platsen').click()
+    await expect(page.locator('[data-plats-id]')).toHaveCount(1)
+  })
+
+  test('ångra är avstängd innan något gjorts', async ({ page }) => {
+    await angeMatt(page, 'Baksidan', '16', '11')
+    await page.getByRole('link', { name: 'Redigera' }).click()
+    await expect(page.getByRole('button', { name: 'Ångra' })).toBeDisabled()
+  })
+
+  test('ritläget är tydligt märkt och har en Klar-knapp', async ({ page }) => {
+    await angeMatt(page, 'Baksidan', '16', '11')
+    await page.getByRole('link', { name: 'Redigera' }).click()
+    await expect(page.getByText('Ritläge')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Klar' }).click()
+    await expect(page).toHaveURL(/\/ritning$/)
+    await expect(page.getByText('Ritläge')).toHaveCount(0)
+  })
+
+  test('ritläget får inte tvinga fram sidscroll', async ({ page }) => {
+    // Scrollar sidan hoppar ritytan under handen medan man ritar.
+    await angeMatt(page, 'Baksidan', '16', '11')
+    await page.getByRole('link', { name: 'Redigera' }).click()
+    await ritaPlats(page, RUTA, 'Rabatten')
+    const overskott = await page.evaluate(
+      () => document.documentElement.scrollHeight - window.innerHeight,
+    )
+    expect(overskott).toBeLessThanOrEqual(1)
+  })
+})
+
+test('platsens ark listar växterna som står där', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/')
+  await nyVaxt(page, 'Pionen')
+  await angeMatt(page, 'Baksidan', '16', '11')
+  await page.getByRole('link', { name: 'Redigera' }).click()
+  await ritaPlats(page, RUTA, 'Rabatten')
+  await page.getByRole('button', { name: 'Pionen' }).click()
+  await tryckIYta(page, 'ritredigering', 0.45, 0.5)
+  await expect(page.locator('[data-vaxt-id]')).toHaveCount(1)
+
+  await page.getByRole('button', { name: 'Klar' }).click()
+  await tryckIRitningen(page, 0.35, 0.4)
+  await expect(page.getByRole('heading', { name: 'Växter här' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Pionen' })).toBeVisible()
+})
+
+test('en ny ritning kan läggas till bredvid nuläget', async ({ page }) => {
+  await angeMatt(page, 'Baksidan', '16', '11')
+
+  await page.getByRole('button', { name: '+ Ny ritning' }).click()
+  await page.getByRole('textbox', { name: 'Namn' }).fill('Baksidan kommande')
+  await page.getByRole('button', { name: 'Skapa ritningen' }).click()
+
+  await expect(page.getByRole('button', { name: 'Baksidan kommande' })).toBeVisible()
+  // Måtten ärvs från den man stod på, så man slipper mäta om.
+  await expect(page.getByTestId('tomtgrans')).toBeVisible()
 })

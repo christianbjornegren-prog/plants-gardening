@@ -33,6 +33,11 @@ Fas 4 polish. Ersatt av omtaget nedan — begreppsmodellen bar inte.
 - **Verktyg:** `npm run dev:lokal` (`VITE_LAGE=lokal`) så att e2e och
   skärmdumpar fungerar på en maskin med ifylld `.env.local`.
 
+- **v0.1-omgången:** Google-inloggning med låst behörighetslista, felkanal så
+  att nekade skrivningar/läsningar syns, kurvade kanter (runda hörn), ångra i
+  ritläget, tydligt märkt ritläge med Klar-knapp, växtlista i platsens ark,
+  flera ritningar per tomt.
+
 ## Pågår
 
 —

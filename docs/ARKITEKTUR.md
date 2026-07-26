@@ -68,6 +68,35 @@ Popup valdes framför redirect som förstahandsval eftersom `authDomain`
 (`plants-gardeing.web.app`), och `signInWithRedirect` är känsligt för
 cookie-partitionering i Safari i den konstellationen.
 
+## Fel får inte vara tysta
+
+Skrivningar är fire-and-forget mot cachen. Det är rätt mönster, men det gjorde
+en nekad skrivning osynlig: Firestore lägger på ändringen lokalt, servern nekar
+och ändringen rullas tillbaka. På skärmen såg det ut som att en knapp
+"flimrade till och gick tillbaka", eller att ingenting hände. En nekad
+LÄSNING var värre — lyssnaren dog tyst, `laddad` blev aldrig true och appen
+stod vit för alltid.
+
+`src/data/fel.ts` är en liten felkanal. Repot rapporterar både skriv- och
+läsfel dit, `FelVakt` visar dem (toast för skrivningar, banner för läsningar,
+med "Logga in igen" när det är behörighet som saknas), och `DataProvider`
+släpper fram vyerna även när en lyssnare fallerat.
+
+Detta upptäcktes skarpt: rules skärptes till att kräva `email_verified`, och
+det befintliga lösenordskontot hade `emailVerified: false`. Servern nekade
+allt — och appen sa ingenting.
+
+## Kurvor
+
+`src/lib/form.ts` gör om hörnlistan till en SVG-path. Varje hörn kan vara
+RUNT eller SPETSIGT; runda hörn får Catmull-Rom-tangenter (spänning 1/6),
+spetsiga blir riktiga knäckar. Rena raksträckor skrivs som `L` så att pathen
+inte blir onödigt tung.
+
+Träffytor, centroid och animationens dash-längd räknas på `formTillPolygon`
+— kurvan samplad till en tät polygon. Annars skulle ett tryck bredvid en
+utbuktande kant missa, och tuschanimationen bli fel lång.
+
 ## Kuben
 
 Växt, plats och ritning nås från varandras håll, utan påtvingad ingång:
