@@ -21,19 +21,23 @@ test('Hem är en dashboard: nyckeltal, senaste bilden och veckans händelser', a
   await expect(page.getByTestId('tidslinje').getByText('Vattnat')).toBeVisible()
 })
 
-test('Hem förklarar sina sektioner i stället för att bara lista', async ({ page }) => {
+test('Hem samlar det som saknas i en enda lista med skäl', async ({ page }) => {
   await page.goto('/')
   await nyVaxt(page, 'Citronträdet')
   await page.getByRole('link', { name: 'Hem' }).first().click()
 
-  // Växten saknar både bild och plats — båda sektionerna ska säga varför.
-  await expect(page.getByRole('heading', { name: 'Utan plats' })).toBeVisible()
-  await expect(page.getByText('Appen vet inte var de står')).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Väntar på sin första bild' })).toBeVisible()
-  await expect(page.getByText('Utan bild går det inte att följa dem över säsongen')).toBeVisible()
+  // Växten saknar både bild och plats, men blir EN rad — inte två sektioner.
+  await expect(page.getByRole('heading', { name: 'Att göra' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Citronträdet/ })).toHaveCount(1)
+  await expect(page.getByText('Ingen plats vald')).toBeVisible()
+
+  // De gamla tre rubrikerna ska vara borta.
+  await expect(page.getByRole('heading', { name: 'Utan plats' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Väntar på sin första bild' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Dags att fota igen' })).toHaveCount(0)
 })
 
-test('globala loggen filtrerar på trädgård och typ', async ({ page }) => {
+test('globala loggen filtrerar på typ, och trädgårdsfiltret väntar', async ({ page }) => {
   await page.goto('/')
   await nyVaxt(page, 'Basilikan')
   await page.getByRole('button', { name: /^Vattnat/ }).click()
@@ -42,16 +46,16 @@ test('globala loggen filtrerar på trädgård och typ', async ({ page }) => {
   await page.getByRole('link', { name: 'Logg' }).first().click()
   await expect(page.getByText('2 händelser')).toBeVisible()
 
+  // Ingen händelse hör till en trädgård än — då filtrerar raden ingenting,
+  // och ska inte synas.
+  await expect(page.getByRole('button', { name: 'Allt' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Baksidan' })).toHaveCount(0)
+
   await page.getByRole('button', { name: 'Vattnat' }).click()
   await expect(page.getByText('1 händelse', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Alla slag' }).click()
-  await page.getByRole('button', { name: 'Utan plats' }).click()
   await expect(page.getByText('2 händelser')).toBeVisible()
-
-  await page.getByRole('button', { name: 'Baksidan' }).click()
-  await expect(page.getByText('0 händelser')).toBeVisible()
-  await expect(page.getByText('Inget matchar filtret')).toBeVisible()
 })
 
 test('växtlistan grupperar på plats och går att söka i', async ({ page }) => {

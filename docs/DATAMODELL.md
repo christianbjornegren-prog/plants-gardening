@@ -12,7 +12,7 @@ users/{uid}/
       sol?, jord?, vetterMot?, vaderstreck?, status, anteckning? }
   vaxter/{vaxtId}
     { namn, platsId?, position?: {x,y}, status,
-      sort?, planterad?, antal?, sol?, jord?, anteckning? }
+      sort?, latin?, planterad?, antal?, sol?, jord?, anteckning? }
   handelser/{handelseId}
     { typ, datum, vaxtId?, platsId?, fotoRef?, anteckning?,
       franPlatsId?, tillPlatsId?, datumOkant? }
@@ -94,3 +94,10 @@ var för sig.
 | `logEntries` | `handelser` | typvärdena oförändrade |
 
 Gamla kollektioner **raderas inte** av migreringen. Det är hela rollbacken.
+
+## `latin` på växten
+
+Fritextfält som alla andra. Fylls i automatiskt om man tog ett namnförslag ur
+`src/data/vaxtnamn.json`, men går alltid att skriva om eller lämna tomt — det
+är hennes anteckning, inte en artbestämning. Fältet finns inte i v1-datan och
+migreringen skapar det inte.

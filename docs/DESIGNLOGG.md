@@ -344,3 +344,64 @@ flöde, inget formulär att "komma igenom".
 - **Mått (m)-fält** i objektpanelen: spec-kravet "ange mått" uppfyllt genom
   att skala polygonens bounding box, förankrad i övre vänstra hörnet, mono.
 - **Namnskydd:** enbart mellanslag i namn ger "Ge växten/ytan ett namn."
+
+## Förenklingsomgången — fem borttag hellre än fem tillägg
+
+Utgångspunkten: allt som finns ska betyda något. Det som inte gör det tas bort,
+inte flyttas.
+
+### En gest, en betydelse
+
+Ritläget hade tre sätt att göra tre olika saker med samma hörn: dra för att
+flytta, ⌥-klicka för att runda, klicka en `+`-markör mitt på kanten för att
+lägga till. Modifierartangenter går inte att upptäcka och finns inte på
+pekskärm; `+`-markörerna låg permanent i formen och gjorde den skräpig.
+
+Nu: **dra ett hörn** flyttar det. **Klicka ett hörn** markerar det — då, och
+bara då, visas *Runda/Gör spetsig* och *Ta bort* intill hörnet. **Klicka en
+kant** lägger till ett hörn där. Kanternas träffremsor ritas bara när formen är
+markerad, så första klicket alltid betyder "markera" och andra "ändra".
+Instruktionsraden ovanför ritytan är borttagen: behöver en yta en manual är
+interaktionen fel. Kvar är en hint som visas en gång (`localStorage`).
+
+### Tyst ritläge
+
+Det rosa bandet och den röda RITLÄGE-chipen är borta. Kvar: en tunn ram runt
+ritytan och en liten etikett i hörnet. **Klar** är en sekundärknapp — den är
+inte det man är där för. *Rita ny plats* är vyns enda röda knapp, och skalets
+"Ny växt" döljs i ritläget: **ett rött per skärm**, annars betyder inget av dem
+något.
+
+### Panelen i den ordning saker används
+
+Namn som rubrik (ingen ram — det ser ut som en rubrik och redigeras som ett
+fält), typerna grupperade i *Odling / Mark / Byggt* i stället för elva lösa
+chips, sedan Area och Omkrets — siffrorna man beställer jord och kantsten
+efter. Planerad, anteckning och radering ligger bakom **Fler detaljer**.
+Radering är en textlänk, inte en knapp: destruktivt ska vara möjligt, inte
+inbjudande.
+
+**"Mått (m)" är struket.** Det skalade formens omslutande rektangel och sa
+ingenting alls om en böjd rabatt. `skalaTillMatt` togs bort med det.
+
+### Nio borttag i övriga vyer
+
+| Vy | Bort | Varför |
+|---|---|---|
+| Hem | Nyckeltalet "Denna vecka" | upprepade sektionen direkt under |
+| Hem | "Öppna ritningen" | fliken finns redan i bottenraden |
+| Hem | "Utan plats", "Väntar på sin första bild", "Dags att fota igen" | tre rubriker som sa samma sak — nu en lista, **Att göra**, där varje rad bär sitt skäl |
+| Hem | Tom "Den här veckan" | en rubrik som säger "ingenting" när det finns annat att titta på |
+| Växter | Filterraden under åtta växter | fyra filter över en lista man ser hel |
+| Växtkortet | "Inte planterad än" + radering framme | sällanval; ligger nu bakom Fler detaljer |
+| Ritningen | Permanent "Jämför med"-rad | ett verktyg, inte en vy — fälls ut vid behov |
+| Loggen | Trädgårdsfiltret med en trädgård | filtrerade ingenting |
+| Ritningen | "+ Ny ritning" ur chipraden | chipsen är ritningar man byter mellan, inte en till ritning |
+
+### De första tio minuterna
+
+Efter "Skapa ritningen" hamnar man **direkt i ritläget** på dator. Måtten är
+inte målet — ritningen är. Vyn öppnar dessutom zoomad till det som faktiskt är
+ritat (`innehallsRuta`), med ett golv på 6 × 6 m så en ensam pallkrage inte
+fyller skärmen. En rabatt i hörnet av en 20 × 20-tomt öppnade förut som en
+nästan tom yta.

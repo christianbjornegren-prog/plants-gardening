@@ -64,3 +64,33 @@ ritläget är desktop-först enligt CLAUDE.md.
   - Installera Java (macOS): `brew install --cask temurin`
   - Ett `test:rules`-skript med `@firebase/rules-unit-testing` finns ännu inte.
 - Hatchmönstren granskas visuellt via skärmdump, inte automatiskt.
+
+## Förenklingsomgången
+
+- `lib/ritstil.test.ts` (6) — namnförslag för nya former. Regression: numret
+  räknades förut som "antal former + 1" och återanvändes efter en radering, så
+  två former kunde heta "Rabatt 2". Nu letas första LEDIGA numret upp.
+- `lib/viewbox.test.ts` (13) — `innehallsRuta`: innehållets ruta, golvet på
+  6 × 6 m, och fallback till hela tomten när ingenting är ritat.
+- `lib/vaxtsok.test.ts` (11) — rankning (exakt → prefix → nytt ord → mitt-i),
+  sökning på latin och alternativnamn, okänslighet för versaler och å/ä/ö,
+  taket på åtta förslag. Plus fyra påståenden om själva namnlistan: 500–800
+  poster, alla fält ifyllda, inga dubbletter, och att växterna hon faktiskt
+  har finns med.
+- `e2e/ritning.spec.ts` — hörnmodellen: knapparna syns först när ett hörn är
+  markerat, Runda växlar fram och tillbaka, Ta bort stannar vid tre hörn,
+  klick på en kant lägger till ett hörn, kanterna är inte klickbara förrän
+  formen är markerad. Plus att ritläget saknar instruktionsrad och har exakt
+  en röd knapp i vyn.
+- `e2e/vaxt.spec.ts` — namnförslag fyller i namn + latin, och ett eget namn
+  ("Mormors ros") sparas som det står utan latin på köpet.
+- `e2e/logg.spec.ts` — Hem samlar allt som saknas i **en** lista med skäl, och
+  trädgårdsfiltret i loggen syns inte förrän mer än en trädgård har händelser.
+
+### Kända luckor efter omgången
+
+- Hörnknapparnas placering (`tillSkarm` + `position: fixed`) testas
+  funktionellt, inte visuellt — att de hamnar *intill* hörnet granskas med
+  skärmdump.
+- Namnlistans innehåll är granskat av en människa, inte mot en källa. Fel
+  latinskt namn på en post upptäcks inte av testerna.

@@ -81,6 +81,7 @@ test('växten går att ta bort med två tryck', async ({ page }) => {
   await page.goto('/')
   await nyVaxt(page, 'Misstaget')
   await vantaPaTystKvittens(page)
+  await page.getByRole('button', { name: 'Fler detaljer' }).click()
   await page.getByRole('button', { name: 'Ta bort växten' }).click()
   await page.getByRole('button', { name: 'Tryck igen för att ta bort' }).click()
   await page.waitForURL(/\/vaxter$/)
@@ -126,4 +127,35 @@ test('att ta bort en plats sparar växtens historik och foton', async ({ page })
   await page.getByRole('link', { name: 'Hortensian' }).click()
   await expect(page.getByTestId('tidslinje').getByText('Vattnat')).toBeVisible()
   await expect(page.getByTestId('fototidslinje')).toBeVisible()
+})
+
+test('namnförslag hjälper till att stava, men fri text vinner alltid', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Ny växt' }).first().click()
+  await page.getByRole('textbox', { name: 'Växtens namn' }).fill('horten')
+
+  // Förslagen kommer när man skrivit några tecken.
+  const forslag = page.getByRole('list', { name: 'Namnförslag' })
+  // Exakt träff rankas först — "Hortensia" före "Hortensiabuske".
+  await expect(forslag.getByRole('button').first()).toContainText('Hortensia')
+  await forslag.getByRole('button').first().click()
+
+  await expect(page.getByRole('textbox', { name: 'Växtens namn' })).toHaveValue('Hortensia')
+  await page.getByRole('button', { name: 'Klart' }).click()
+
+  // Latinet följde med förslaget, utan att man behövde skriva det.
+  await expect(page.getByRole('heading', { name: 'Hortensia' })).toBeVisible()
+  await expect(page.getByText('Hydrangea', { exact: true })).toBeVisible()
+})
+
+test('ett eget namn sparas som det står, utan latin på köpet', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Ny växt' }).first().click()
+  await page.getByRole('textbox', { name: 'Växtens namn' }).fill('Mormors ros')
+  await page.getByRole('button', { name: 'Klart' }).click()
+
+  await expect(page.getByRole('heading', { name: 'Mormors ros' })).toBeVisible()
+  // Inget latin sattes åt henne — fältet erbjuds bara som ett tomt chip.
+  await expect(page.getByRole('button', { name: '+ Latinskt namn' })).toBeVisible()
+  await expect(page.getByRole('term').filter({ hasText: 'Latinskt namn' })).toHaveCount(0)
 })

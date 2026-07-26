@@ -81,6 +81,31 @@ export async function angeMatt(page: Page, tradgard: string, bredd: string, djup
   await page.getByTestId('tomtgrans').waitFor()
 }
 
+/**
+ * Säkerställer att vi står i ritläget. På desktop hoppar appen dit direkt när
+ * måtten sparats, så "Redigera" finns bara när vi kommer utifrån.
+ */
+export async function oppnaRitlage(page: Page): Promise<void> {
+  await page.getByTestId('tomtgrans').waitFor()
+  if (await page.getByTestId('ritredigering').count()) return
+  await page.getByRole('link', { name: 'Redigera' }).click()
+  await page.getByTestId('ritredigering').waitFor()
+}
+
+/** Motsatsen: säkerställer att vi står i den vanliga ritningsvyn. */
+export async function lamnaRitlage(page: Page): Promise<void> {
+  if (await page.getByTestId('ritredigering').count()) {
+    await page.getByRole('link', { name: 'Tillbaka till ritningen' }).click()
+  }
+  await page.getByTestId('tomtgrans').waitFor()
+}
+
+/** Öppnar "Fler detaljer" i platspanelen, där de sällsynta valen bor. */
+export async function oppnaFlerDetaljer(page: Page): Promise<void> {
+  const knapp = page.getByRole('button', { name: 'Fler detaljer' })
+  if (await knapp.count()) await knapp.click()
+}
+
 /** Ritar en polygon i ritläget. Hörnen anges som andelar av ritytan. */
 export async function ritaPlats(
   page: Page,

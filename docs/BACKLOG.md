@@ -33,6 +33,13 @@ Fas 4 polish. Ersatt av omtaget nedan — begreppsmodellen bar inte.
 - **Verktyg:** `npm run dev:lokal` (`VITE_LAGE=lokal`) så att e2e och
   skärmdumpar fungerar på en maskin med ifylld `.env.local`.
 
+- **Förenklingsomgången:** en gest = en betydelse i ritläget (hörnknappar först
+  när ett hörn är markerat, kantklick lägger till hörn, inga modifierartangenter),
+  tyst ritläge med ett rött per skärm, panelen omordnad och "Mått (m)" struket,
+  zoom till innehållet vid öppning, direkt in i ritläget efter måtten, nio
+  borttag i Hem/Växter/Växtkortet/Ritningen/Loggen, samt statisk svensk
+  namnlista (580 namn) med förslag i namnfältet och nytt fritextfält `latin`.
+
 - **v0.1-omgången:** Google-inloggning med låst behörighetslista, felkanal så
   att nekade skrivningar/läsningar syns, kurvade kanter (runda hörn), ångra i
   ritläget, tydligt märkt ritläge med Klar-knapp, växtlista i platsens ark,
@@ -54,7 +61,6 @@ Fas 4 polish. Ersatt av omtaget nedan — begreppsmodellen bar inte.
 
 - Ta bort enskilda foton (nu tas de bort med växten/platsen eller via Ångra).
 - Ta bort enskilda händelser i efterhand (nu bara Ångra direkt efteråt).
-- Lägga till/ta bort enskilda hörn på en befintlig polygon.
 - Zoomknappar (+/−) som komplement till pinch/hjul.
 - Uttrycklig z-ordningskontroll för platser (nu: ritordning).
 - Migreringsverktyg lokal→moln (skilda datamängder, se `src/lib/lage.ts`).
@@ -65,4 +71,5 @@ Fas 4 polish. Ersatt av omtaget nedan — begreppsmodellen bar inte.
 ## Ingår inte i v1
 
 Artdatabaser, såddkalendrar, påminnelser, väder-API, delning, AI, export/import,
-årstidston (prövad och struken, se DESIGNLOGG.md).
+årstidston (prövad och struken, se DESIGNLOGG.md). Den statiska namnlistan är
+namn och inget annat — se gränsdragningen i CLAUDE.md.

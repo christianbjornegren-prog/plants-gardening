@@ -218,6 +218,14 @@ Uppdatera relevant md-fil **i samma commit** som ändringen.
 ## Ingår INTE i v1 (lägg inte till)
 
 - Artdatabaser, växtlexikon, såddkalendrar (fältet **Sort** är fri text, hennes egna ord)
+
+  **Gränsen mot namnlistan:** `src/data/vaxtnamn.json` är tillåten och är
+  inte en artdatabas. Den innehåller *namn* — svenskt, latinskt, grov
+  kategori — och ingenting annat: ingen skötsel, inga zoner, inga såddtider,
+  ingen bevattningsrytm. Syftet är stavning och sökbarhet, inte kunskap om
+  arter. Fri text vinner alltid; ett förslag kan aldrig krävas eller
+  korrigera det hon skrivit. Växer filen till att bära egenskaper per art har
+  gränsen passerats.
 - Påminnelser/notiser
 - Väder-API
 - Delning, flera användare

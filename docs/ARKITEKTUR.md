@@ -229,3 +229,34 @@ av en server, så en `page.goto` (helsidesladdning) omedelbart efter en
 skrivning kan riva sidan innan mutationen persisterats. Testerna väntar därför
 på synlig UI-kvittens efter skrivningar och navigerar via appens länkar (SPA)
 i stället för `goto` direkt efter skriv-operationer.
+
+## Zoom till innehållet
+
+`innehallsRuta(breddM, hojdM, innehall)` i `lib/viewbox.ts` returnerar rutan som
+vyn ska öppna på: innehållets omslutande rektangel, golvad till `MINSTA_VY_M`
+(6 m) och med hela tomten som fallback när ingenting är ritat. `useRitYta` tar
+den som valfritt argument och tillämpar den **bara vid första mätningen** —
+annars skulle vyn hoppa tillbaka varje gång man ritar eller flyttar något.
+Därför fångas innehållet i en `useRef` vid montering, inte vid varje render.
+
+`useRitYta` exponerar även `tillSkarm(punkt)` — meter → skärmkoordinater. Den
+behövs för hörnknapparna i ritläget, som är riktiga HTML-knappar med
+`position: fixed` i stället för SVG-element: de ska ha 44 px träffyta,
+tangentbordsfokus och normal knappsemantik utan att skalas av `viewBox`.
+
+## Växtnamnen
+
+`src/data/vaxtnamn.json` är en **statisk namnlista**, inte en artdatabas: 580
+poster med svenskt namn, latinskt namn, grov kategori och eventuella
+alternativnamn. Ingen skötselinformation, inga zoner, inga såddtider — se
+gränsdragningen i CLAUDE.md.
+
+Filen laddas med dynamisk import först när någon skrivit två tecken i ett
+namnfält (`laddaVaxtnamn`, med cache). 40 kB namn ska inte ligga i startbunten;
+appen öppnas för att titta, inte för att lägga till.
+
+Sökningen (`lib/vaxtsok.ts`) normaliserar bort versaler och diakriter, söker på
+svenskt namn, alternativnamn och latin i den viktordningen, och rankar exakt →
+börjar-med → nytt ord → någonstans-i. Högst åtta förslag. **Fri text vinner
+alltid:** förslaget fyller i fältet, men det man skrivit sparas som det står.
+Latinet följer bara med om namnet fortfarande är det man valde.
