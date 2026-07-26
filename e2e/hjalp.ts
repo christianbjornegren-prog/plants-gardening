@@ -97,9 +97,11 @@ export async function ritaPlats(
   await page.mouse.dblclick(box.x + sista[0] * box.width, box.y + sista[1] * box.height)
   await page.getByRole('button', { name: typ, exact: true }).waitFor()
   await page.getByRole('button', { name: typ, exact: true }).click()
-  const namnfalt = page.getByRole('textbox', { name: 'Namn' })
-  await namnfalt.fill(namn)
-  await namnfalt.blur()
+  if (namn) {
+    const namnfalt = page.getByRole('textbox', { name: 'Namn' })
+    await namnfalt.fill(namn)
+    await namnfalt.blur()
+  }
 }
 
 /** Tryck i ritningen på en andel av ytan. */

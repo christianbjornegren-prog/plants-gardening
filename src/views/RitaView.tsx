@@ -149,10 +149,12 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
     void (async () => {
       const repo = await import('../data/repo')
       const typ: PlatsTyp = 'rabatt'
-      const antal = iTradgarden.filter((p) => p.typ === typ).length
       const id = repo.skapaPlats(uid, {
         tradgardId: tradgard.id,
-        namn: nyttPlatsNamn(antal, platstypEtikett(typ)),
+        namn: nyttPlatsNamn(
+          iTradgarden.map((p) => p.namn),
+          platstypEtikett(typ),
+        ),
         typ,
         punkter,
       })

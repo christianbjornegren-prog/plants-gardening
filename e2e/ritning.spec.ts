@@ -362,3 +362,30 @@ test('två ritningar med samma mått går att lägga över varandra', async ({ p
   await page.getByRole('button', { name: 'Baksidan', exact: true }).last().click()
   await expect(page.locator('g[aria-hidden] path[stroke-dasharray]').first()).toBeVisible()
 })
+
+test.describe('namngivning av nya former', () => {
+  test.skip(({ viewport }) => (viewport?.width ?? 0) < 1024, 'ritläget är desktop-först')
+
+  test('namnen krockar inte efter en borttagning', async ({ page }) => {
+    // Regression: namnet räknade förut hur många former som fanns, så numret
+    // återanvändes efter en radering och två former hette "Rabatt 2".
+    await angeMatt(page, 'Baksidan', '20', '20')
+    await page.getByRole('link', { name: 'Redigera' }).click()
+
+    await ritaPlats(page, [[0.10, 0.10], [0.30, 0.10], [0.30, 0.30], [0.10, 0.30]], '')
+    await ritaPlats(page, [[0.40, 0.10], [0.60, 0.10], [0.60, 0.30], [0.40, 0.30]], '')
+
+    await tryckIYta(page, 'ritredigering', 0.2, 0.2)
+    await page.getByRole('button', { name: 'Ta bort platsen' }).click()
+    await page.getByRole('button', { name: 'Tryck igen för att ta bort' }).click()
+    await expect(page.locator('[data-plats-id]')).toHaveCount(1)
+
+    await ritaPlats(page, [[0.70, 0.10], [0.90, 0.10], [0.90, 0.30], [0.70, 0.30]], '')
+
+    const namn = await page.evaluate(() =>
+      [...document.querySelectorAll('svg text')].map((n) => n.textContent ?? ''),
+    )
+    expect(namn).toHaveLength(2)
+    expect(new Set(namn).size).toBe(2)
+  })
+})

@@ -74,7 +74,18 @@ export const RITPRIO: Record<PlatsTyp, number> = {
   annat: 5,
 }
 
-/** Namnförslag när en ny form ritas: "Rabatt 2". */
-export function nyttPlatsNamn(befintligaAvTyp: number, etikett: string): string {
-  return `${etikett} ${befintligaAvTyp + 1}`
+/**
+ * Namnförslag när en ny form ritas: "Rabatt 2".
+ *
+ * Räknar INTE hur många som finns — det numret återanvänds så fort man tagit
+ * bort en form, och då står plötsligt två "Rabatt 2" bredvid varandra. Letar i
+ * stället upp det första LEDIGA numret bland namnen som redan används.
+ */
+export function nyttPlatsNamn(befintligaNamn: readonly string[], etikett: string): string {
+  const upptagna = new Set(befintligaNamn.map((n) => n.trim().toLowerCase()))
+  for (let i = 1; i <= upptagna.size + 1; i++) {
+    const forslag = `${etikett} ${i}`
+    if (!upptagna.has(forslag.toLowerCase())) return forslag
+  }
+  return `${etikett} ${upptagna.size + 1}`
 }
