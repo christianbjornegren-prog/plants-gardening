@@ -22,11 +22,14 @@ import { fototidslinje, handelserForVaxt } from '../lib/handelser'
  * Aldrig ett formulär att "komma igenom" (se docs/DESIGNLOGG.md).
  */
 
-type Falt = 'sort' | 'planterad' | 'antal' | 'jord' | 'anteckning' | 'namn'
+type Falt = 'sort' | 'latin' | 'planterad' | 'antal' | 'jord' | 'anteckning' | 'namn'
 
 const FALT_ETIKETT: Record<Falt, string> = {
   namn: 'Namn',
   sort: 'Sort',
+  // Fylls i automatiskt om man tog ett namnförslag, men går alltid att skriva
+  // om — det är hennes anteckning, inte en artbestämning.
+  latin: 'Latinskt namn',
   // "Planterades" (datum) skiljs medvetet från knappen "Planterad" (åtgärden
   // som gör en planerad växt verklig) — samma ord för två saker förvirrar.
   planterad: 'Planterades',
@@ -38,6 +41,7 @@ const FALT_ETIKETT: Record<Falt, string> = {
 const PLATSHALLARE: Record<Falt, string> = {
   namn: 'Hortensian vid boden',
   sort: 'Annabelle',
+  latin: 'Hydrangea arborescens',
   planterad: 'maj 2023',
   antal: '3',
   jord: 'Lerjord, mullrik',
@@ -52,6 +56,7 @@ export function VaxtView() {
   const placera = usePlacera()
 
   const [redigerar, setRedigerar] = useState<Falt>()
+  const [visaMer, setVisaMer] = useState(false)
   const [utkast, setUtkast] = useState('')
   const [visaSol, setVisaSol] = useState(false)
   const [visaPlats, setVisaPlats] = useState(false)
@@ -103,7 +108,9 @@ export function VaxtView() {
     tillampa(utkast)
   }
 
-  const saknade: Falt[] = (['sort', 'planterad', 'antal', 'jord', 'anteckning'] as Falt[]).filter(
+  const saknade: Falt[] = (
+    ['sort', 'latin', 'planterad', 'antal', 'jord', 'anteckning'] as Falt[]
+  ).filter(
     (f) => (f === 'antal' ? vaxt.antal === undefined : !vaxt[f as keyof typeof vaxt]),
   )
 
@@ -170,7 +177,7 @@ export function VaxtView() {
             </button>
           </Uppgift>
         )}
-        {(['sort', 'planterad', 'antal', 'jord', 'anteckning'] as Falt[])
+        {(['sort', 'latin', 'planterad', 'antal', 'jord', 'anteckning'] as Falt[])
           .filter((f) => (f === 'antal' ? vaxt.antal !== undefined : vaxt[f as keyof typeof vaxt]))
           .map((f) => (
             <Uppgift key={f} etikett={FALT_ETIKETT[f]} mono={f === 'planterad' || f === 'antal'}>
@@ -189,10 +196,6 @@ export function VaxtView() {
             + {FALT_ETIKETT[f]}
           </Chip>
         ))}
-        {/* Markera som planerad: hon skissar hur det SKA bli. */}
-        {vaxt.status === 'finns' && (
-          <Chip onClick={() => spara({ status: 'planerad' })}>Inte planterad än</Chip>
-        )}
       </div>
 
       {plats?.geometri && (
@@ -221,18 +224,36 @@ export function VaxtView() {
         />
       </section>
 
+      {/* Sällanvalen samlade: status sätts en gång, radering nästan aldrig.
+          Båda låg tidigare framme och drog blicken från det man är här för. */}
       <div className="mt-10 border-t border-linje pt-5">
-        <TaBortKnapp
-          onBekraftad={() => {
-            void (async () => {
-              const repo = await import('../data/repo')
-              repo.taBortVaxt(uid, vaxt, mina)
-              navigera('/vaxter')
-            })()
-          }}
+        <button
+          type="button"
+          onClick={() => setVisaMer((n) => !n)}
+          className="text-sm text-dis hover:text-tusch"
         >
-          Ta bort växten
-        </TaBortKnapp>
+          {visaMer ? 'Färre detaljer' : 'Fler detaljer'}
+        </button>
+
+        {visaMer && (
+          <div className="mt-4 flex flex-col items-start gap-4">
+            {vaxt.status === 'finns' && (
+              <Chip onClick={() => spara({ status: 'planerad' })}>Inte planterad än</Chip>
+            )}
+            <TaBortKnapp
+              variant="lank"
+              onBekraftad={() => {
+                void (async () => {
+                  const repo = await import('../data/repo')
+                  repo.taBortVaxt(uid, vaxt, mina)
+                  navigera('/vaxter')
+                })()
+              }}
+            >
+              Ta bort växten
+            </TaBortKnapp>
+          </div>
+        )}
       </div>
 
       {/* Ark: fritextfält */}

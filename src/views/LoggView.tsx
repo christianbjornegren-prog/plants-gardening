@@ -32,6 +32,14 @@ export function LoggView() {
     return platsAvId.get(id)?.tradgardId
   }
 
+  const tradgardarMedHandelser = tradgardar.filter((t) =>
+    handelser.some(
+      (h) =>
+        tradgardFor(h.platsId) === t.id ||
+        tradgardFor(vaxtAvId.get(h.vaxtId ?? '')?.platsId) === t.id,
+    ),
+  )
+
   const filtrerade = handelser.filter((h) => {
     if (typ && h.typ !== typ) return false
     if (!mal) return true
@@ -52,7 +60,9 @@ export function LoggView() {
       <VyHuvud titel="Logg" />
 
       {/* Radbryt hellre än scrolla: med dold scrollbar såg det bara ut som
-          att sista filtret var avklippt. */}
+          att sista filtret var avklippt. Och raden visas bara när det finns
+          något att välja mellan — med en trädgård filtrerar den ingenting. */}
+      {tradgardarMedHandelser.length > 1 && (
       <div className="mb-2 flex flex-wrap gap-2">
         <Chip vald={!mal} onClick={() => setMal(undefined)}>
           Allt
@@ -66,6 +76,7 @@ export function LoggView() {
           Utan plats
         </Chip>
       </div>
+      )}
 
       <div className="mb-4 flex flex-wrap gap-2">
         <Chip vald={!typ} onClick={() => setTyp(undefined)}>

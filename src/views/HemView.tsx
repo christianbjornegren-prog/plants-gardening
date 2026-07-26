@@ -2,14 +2,14 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Adresskylt } from '../components/Adresskylt'
 import { FotoBild } from '../components/FotoBild'
-import { Knapp, LankKnapp } from '../components/Knapp'
+import { Knapp } from '../components/Knapp'
 import { useNyVaxt } from '../components/NyVaxt'
 import { PilIkon } from '../components/Ikoner'
 import { Tidslinje } from '../components/Tidslinje'
 import { TomtLage } from '../components/VyHuvud'
 import { useData } from '../data/DataProvider'
 import type { Handelse, Vaxt } from '../data/types'
-import { formatDatum, formatDatumKort } from '../lib/format'
+import { formatDatum } from '../lib/format'
 import { handelserSedan, ofotograferade, senastaFotot, senasteFotoPerVaxt } from '../lib/handelser'
 
 /**
@@ -19,12 +19,16 @@ import { handelserSedan, ofotograferade, senastaFotot, senasteFotoPerVaxt } from
  * Den stora hjältebilden låg här förut och lästes som "du ska ladda upp ett
  * foto" — särskilt när den var tom. Nu är bilden ett kort bland andra, och
  * varje sektion säger med egna ord varför den finns.
+ *
+ * Tre sektioner ("Utan plats", "Väntar på sin första bild", "Dags att fota
+ * igen") sa samma sak tre gånger: här är växter som saknar något. De är en
+ * enda lista nu, där varje rad bär sitt eget skäl.
  */
 
 const DAGAR_TILL_UPPFOLJNING = 60
 
 export function HemView() {
-  const { vaxter, platser, tradgardar, handelser, laddad } = useData()
+  const { vaxter, platser, handelser, laddad } = useData()
   const { oppna } = useNyVaxt()
 
   if (!laddad) return null
@@ -53,11 +57,27 @@ export function HemView() {
   ]
   const hemlosa = vaxter.filter((v) => !v.platsId && v.status === 'finns')
   const uppfoljning = ofotograferade(vaxter, handelser, DAGAR_TILL_UPPFOLJNING)
-  const aldrigFotade = uppfoljning.filter((r) => r.dagarSedan === undefined).map((r) => r.vaxt)
-  const langeSedan = uppfoljning.filter((r) => r.dagarSedan !== undefined).slice(0, 6)
   const fotoAvVaxt = senasteFotoPerVaxt(handelser)
   const senaste = senastaFotot(handelser)
-  const ritningar = tradgardar.filter((t) => t.widthM !== undefined)
+
+  // En rad per växt, med det mest handfasta skälet. Saknad plats väger tyngst:
+  // utan plats går växten inte att hitta på ritningen.
+  const attGora: { vaxt: Vaxt; skal: string }[] = []
+  const redan = new Set<string>()
+  for (const v of hemlosa) {
+    attGora.push({ vaxt: v, skal: 'Ingen plats vald' })
+    redan.add(v.id)
+  }
+  for (const { vaxt, dagarSedan } of uppfoljning) {
+    if (redan.has(vaxt.id)) continue
+    attGora.push({
+      vaxt,
+      skal:
+        dagarSedan === undefined
+          ? 'Ingen bild än'
+          : `Inte fotad på ${dagarSedan} dagar`,
+    })
+  }
 
   return (
     <div className="tona-upp mx-auto w-full max-w-2xl px-5 py-5 md:px-8 md:py-8">
@@ -68,34 +88,36 @@ export function HemView() {
         </span>
       </div>
 
-      <dl className="mb-6 grid grid-cols-3 gap-3">
+      <dl className="mb-6 grid grid-cols-2 gap-3">
         <Nyckeltal etikett="Växter" varde={vaxter.length} till="/vaxter" />
         <Nyckeltal etikett="Platser" varde={platser.length} />
-        <Nyckeltal etikett="Denna vecka" varde={veckan.length} till="/logg" />
       </dl>
 
-      <div className="mb-8 flex flex-wrap gap-2">
+      <div className="mb-8">
         <Knapp variant="primar" onClick={() => oppna()}>
           Fota en växt
         </Knapp>
-        {ritningar.length > 0 && <LankKnapp to="/ritning">Öppna ritningen</LankKnapp>}
       </div>
 
       <div className="flex flex-col gap-8">
         {senaste && <SenasteBilden handelse={senaste} />}
 
-        <Avsnitt
-          rubrik="Den här veckan"
-          tom={veckan.length === 0 ? 'Inget loggat den här veckan.' : undefined}
-        >
-          <Tidslinje
-            handelser={veckan.slice(0, 6)}
-            vaxter={vaxter}
-            platser={platser}
-            visaMal
-            bilder="sma"
-          />
-        </Avsnitt>
+        {/* Tom vecka visas bara när det inte finns något annat att titta på —
+            annars är det en rubrik som säger "ingenting". */}
+        {(veckan.length > 0 || (attGora.length === 0 && planerade.length === 0)) && (
+          <Avsnitt
+            rubrik="Den här veckan"
+            tom={veckan.length === 0 ? 'Inget loggat den här veckan.' : undefined}
+          >
+            <Tidslinje
+              handelser={veckan.slice(0, 6)}
+              vaxter={vaxter}
+              platser={platser}
+              visaMal
+              bilder="sma"
+            />
+          </Avsnitt>
+        )}
 
         {planerade.length > 0 && (
           <Avsnitt rubrik="Planerat" underrubrik="Ritat men inte planterat än.">
@@ -117,48 +139,28 @@ export function HemView() {
           </Avsnitt>
         )}
 
-        {hemlosa.length > 0 && (
-          <Avsnitt
-            rubrik="Utan plats"
-            underrubrik="Appen vet inte var de står. Öppna kortet och välj plats."
-          >
-            <VaxtRutor vaxter={hemlosa.slice(0, 6)} fotoAvVaxt={fotoAvVaxt} />
-          </Avsnitt>
-        )}
-
-        {aldrigFotade.length > 0 && (
-          <Avsnitt
-            rubrik="Väntar på sin första bild"
-            underrubrik="Utan bild går det inte att följa dem över säsongen."
-          >
-            <VaxtRutor vaxter={aldrigFotade.slice(0, 6)} fotoAvVaxt={fotoAvVaxt} />
-          </Avsnitt>
-        )}
-
-        {langeSedan.length > 0 && (
-          <Avsnitt
-            rubrik="Dags att fota igen"
-            underrubrik={`Inte fotade på ${DAGAR_TILL_UPPFOLJNING} dagar. En bild nu ger jämförelsen mot i våras.`}
-          >
-            <ul className="grid grid-cols-3 gap-3">
-              {langeSedan.map(({ vaxt }) => {
-                const senasteBild = handelser.find((h) => h.vaxtId === vaxt.id && h.fotoRef)
-                return (
-                  <li key={vaxt.id}>
-                    <Link to={`/vaxter/${vaxt.id}`} className="flex flex-col gap-1.5">
-                      <FotoBild
-                        fotoRef={fotoAvVaxt.get(vaxt.id)}
-                        alt={vaxt.namn}
-                        className="aspect-square w-full rounded-lg"
-                      />
-                      <span className="truncate text-xs text-tusch">{vaxt.namn}</span>
-                      <span className="mono text-[10px] text-dis-svag">
-                        {senasteBild ? formatDatumKort(new Date(senasteBild.datum)) : '—'}
-                      </span>
-                    </Link>
-                  </li>
-                )
-              })}
+        {attGora.length > 0 && (
+          <Avsnitt rubrik="Att göra" underrubrik="Växter som saknar något.">
+            <ul className="flex flex-col">
+              {attGora.slice(0, 6).map(({ vaxt, skal }) => (
+                <li key={vaxt.id}>
+                  <Link
+                    to={`/vaxter/${vaxt.id}`}
+                    className="flex min-h-14 items-center gap-3 rounded-lg px-1 py-1.5 hover:bg-panel"
+                  >
+                    <FotoBild
+                      fotoRef={fotoAvVaxt.get(vaxt.id)}
+                      alt={vaxt.namn}
+                      className="size-11 shrink-0 rounded-lg"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm text-tusch">{vaxt.namn}</span>
+                      <span className="block truncate text-xs text-dis">{skal}</span>
+                    </span>
+                    <PilIkon width={14} height={14} className="shrink-0 text-dis-svag" />
+                  </Link>
+                </li>
+              ))}
             </ul>
           </Avsnitt>
         )}
@@ -191,25 +193,6 @@ function Nyckeltal({ etikett, varde, till }: { etikett: string; varde: number; t
     </Link>
   ) : (
     <div className="rounded-2xl bg-salvia px-3 py-3">{innehall}</div>
-  )
-}
-
-function VaxtRutor({ vaxter, fotoAvVaxt }: { vaxter: Vaxt[]; fotoAvVaxt: Map<string, string> }) {
-  return (
-    <ul className="grid grid-cols-3 gap-3">
-      {vaxter.map((v) => (
-        <li key={v.id}>
-          <Link to={`/vaxter/${v.id}`} className="flex flex-col gap-1.5">
-            <FotoBild
-              fotoRef={fotoAvVaxt.get(v.id)}
-              alt={v.namn}
-              className="aspect-square w-full rounded-lg"
-            />
-            <span className="truncate text-xs text-tusch">{v.namn}</span>
-          </Link>
-        </li>
-      ))}
-    </ul>
   )
 }
 

@@ -18,6 +18,8 @@ import { senasteFotoPerVaxt } from '../lib/handelser'
  */
 type Urval = 'alla' | 'utan-plats' | 'planerade' | string
 
+const FILTER_FRAN = 8
+
 export function VaxterView() {
   const { vaxter, platser, tradgardar, handelser, laddad } = useData()
   const { oppna } = useNyVaxt()
@@ -88,6 +90,9 @@ export function VaxterView() {
             className={`${inmatningsStil} pl-10`}
           />
         </div>
+        {/* Fyra filter över nio växter är att sortera en lista man ser hel.
+            Raden kommer när den behövs. */}
+        {vaxter.length >= FILTER_FRAN && (
         <div className="dolj-scroll -mx-5 flex gap-2 overflow-x-auto px-5 md:-mx-8 md:px-8">
           <Chip vald={urval === 'alla'} onClick={() => setUrval('alla')}>
             Alla
@@ -104,6 +109,7 @@ export function VaxterView() {
             Planerade
           </Chip>
         </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-7 px-5 py-6 md:px-8">
