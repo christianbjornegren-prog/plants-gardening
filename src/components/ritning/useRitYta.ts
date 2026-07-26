@@ -10,9 +10,9 @@ import {
 
 /**
  * Behållarmätning + viewBox-tillstånd + konvertering skärm↔meter.
- * Delas av levande läget och redigeringsläget.
+ * Delas av läsläget och ritläget.
  */
-export function useKartYta(breddM: number, hojdM: number) {
+export function useRitYta(breddM: number, hojdM: number) {
   const behallareRef = useRef<HTMLDivElement>(null)
   const [storlek, setStorlek] = useState<{ b: number; h: number }>()
   const [vb, setVb] = useState<ViewBox>()

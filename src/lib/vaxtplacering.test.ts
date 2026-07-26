@@ -1,61 +1,94 @@
 import { describe, expect, it } from 'vitest'
-import type { Area, GardenMap, Plant } from '../data/types'
+import type { Plats, PunktM, Vaxt } from '../data/types'
 import { punktIPolygon } from './geometri'
-import { beraknaPrickar } from './vaxtplacering'
+import { beraknaPrickar, platsVidPunkt } from './vaxtplacering'
 
-function vaxt(id: string, areaId: string, position?: { x: number; y: number }): Plant {
-  return { id, name: id, areaId, position, photoRefs: [], moveHistory: [] }
-}
-
-const karta: GardenMap = {
-  widthM: 20,
-  heightM: 10,
-  objects: [
-    {
-      id: 'obj-rabatt',
-      type: 'rabatt',
-      name: 'Rabatten',
-      points: [
-        [2, 2],
-        [8, 2],
-        [8, 6],
-        [2, 6],
-      ],
-    },
-  ],
-}
-
-const ytor: Area[] = [
-  { id: 'yta-rabatt', name: 'Rabatten', mapObjectId: 'obj-rabatt' },
-  { id: 'yta-inne', name: 'Köksfönstret' },
+const RUTA: PunktM[] = [
+  [1, 1],
+  [5, 1],
+  [5, 4],
+  [1, 4],
 ]
+
+function plats(id: string, extra: Partial<Plats> = {}): Plats {
+  return {
+    id,
+    tradgardId: 'baksidan',
+    namn: id,
+    typ: 'rabatt',
+    status: 'finns',
+    geometri: { punkter: RUTA },
+    ...extra,
+  }
+}
+
+function vaxt(id: string, extra: Partial<Vaxt> = {}): Vaxt {
+  return { id, namn: id, status: 'finns', ...extra }
+}
 
 describe('beraknaPrickar', () => {
   it('använder sparad position när den finns', () => {
-    const prickar = beraknaPrickar([vaxt('a', 'yta-rabatt', { x: 3, y: 3 })], ytor, karta)
+    const prickar = beraknaPrickar(
+      [vaxt('v', { platsId: 'p', position: { x: 2.5, y: 3 } })],
+      [plats('p')],
+      'baksidan',
+    )
     expect(prickar).toHaveLength(1)
-    expect(prickar[0]).toMatchObject({ x: 3, y: 3, egenPosition: true })
+    expect(prickar[0]).toMatchObject({ x: 2.5, y: 3, egenPosition: true })
   })
 
-  it('autoplacerar växter i kopplade objekt, inuti polygonen', () => {
-    const vaxter = [1, 2, 3, 4, 5].map((n) => vaxt(`v${n}`, 'yta-rabatt'))
-    const prickar = beraknaPrickar(vaxter, ytor, karta)
-    expect(prickar).toHaveLength(5)
-    for (const prick of prickar) {
-      expect(punktIPolygon([prick.x, prick.y], karta.objects[0]!.points)).toBe(true)
-      expect(prick.egenPosition).toBe(false)
-    }
-    // deterministiskt: samma indata ger samma lägen
-    expect(beraknaPrickar(vaxter, ytor, karta)).toEqual(prickar)
+  it('autoplacerar inuti formen när position saknas', () => {
+    const prickar = beraknaPrickar([vaxt('v', { platsId: 'p' })], [plats('p')], 'baksidan')
+    expect(prickar[0]?.egenPosition).toBe(false)
+    expect(punktIPolygon([prickar[0]!.x, prickar[0]!.y], RUTA)).toBe(true)
   })
 
-  it('utelämnar växter i ytor utan kartkoppling', () => {
-    expect(beraknaPrickar([vaxt('inne', 'yta-inne')], ytor, karta)).toHaveLength(0)
+  it('är deterministisk — samma indata ger samma prickar', () => {
+    const vaxter = [vaxt('a', { platsId: 'p' }), vaxt('b', { platsId: 'p' })]
+    expect(beraknaPrickar(vaxter, [plats('p')], 'baksidan')).toEqual(
+      beraknaPrickar(vaxter, [plats('p')], 'baksidan'),
+    )
   })
 
-  it('sprider autoplacerade prickar så de inte hamnar på varandra', () => {
-    const prickar = beraknaPrickar([vaxt('v1', 'yta-rabatt'), vaxt('v2', 'yta-rabatt')], ytor, karta)
-    const [a, b] = prickar
-    expect(Math.hypot(a!.x - b!.x, a!.y - b!.y)).toBeGreaterThan(0.3)
+  it('sprider flera växter i samma form', () => {
+    const vaxter = ['a', 'b', 'c'].map((id) => vaxt(id, { platsId: 'p' }))
+    const prickar = beraknaPrickar(vaxter, [plats('p')], 'baksidan')
+    const unika = new Set(prickar.map((p) => `${p.x},${p.y}`))
+    expect(unika.size).toBe(3)
+  })
+
+  it('ritar inte hemlösa växter', () => {
+    expect(beraknaPrickar([vaxt('v')], [plats('p')], 'baksidan')).toEqual([])
+  })
+
+  it('ritar inte växter på platser utan form (t.ex. köksfönstret)', () => {
+    const fonster = plats('kok', { geometri: undefined })
+    expect(beraknaPrickar([vaxt('v', { platsId: 'kok' })], [fonster], 'baksidan')).toEqual([])
+  })
+
+  it('ritar bara växter i den efterfrågade trädgården', () => {
+    const framme = plats('p', { tradgardId: 'framsidan' })
+    expect(beraknaPrickar([vaxt('v', { platsId: 'p' })], [framme], 'baksidan')).toEqual([])
+    expect(beraknaPrickar([vaxt('v', { platsId: 'p' })], [framme], 'framsidan')).toHaveLength(1)
+  })
+})
+
+describe('platsVidPunkt', () => {
+  it('hittar platsen under punkten', () => {
+    expect(platsVidPunkt([3, 2], [plats('p')], 'baksidan')?.id).toBe('p')
+  })
+
+  it('ger undefined utanför alla former', () => {
+    expect(platsVidPunkt([20, 20], [plats('p')], 'baksidan')).toBeUndefined()
+  })
+
+  it('låter översta formen vinna — ett träd ovanpå en rabatt slukas inte', () => {
+    const under = plats('rabatt')
+    const over = plats('trad', { typ: 'träd' })
+    expect(platsVidPunkt([3, 2], [under, over], 'baksidan')?.id).toBe('trad')
+  })
+
+  it('ignorerar former i andra trädgårdar', () => {
+    expect(platsVidPunkt([3, 2], [plats('p', { tradgardId: 'framsidan' })], 'baksidan')).toBeUndefined()
   })
 })
