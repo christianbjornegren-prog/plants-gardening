@@ -21,7 +21,15 @@ import { useData } from '../data/DataProvider'
 import type { PlatsFalt } from '../data/repo'
 import { PLATSTYPER, type Plats, type PlatsTyp, type PunktM, type Tradgard } from '../data/types'
 import { platstypEtikett } from '../lib/etiketter'
-import { allaRunda, arRund, formTillPolygon, vaxlaRunt } from '../lib/form'
+import {
+  allaRunda,
+  arRund,
+  formTillPolygon,
+  laggTillPunkt,
+  segmentMitter,
+  taBortPunkt,
+  vaxlaRunt,
+} from '../lib/form'
 import { formatArea, formatMeter, tolkaMeter } from '../lib/format'
 import {
   area,
@@ -188,7 +196,25 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
     e.currentTarget.setPointerCapture(e.pointerId)
     const mal = e.target as Element
 
+    // Halvtransparent plupp mitt på en kant: klicka för att lägga till ett hörn.
+    const mittEl = mal.closest('[data-mitt-index]')
+    if (mittEl && valt?.geometri) {
+      const index = Number(mittEl.getAttribute('data-mitt-index'))
+      const nytt = laggTillPunkt(valt.geometri.punkter, valt.geometri.runda, index)
+      sparaGeometri(valt, nytt.punkter, nytt.runda, 'lägga till hörnet')
+      return
+    }
+
     const hornEl = mal.closest('[data-horn-index]')
+    // Alt-klick tar bort hörnet. Formen måste behålla minst tre.
+    if (hornEl && valt?.geometri && e.altKey) {
+      const index = Number(hornEl.getAttribute('data-horn-index'))
+      const kvar = taBortPunkt(valt.geometri.punkter, valt.geometri.runda, index)
+      if (kvar.punkter.length !== valt.geometri.punkter.length) {
+        sparaGeometri(valt, kvar.punkter, kvar.runda, 'ta bort hörnet')
+      }
+      return
+    }
     if (hornEl && valt) {
       gestRef.current = {
         typ: 'horn',
@@ -358,14 +384,14 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
         <Link
           to="/ritning"
           aria-label="Tillbaka till ritningen"
-          className="-ml-1 flex size-11 items-center justify-center rounded-lg text-dis hover:text-ljus"
+          className="-ml-1 flex size-11 items-center justify-center rounded-lg text-dis hover:text-tusch"
         >
           <TillbakaIkon />
         </Link>
         <span className="mono rounded bg-fermob px-2 py-0.5 text-[11px] font-medium tracking-[0.1em] text-white uppercase">
           Ritläge
         </span>
-        <h1 className="font-display text-lg font-semibold text-ljus">{tradgard.namn}</h1>
+        <h1 className="font-display text-lg font-semibold text-tusch">{tradgard.namn}</h1>
         <TomtMatt tradgard={tradgard} />
 
         <div className="ml-auto flex items-center gap-2">
@@ -385,7 +411,7 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
               setMatPunkter([])
               setArmerad(undefined)
             }}
-            className={matar ? 'border-fermob-lyft text-fermob-lyft' : ''}
+            className={matar ? 'border-fermob-text text-fermob-text' : ''}
           >
             {matar ? 'Sluta mäta' : 'Mät'}
           </Knapp>
@@ -416,7 +442,9 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
               ? 'Klicka två punkter för att mäta avståndet. Tredje klicket börjar om.'
               : armerad
               ? `Klicka inuti en plats för att sätta ${vaxter.find((v) => v.id === armerad)?.namn} där.`
-              : 'Dra formen för att flytta · dra ett hörn för att ändra · klicka ett hörn för att runda det'}
+              : valt
+                ? 'Dra ett hörn för att ändra · klicka det för att runda · klicka en + mellan hörnen för att lägga till ett · ⌥-klicka för att ta bort'
+                : 'Dra formen för att flytta · markera den för att ändra hörnen'}
         </p>
         {angra.nastaEtikett && (
           <p className="shrink-0 text-xs text-dis-svag">Ångra: {angra.nastaEtikett}</p>
@@ -460,7 +488,7 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
                   <polyline
                     points={ritVisning.map((p) => p.join(',')).join(' ')}
                     fill="color-mix(in srgb, var(--color-fermob) 10%, transparent)"
-                    stroke="var(--color-fermob-lyft)"
+                    stroke="var(--color-fermob-text)"
                     strokeWidth={1.5}
                     vectorEffect="non-scaling-stroke"
                     strokeDasharray="6 4"
@@ -490,7 +518,7 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
                       cy={p[1]}
                       r={4 * mpp}
                       fill="var(--color-botten)"
-                      stroke="var(--color-fermob-lyft)"
+                      stroke="var(--color-fermob-text)"
                       strokeWidth={1.5}
                       vectorEffect="non-scaling-stroke"
                     />
@@ -508,7 +536,7 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
                       cy={p[1]}
                       r={4 * mpp}
                       fill="var(--color-botten)"
-                      stroke="var(--color-fermob-lyft)"
+                      stroke="var(--color-fermob-text)"
                       strokeWidth={2}
                       vectorEffect="non-scaling-stroke"
                     />
@@ -520,7 +548,7 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
                         y1={matPunkter[0]![1]}
                         x2={matPunkter[1]![0]}
                         y2={matPunkter[1]![1]}
-                        stroke="var(--color-fermob-lyft)"
+                        stroke="var(--color-fermob-text)"
                         strokeWidth={1.5}
                         strokeDasharray="5 3"
                         vectorEffect="non-scaling-stroke"
@@ -531,7 +559,7 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
                         textAnchor="middle"
                         fontSize={12 * mpp}
                         className="mono"
-                        style={{ fill: 'var(--color-fermob-lyft)' }}
+                        style={{ fill: 'var(--color-fermob-text)' }}
                       >
                         {formatMeter(avstand(matPunkter[0]!, matPunkter[1]!))}
                       </text>
@@ -539,6 +567,34 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
                   )}
                 </g>
               )}
+
+              {/* Mittpluppar: klicka för att lägga till ett hörn i efterhand. */}
+              {valt?.geometri &&
+                !ritar &&
+                !matar &&
+                segmentMitter(valt.geometri.punkter).map((p, i) => (
+                  <g key={`mitt-${i}`} data-mitt-index={i} cursor="copy">
+                    <circle cx={p[0]} cy={p[1]} r={14 * mpp} fill="transparent" />
+                    <circle
+                      cx={p[0]}
+                      cy={p[1]}
+                      r={4.5 * mpp}
+                      fill="var(--color-botten)"
+                      stroke="var(--color-fermob-text)"
+                      strokeOpacity={0.75}
+                      strokeWidth={1.5}
+                      strokeDasharray="2 2"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    <path
+                      d={`M ${p[0] - 2.2 * mpp} ${p[1]} h ${4.4 * mpp} M ${p[0]} ${p[1] - 2.2 * mpp} v ${4.4 * mpp}`}
+                      stroke="var(--color-fermob-text)"
+                      strokeWidth={1.4}
+                      vectorEffect="non-scaling-stroke"
+                      strokeLinecap="round"
+                    />
+                  </g>
+                ))}
 
               {/* Hörnhandtag. Rund = mjukt hörn, fyrkant = spetsigt. */}
               {valt?.geometri &&
@@ -568,7 +624,7 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
                       width={r * 2}
                       height={r * 2}
                       fill="var(--color-botten)"
-                      stroke="var(--color-fermob-lyft)"
+                      stroke="var(--color-fermob-text)"
                       strokeWidth={2}
                       vectorEffect="non-scaling-stroke"
                       cursor="grab"
@@ -583,7 +639,7 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
           {placeringsfel && (
             <p
               role="alert"
-              className="absolute inset-x-3 top-3 rounded-xl border border-fermob-lyft/40 bg-panel px-4 py-3 text-sm text-ljus"
+              className="absolute inset-x-3 top-3 rounded-xl border border-fermob-text/40 bg-panel px-4 py-3 text-sm text-tusch"
             >
               {placeringsfel}
             </p>
@@ -925,13 +981,13 @@ function PlatsPanel({
         <dl className="flex flex-col gap-1 rounded-lg border border-linje px-3 py-2">
           <div className="flex items-baseline justify-between gap-3">
             <dt className="text-xs text-dis-svag">Area</dt>
-            <dd className="mono text-sm text-ljus">
+            <dd className="mono text-sm text-tusch">
               {formatArea(area(formTillPolygon(plats.geometri.punkter, plats.geometri.runda)))}
             </dd>
           </div>
           <div className="flex items-baseline justify-between gap-3">
             <dt className="text-xs text-dis-svag">Omkrets</dt>
-            <dd className="mono text-sm text-ljus">
+            <dd className="mono text-sm text-tusch">
               {formatMeter(omkrets(formTillPolygon(plats.geometri.punkter, plats.geometri.runda)))}
             </dd>
           </div>

@@ -32,7 +32,7 @@ export function FotoBild({
       <div
         role="img"
         aria-label={alt}
-        className={`flex items-center justify-center bg-upphojd text-linje ${className}`}
+        className={`flex items-center justify-center bg-salvia text-orm/50 ${className}`}
       >
         <VaxterIkon width={26} height={26} />
       </div>

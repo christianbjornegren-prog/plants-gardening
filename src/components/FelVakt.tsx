@@ -28,9 +28,9 @@ export function FelVakt() {
           () => (
             <div
               role="alert"
-              className="flex w-full items-center gap-3 rounded-xl border border-fermob-lyft/40 bg-panel px-4 py-3"
+              className="flex w-full items-center gap-3 rounded-xl border border-fermob-text/40 bg-panel px-4 py-3"
             >
-              <span className="flex-1 text-sm text-ljus">{fel.meddelande}</span>
+              <span className="flex-1 text-sm text-tusch">{fel.meddelande}</span>
               {fel.behorighet && <LoggaUtKnapp />}
             </div>
           ),
@@ -45,16 +45,16 @@ export function FelVakt() {
   return (
     <div
       role="alert"
-      className="fixed inset-x-0 top-0 z-50 flex items-center gap-3 border-b border-fermob-lyft/40 bg-panel px-4 py-3"
+      className="fixed inset-x-0 top-0 z-50 flex items-center gap-3 border-b border-fermob-text/40 bg-panel px-4 py-3"
     >
-      <span className="min-w-0 flex-1 text-sm text-ljus">{lasfel.meddelande}</span>
+      <span className="min-w-0 flex-1 text-sm text-tusch">{lasfel.meddelande}</span>
       {lasfel.behorighet ? (
         <LoggaUtKnapp />
       ) : (
         <button
           type="button"
           onClick={() => setLasfel(undefined)}
-          className="min-h-9 shrink-0 px-2 text-sm text-dis hover:text-ljus"
+          className="min-h-9 shrink-0 px-2 text-sm text-dis hover:text-tusch"
         >
           Dölj
         </button>
@@ -74,7 +74,7 @@ function LoggaUtKnapp() {
           await signOut(getAuth(getFirebaseApp()))
         })()
       }}
-      className="min-h-9 shrink-0 rounded-lg border border-linje px-3 text-sm text-fermob-lyft"
+      className="min-h-9 shrink-0 rounded-lg border border-linje px-3 text-sm text-fermob-text"
     >
       Logga in igen
     </button>

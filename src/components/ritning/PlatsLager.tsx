@@ -55,7 +55,7 @@ export function PlatsLager({
         className={animera ? 'anim-objekt' : undefined}
         style={
           {
-            fill: 'color-mix(in srgb, var(--color-panel) 55%, var(--color-botten))',
+            fill: 'var(--color-panel)',
             stroke: TUSCH,
             ...(animera
               ? {
@@ -75,7 +75,7 @@ export function PlatsLager({
         const vald = plats.id === valdPlatsId
         const planerad = plats.status === 'planerad'
         const rank = ritRank.get(plats.id) ?? 0
-        const stroke = vald ? 'var(--color-fermob-lyft)' : stil.kontur
+        const stroke = vald ? 'var(--color-fermob-text)' : stil.kontur
         const gemensamma = {
           vectorEffect: 'non-scaling-stroke' as const,
           strokeWidth: vald ? stil.vikt + 1 : stil.vikt,
@@ -155,7 +155,7 @@ export function PlatsLager({
             className={`pointer-events-none select-none ${animera ? 'anim-tona' : ''}`}
             style={
               {
-                fill: stil.etikett ?? 'var(--color-tra)',
+                fill: stil.etikett ?? 'var(--color-dis)',
                 fontWeight: 500,
                 textTransform: 'uppercase',
                 '--ton-d': '950ms',

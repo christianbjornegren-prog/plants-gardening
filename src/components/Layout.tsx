@@ -29,8 +29,14 @@ function Flik({ till, label, Ikon }: NavPost) {
     >
       {({ isActive }) => (
         <>
-          <Ikon width={22} height={22} className={isActive ? 'text-ljus' : 'text-dis-svag'} />
-          <span className={`text-[11px] ${isActive ? 'font-medium text-ljus' : 'text-dis-svag'}`}>
+          <span
+            className={`flex h-7 w-12 items-center justify-center rounded-full transition-colors duration-200 ease-[var(--ease-mjuk)] ${
+              isActive ? 'bg-salvia' : ''
+            }`}
+          >
+            <Ikon width={20} height={20} className={isActive ? 'text-orm' : 'text-dis-svag'} />
+          </span>
+          <span className={`text-[11px] ${isActive ? 'font-medium text-tusch' : 'text-dis-svag'}`}>
             {label}
           </span>
         </>
@@ -52,7 +58,7 @@ export function Layout() {
     <div className="flex min-h-dvh flex-col bg-botten">
       {/* Desktop: toppmeny */}
       <header className="hidden items-center gap-6 border-b border-linje px-6 py-3 md:flex">
-        <NavLink to="/" className="font-display text-lg font-semibold tracking-tight text-tra">
+        <NavLink to="/" className="font-display text-lg font-semibold tracking-tight text-tusch">
           Ripvägen 11
         </NavLink>
         <nav className="flex gap-1" aria-label="Huvudmeny">
@@ -63,7 +69,7 @@ export function Layout() {
               end={till === '/'}
               className={({ isActive }) =>
                 `rounded-lg px-3 py-1.5 text-sm transition-colors duration-200 ease-[var(--ease-mjuk)] ${
-                  isActive ? 'bg-upphojd text-ljus' : 'text-dis hover:text-ljus'
+                  isActive ? 'bg-salvia text-tusch' : 'text-dis hover:text-tusch'
                 }`
               }
             >
@@ -99,7 +105,7 @@ export function Layout() {
               type="button"
               onClick={() => oppna()}
               aria-label="Ny växt"
-              className="-mt-6 flex size-14 items-center justify-center rounded-full bg-fermob text-white shadow-lg shadow-botten/60 ring-4 ring-panel transition-transform duration-200 ease-[var(--ease-mjuk)] active:scale-95"
+              className="-mt-6 flex size-14 items-center justify-center rounded-full bg-fermob text-white shadow-lg shadow-tusch/20 ring-4 ring-botten transition-transform duration-200 ease-[var(--ease-mjuk)] active:scale-95"
             >
               <PlusIkon width={26} height={26} />
             </button>

@@ -2,6 +2,40 @@
 
 Designbeslut + vad som provats och förkastats.
 
+## v0.2 — ljust tema
+
+Referensen är My!Garden: varm kräm, salviagröna paneler, serifrubriker och
+korall som enda signalfärg. Brutna färger gäller fortfarande — paletten är i
+princip densamma, men **inverterad i ljushet**.
+
+| Token | Hex | Roll |
+|---|---|---|
+| `botten` | `#F5F2EB` | sidan — varm kräm, aldrig rent vitt |
+| `panel` | `#FCFAF6` | kort och ytor |
+| `salvia` | `#D5E1CD` | nyckeltal, valda chips, platshållare |
+| `upphojd` | `#E9E6DD` | tryckt/hovrat |
+| `linje` | `#DDD9CF` | hårlinjer |
+| `dis` | `#676359` | sekundärtext (5,4:1) |
+| `tusch` | `#211E17` | brödtext, rubriker OCH ritningens linjer (14,9:1) |
+
+**Rollerna bytte plats.** På mörk botten var `lov` läsbar och `orm` bara
+fyllnad; på ljus botten är det tvärtom — `orm #4E6B44` klarar 5,4:1 och `lov`
+bara 2,3:1. `ENDAST_FYLLNAD` listar därför numera `tra`, `lov` och `salvia`.
+
+**Röd i två steg, fast åt andra hållet.** `fermob-lyft` (ljusare) blev
+`fermob-text #AB3321` (mörkare) — på ljus botten måste accenttexten bli mörkare,
+inte ljusare, för att nå 4,5:1. Namnet säger numera vad färgen är TILL, inte
+åt vilket håll den justerats, så det håller oavsett tema.
+
+**`ljus` heter `tusch`.** Token för primärtexten kunde inte fortsätta heta
+"ljus" när den är nästan svart. `tusch` säger vad den gör och binder ihop
+brödtexten med ritningens linjer — som numera är mörka på ljust papper, precis
+som en riktig planritning.
+
+**Rubrikerna är serif.** Bricolage Grotesque byttes mot Fraunces. Det är
+skillnaden mellan "app" och "journal", och det är det som gör mest för att
+träffa referensens känsla.
+
 ## Omtaget (v2) — mörkt, brutna färger
 
 **Diagnosen:** den ljusa versionen såg ut som en wireframe. Felet var inte
@@ -196,6 +230,18 @@ Tre tillägg som gör ritningen till något man arbetar i:
 - **Jämför ritningar** lägger en annan ritning över samma tomt som ett streckat
   spöke under den aktuella. Poängen med "Baksidan" och "Baksidan kommande" är
   att SE skillnaden, inte att bläddra mellan dem.
+
+### Pluppen mitt på kanten
+
+Man kunde bara flytta hörn som redan fanns. Nu sitter en halvtransparent
+**+-plupp mitt på varje kant** när en form är markerad: klicka så delas kanten
+och du får ett hörn att dra i. ⌥-klick på ett hörn tar bort det (formen behåller
+alltid minst tre).
+
+Det knepiga är att `runda` är en lista med INDEX. Läggs ett hörn till i mitten
+måste alla index efter det flyttas ett steg, annars hoppar rundningen till fel
+hörn. Ett nytt hörn på en mjuk kant ärver dessutom mjukheten, så en rundad form
+förblir rundad när man delar den. Åtta tester bevakar det.
 
 ### Metadata utan formulär
 

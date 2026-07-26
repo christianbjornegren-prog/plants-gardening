@@ -207,7 +207,7 @@ function NyRitningArk({
           </Falt>
         </div>
         {fel && (
-          <p role="alert" className="text-sm text-fermob-lyft">
+          <p role="alert" className="text-sm text-fermob-text">
             {fel}
           </p>
         )}
@@ -246,7 +246,7 @@ function UtanRitning({ tradgard }: { tradgard: Tradgard }) {
 
   return (
     <div className="mx-auto w-full max-w-lg px-5 py-10">
-      <h2 className="font-display text-xl font-semibold text-ljus">{tradgard.namn}</h2>
+      <h2 className="font-display text-xl font-semibold text-tusch">{tradgard.namn}</h2>
       <p className="mt-2 text-sm/6 text-dis">
         Här finns ingen ritning. Platserna listas ändå — en fönsterbräda behöver inga
         koordinater.
@@ -258,7 +258,7 @@ function UtanRitning({ tradgard }: { tradgard: Tradgard }) {
             <li key={plats.id}>
               <Link
                 to={`/platser/${plats.id}`}
-                className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-linje px-3 text-sm text-ljus hover:bg-panel"
+                className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-linje px-3 text-sm text-tusch hover:bg-panel"
               >
                 <span className="truncate">{plats.namn}</span>
                 <span className="mono shrink-0 text-xs text-dis-svag">
@@ -296,7 +296,7 @@ function UtanRitning({ tradgard }: { tradgard: Tradgard }) {
                 />
               </Falt>
             </div>
-            {fel && <p className="text-sm text-fermob-lyft">Ange måtten i meter, t.ex. 18 och 11,5.</p>}
+            {fel && <p className="text-sm text-fermob-text">Ange måtten i meter, t.ex. 18 och 11,5.</p>}
             <Knapp type="submit" variant="primar">
               Skapa ritningen
             </Knapp>
@@ -305,7 +305,7 @@ function UtanRitning({ tradgard }: { tradgard: Tradgard }) {
           <button
             type="button"
             onClick={() => setVisaMatt(true)}
-            className="text-sm text-lov underline underline-offset-4"
+            className="text-sm text-orm underline underline-offset-4"
           >
             Rita {tradgard.namn} — ange måtten
           </button>
@@ -562,14 +562,14 @@ function LevandeRitning({
       {vb && <Skalstock mpp={mpp} />}
 
       {placera.uppdrag && (
-        <div className="absolute inset-x-3 top-3 flex items-center gap-3 rounded-xl border border-fermob-lyft/40 bg-panel px-4 py-3">
-          <p className="flex-1 text-sm text-ljus">
+        <div className="absolute inset-x-3 top-3 flex items-center gap-3 rounded-xl border border-fermob-text/40 bg-panel px-4 py-3">
+          <p className="flex-1 text-sm text-tusch">
             Tryck där <span className="font-medium">{placera.uppdrag.vaxtNamn}</span> står.
           </p>
           <button
             type="button"
             onClick={placera.avbryt}
-            className="min-h-9 px-2 text-sm text-dis hover:text-ljus"
+            className="min-h-9 px-2 text-sm text-dis hover:text-tusch"
           >
             Avbryt
           </button>
@@ -618,7 +618,7 @@ function LevandeRitning({
                               v.status === 'planerad' ? 'opacity-60 ring-1 ring-linje' : ''
                             }`}
                           />
-                          <span className="truncate text-[11px] text-ljus">{v.namn}</span>
+                          <span className="truncate text-[11px] text-tusch">{v.namn}</span>
                         </Link>
                       </li>
                     ))}
@@ -639,7 +639,7 @@ function LevandeRitning({
             <Knapp onClick={() => setPlaceraI(valdPlats)}>Lägg till växt här</Knapp>
             <Link
               to={`/platser/${valdPlats.id}`}
-              className="inline-flex items-center gap-1.5 self-start text-sm text-lov underline underline-offset-4"
+              className="inline-flex items-center gap-1.5 self-start text-sm text-orm underline underline-offset-4"
             >
               Öppna platsen
               <PilIkon width={14} height={14} />
@@ -668,7 +668,7 @@ function LevandeRitning({
             />
             <Link
               to={`/vaxter/${valdVaxt.id}`}
-              className="inline-flex items-center gap-1.5 self-start text-sm text-lov underline underline-offset-4"
+              className="inline-flex items-center gap-1.5 self-start text-sm text-orm underline underline-offset-4"
             >
               Öppna kortet
               <PilIkon width={14} height={14} />

@@ -63,7 +63,7 @@ export function PlaceraVaxtArk({
           className="size-11 shrink-0 rounded-lg"
         />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm text-ljus">{namn}</span>
+          <span className="block truncate text-sm text-tusch">{namn}</span>
           {under && <span className="block truncate text-xs text-dis-svag">{under}</span>}
         </span>
       </button>
@@ -101,9 +101,9 @@ export function PlaceraVaxtArk({
               onOppenChange(false)
               oppna({ platsId: plats.id, position })
             }}
-            className="flex min-h-12 items-center gap-3 rounded-lg border border-linje px-3 text-sm text-ljus hover:bg-upphojd"
+            className="flex min-h-12 items-center gap-3 rounded-lg border border-linje px-3 text-sm text-tusch hover:bg-upphojd"
           >
-            <KameraIkon width={20} height={20} className="text-lov" />
+            <KameraIkon width={20} height={20} className="text-orm" />
             Fota en ny växt här
           </button>
           {/* Planering: det finns inget att fota än, så kameran hoppas över. */}
@@ -113,7 +113,7 @@ export function PlaceraVaxtArk({
               onOppenChange(false)
               oppna({ platsId: plats.id, position, status: 'planerad', utanFoto: true })
             }}
-            className="flex min-h-12 items-center gap-3 rounded-lg border border-dashed border-linje px-3 text-sm text-dis hover:text-ljus"
+            className="flex min-h-12 items-center gap-3 rounded-lg border border-dashed border-linje px-3 text-sm text-dis hover:text-tusch"
           >
             <PlusIkon width={20} height={20} />
             Planera en växt här

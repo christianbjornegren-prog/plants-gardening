@@ -42,47 +42,56 @@ describe('brutna färger — kromtaket', () => {
     expect(hexTillOklch(PALETT.fermob).C).toBeGreaterThan(KROMTAK * 1.8)
   })
 
-  it('bark-rampen håller en och samma kulör', () => {
-    const bark: PalettNyckel[] = ['botten', 'panel', 'upphojd', 'linje', 'dis-svag', 'dis']
-    const kulorer = bark.map((n) => hexTillOklch(PALETT[n]).H)
-    for (const H of kulorer) expect(Math.abs(H - 100)).toBeLessThan(6)
+  it('ramen håller en och samma varma kulör', () => {
+    const ram: PalettNyckel[] = ['botten', 'panel', 'upphojd', 'linje', 'dis-svag', 'dis', 'tusch']
+    for (const n of ram) expect(Math.abs(hexTillOklch(PALETT[n]).H - 88)).toBeLessThan(8)
   })
 
-  it('bark-rampen är monotont ljusare', () => {
-    const bark: PalettNyckel[] = ['botten', 'panel', 'upphojd', 'linje', 'dis-svag', 'dis', 'ljus']
-    const L = bark.map((n) => hexTillOklch(PALETT[n]).L)
-    expect([...L].sort((a, b) => a - b)).toEqual(L)
+  it('ramen är monotont mörkare från sidan ner till tuschen', () => {
+    const ram: PalettNyckel[] = ['panel', 'botten', 'upphojd', 'linje', 'dis-svag', 'dis', 'tusch']
+    const L = ram.map((n) => hexTillOklch(PALETT[n]).L)
+    expect([...L].sort((a, b) => b - a)).toEqual(L)
+  })
+
+  it('salvia är grön men fortfarande bruten', () => {
+    const { C, H } = hexTillOklch(PALETT.salvia)
+    expect(C).toBeLessThanOrEqual(KROMTAK)
+    expect(H).toBeGreaterThan(100)
+    expect(H).toBeLessThan(160)
   })
 })
 
 describe('kontrast', () => {
-  const { panel, botten, ljus, dis, tra, lov, fermob, 'fermob-lyft': fermobLyft } = PALETT
+  const { panel, botten, salvia, tusch, dis, orm, fermob, 'fermob-text': fermobText } = PALETT
 
-  it('primärtext klarar AAA mot både botten och panel', () => {
-    expect(kontrast(ljus, botten)).toBeGreaterThanOrEqual(7)
-    expect(kontrast(ljus, panel)).toBeGreaterThanOrEqual(7)
+  it('tuschen klarar AAA mot sidan, korten och salviapanelerna', () => {
+    for (const bak of [botten, panel, salvia]) {
+      expect(kontrast(tusch, bak)).toBeGreaterThanOrEqual(7)
+    }
   })
 
-  it('sekundärtext, trä och löv klarar AA som brödtext mot panel', () => {
-    for (const farg of [dis, tra, lov]) {
+  it('sekundärtext och den gröna textfärgen klarar AA', () => {
+    for (const farg of [dis, orm]) {
+      expect(kontrast(farg, botten)).toBeGreaterThanOrEqual(4.5)
       expect(kontrast(farg, panel)).toBeGreaterThanOrEqual(4.5)
     }
   })
 
   it('fyllnadsfärgerna klarar INTE brödtext — därför är regeln nödvändig', () => {
     for (const namn of ENDAST_FYLLNAD) {
-      expect(kontrast(PALETT[namn], panel)).toBeLessThan(4.5)
+      expect(kontrast(PALETT[namn], botten)).toBeLessThan(4.5)
     }
   })
 
   it('fermob-fyllning bär REN vit text — den varma ljus-tonen räcker inte', () => {
     expect(kontrast(TEXT_PA_FERMOB, fermob)).toBeGreaterThanOrEqual(4.5)
-    // Skillnaden är knappt synlig men mätbar, och det är därför regeln finns.
-    expect(kontrast(ljus, fermob)).toBeLessThan(4.5)
+    // Kräm-tonen är knappt synligt annorlunda men mätbart sämre.
+    expect(kontrast(PALETT.botten, fermob)).toBeLessThan(4.5)
   })
 
-  it('fermob-lyft klarar AA som text — den finns just för det', () => {
-    expect(kontrast(fermobLyft, panel)).toBeGreaterThanOrEqual(4.5)
-    expect(kontrast(fermobLyft, botten)).toBeGreaterThanOrEqual(4.5)
+  it('fermob-text klarar AA som text — den finns just för det', () => {
+    for (const bak of [botten, panel, salvia]) {
+      expect(kontrast(fermobText, bak)).toBeGreaterThanOrEqual(4.5)
+    }
   })
 })

@@ -3,12 +3,12 @@ export function Adresskylt({ stor = false }: { stor?: boolean }) {
   return (
     <div
       data-testid="adresskylt"
-      className={`inline-block rounded-md bg-panel ring-1 ring-tra/25 ring-inset ${
+      className={`inline-block rounded-md bg-tusch ring-1 ring-tusch/10 ring-inset ${
         stor ? 'px-5 py-2.5' : 'px-3.5 py-1.5'
       }`}
     >
       <span
-        className={`font-display font-semibold tracking-[0.06em] text-tra ${
+        className={`font-display font-semibold tracking-[0.06em] text-botten ${
           stor ? 'text-lg' : 'text-sm'
         }`}
       >

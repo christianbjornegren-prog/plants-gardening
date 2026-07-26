@@ -18,8 +18,8 @@ export function SpokLager({ platser }: { platser: Plats[] }) {
             key={`spoke-${plats.id}`}
             d={formTillPath(plats.geometri!.punkter, plats.geometri!.runda)}
             fill="none"
-            stroke="var(--color-fermob-lyft)"
-            strokeOpacity={0.55}
+            stroke="var(--color-fermob-text)"
+            strokeOpacity={0.7}
             strokeWidth={1.5}
             strokeDasharray="5 4"
             vectorEffect="non-scaling-stroke"

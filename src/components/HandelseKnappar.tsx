@@ -101,10 +101,10 @@ export function HandelseKnappar({
               type="button"
               onClick={() => logga(typ, etikett)}
               className="flex min-h-[4.25rem] flex-col items-center justify-center gap-1 rounded-xl
-                border border-linje bg-panel text-ljus transition-colors duration-200
+                border border-linje bg-panel text-tusch transition-colors duration-200
                 ease-[var(--ease-mjuk)] hover:bg-upphojd active:bg-upphojd"
             >
-              <Ikon width={22} height={22} className="text-lov" />
+              <Ikon width={22} height={22} className="text-orm" />
               <span className="text-xs font-medium">{etikett}</span>
               <span className="mono text-[10px] text-dis-svag">{sist ?? '—'}</span>
             </button>
@@ -121,7 +121,7 @@ export function HandelseKnappar({
         tabIndex={-1}
       />
       {fel && (
-        <p role="alert" className="mt-2 text-sm text-fermob-lyft">
+        <p role="alert" className="mt-2 text-sm text-fermob-text">
           {fel}
         </p>
       )}

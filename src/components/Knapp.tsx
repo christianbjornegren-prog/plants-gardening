@@ -17,9 +17,9 @@ function knappStil(variant: Variant): string {
     case 'primar':
       return `${GRUND} bg-fermob font-medium text-white hover:bg-fermob/90`
     case 'sekundar':
-      return `${GRUND} border border-linje bg-panel text-ljus hover:bg-upphojd`
+      return `${GRUND} border border-linje bg-panel text-tusch hover:bg-upphojd`
     case 'tyst':
-      return `${GRUND} text-dis hover:text-ljus`
+      return `${GRUND} text-dis hover:text-tusch`
   }
 }
 
@@ -65,7 +65,7 @@ export function TaBortKnapp({
       className={`${GRUND} ${
         armerad
           ? 'bg-fermob font-medium text-white'
-          : 'border border-fermob-lyft/45 text-fermob-lyft hover:bg-fermob-lyft/10'
+          : 'border border-fermob-text/45 text-fermob-text hover:bg-fermob-text/10'
       }`}
     >
       {armerad ? 'Tryck igen för att ta bort' : children}

@@ -119,7 +119,7 @@ export function VaxtView() {
           <button
             type="button"
             onClick={() => oppnaFalt('namn')}
-            className="min-h-11 shrink-0 px-2 text-sm text-dis hover:text-ljus"
+            className="min-h-11 shrink-0 px-2 text-sm text-dis hover:text-tusch"
           >
             Ändra
           </button>
@@ -202,7 +202,7 @@ export function VaxtView() {
             placera.begar({ vaxtId: vaxt.id, vaxtNamn: vaxt.namn })
             navigera('/ritning')
           }}
-          className="mt-5 text-sm text-lov underline underline-offset-4"
+          className="mt-5 text-sm text-orm underline underline-offset-4"
         >
           {vaxt.position ? 'Flytta på ritningen' : 'Placera på ritningen'}
         </button>

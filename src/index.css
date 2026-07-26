@@ -1,23 +1,24 @@
 @import 'tailwindcss';
 
 @theme {
-  /* Brutna färger — bark-rampen (H≈100°) + trädgårdens egna färger.
-     Speglas av src/lib/palett.ts och verifieras i palett.test.ts.
-     Kromtak C ≤ 0,09 i OKLCH; endast fermob får bryta det. Se CLAUDE.md. */
-  --color-botten: #12110b;
-  --color-panel: #24231b;
-  --color-upphojd: #36342b;
-  --color-linje: #49483e;
-  --color-dis-svag: #76756c;
-  --color-dis: #a09f96;
-  --color-ljus: #f7f5f0;
+  /* Brutna färger — ljus ram (H≈88°) plus trädgårdens egna färger och
+     salviagrönt. Speglas av src/lib/palett.ts och verifieras i palett.test.ts.
+     Kromtak C ≤ 0,09 i OKLCH; endast fermob-paret får bryta det. Se CLAUDE.md. */
+  --color-botten: #f5f2eb;
+  --color-panel: #fcfaf6;
+  --color-salvia: #d5e1cd;
+  --color-upphojd: #e9e6dd;
+  --color-linje: #ddd9cf;
+  --color-dis-svag: #908c81;
+  --color-dis: #676359;
+  --color-tusch: #211e17;
   --color-tra: #c9b694;
   --color-lov: #8fa96f;
   --color-orm: #4e6b44;
   --color-fermob: #d3442e;
-  --color-fermob-lyft: #e5644f;
+  --color-fermob-text: #ab3321;
 
-  --font-display: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', sans-serif;
+  --font-display: 'Fraunces Variable', 'Fraunces', Georgia, serif;
   --font-sans: 'Instrument Sans Variable', 'Instrument Sans', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
 
@@ -27,13 +28,13 @@
 
 @layer base {
   :root {
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {
     margin: 0;
     background-color: var(--color-botten);
-    color: var(--color-ljus);
+    color: var(--color-tusch);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -41,11 +42,19 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-fermob-lyft);
+    outline: 2px solid var(--color-fermob-text);
     outline-offset: 2px;
   }
 
   /* Mått, datum och antal sätts alltid i mono — den diskreta CAD-blinkningen. */
+  /* Rubriker i serif — appens ansikte. Fraunces har den varma, lite mjuka
+     karaktären som passar en trädgårdsjournal. */
+  h1,
+  h2,
+  h3 {
+    font-optical-sizing: auto;
+  }
+
   .mono {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
@@ -53,8 +62,8 @@
   }
 
   ::selection {
-    background: var(--color-fermob);
-    color: var(--color-ljus);
+    background: var(--color-salvia);
+    color: var(--color-tusch);
   }
 }
 

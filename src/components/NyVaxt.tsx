@@ -189,7 +189,7 @@ export function NyVaxtProvider({ children }: { children: ReactNode }) {
             <button
               type="button"
               onClick={() => biblioteksRef.current?.click()}
-              className="-mt-1 self-center text-sm text-dis underline underline-offset-4 hover:text-ljus"
+              className="-mt-1 self-center text-sm text-dis underline underline-offset-4 hover:text-tusch"
             >
               Välj ur biblioteket
             </button>
@@ -207,7 +207,7 @@ export function NyVaxtProvider({ children }: { children: ReactNode }) {
           />
 
           {fel && (
-            <p role="alert" className="text-sm text-fermob-lyft">
+            <p role="alert" className="text-sm text-fermob-text">
               {fel}
             </p>
           )}

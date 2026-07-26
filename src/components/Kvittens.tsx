@@ -22,7 +22,7 @@ export function kvittera({
         role="status"
         className="flex w-full items-center gap-2 rounded-xl border border-linje bg-panel px-4 py-3 shadow-lg shadow-botten/60"
       >
-        <span className="min-w-0 flex-1 truncate text-sm text-ljus">{text}</span>
+        <span className="min-w-0 flex-1 truncate text-sm text-tusch">{text}</span>
         {extra && (
           <button
             type="button"
@@ -41,7 +41,7 @@ export function kvittera({
             toast.dismiss(t)
             onAngra()
           }}
-          className="min-h-9 shrink-0 rounded-lg px-2 text-sm font-medium text-fermob-lyft"
+          className="min-h-9 shrink-0 rounded-lg px-2 text-sm font-medium text-fermob-text"
         >
           Ångra
         </button>

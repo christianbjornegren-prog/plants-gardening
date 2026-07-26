@@ -49,7 +49,7 @@ export function PlatsValjare({
           type="button"
           onClick={() => valj(undefined)}
           className={`flex min-h-11 items-center rounded-lg px-3 text-left text-sm ${
-            valdPlatsId === undefined ? 'bg-upphojd text-ljus' : 'text-dis hover:text-ljus'
+            valdPlatsId === undefined ? 'bg-upphojd text-tusch' : 'text-dis hover:text-tusch'
           }`}
         >
           Ingen plats än
@@ -68,7 +68,7 @@ export function PlatsValjare({
                   type="button"
                   onClick={() => valj(plats.id)}
                   className={`flex min-h-11 items-center justify-between gap-3 rounded-lg px-3 text-left text-sm ${
-                    valdPlatsId === plats.id ? 'bg-upphojd text-ljus' : 'text-ljus hover:bg-upphojd'
+                    valdPlatsId === plats.id ? 'bg-upphojd text-tusch' : 'text-tusch hover:bg-upphojd'
                   }`}
                 >
                   <span className="truncate">{plats.namn}</span>
@@ -99,7 +99,7 @@ export function PlatsValjare({
                     setNyttNamn('')
                     setSkaparI(tradgard.id)
                   }}
-                  className="flex min-h-11 items-center px-3 text-left text-sm text-dis hover:text-ljus"
+                  className="flex min-h-11 items-center px-3 text-left text-sm text-dis hover:text-tusch"
                 >
                   Ny plats…
                 </button>

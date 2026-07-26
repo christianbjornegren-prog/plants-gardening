@@ -59,13 +59,13 @@ export function Tidslinje({
 
         return (
           <li key={h.id} className="flex gap-3 border-b border-linje/60 py-3 last:border-b-0">
-            <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-upphojd text-lov">
+            <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-upphojd text-orm">
               <Ikon width={16} height={16} />
             </span>
 
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-3">
-                <span className="text-sm text-ljus">
+                <span className="text-sm text-tusch">
                   {handelseEtikett(h.typ)}
                   {h.typ === 'flyttat' && till && <span className="text-dis"> till {till.namn}</span>}
                 </span>
@@ -77,14 +77,14 @@ export function Tidslinje({
               {visaMal && (vaxt || plats) && (
                 <p className="mt-0.5 truncate text-xs">
                   {vaxt ? (
-                    <Link to={`/vaxter/${vaxt.id}`} className="text-lov underline underline-offset-4">
+                    <Link to={`/vaxter/${vaxt.id}`} className="text-orm underline underline-offset-4">
                       {vaxt.namn}
                     </Link>
                   ) : (
                     plats && (
                       <Link
                         to={`/platser/${plats.id}`}
-                        className="text-lov underline underline-offset-4"
+                        className="text-orm underline underline-offset-4"
                       >
                         {plats.namn}
                       </Link>

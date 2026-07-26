@@ -20,7 +20,7 @@ export function Skalstock({ mpp }: { mpp: number }) {
   return (
     <div className="pointer-events-none absolute bottom-3 left-3 flex items-end gap-4">
       <div className="flex flex-col gap-1">
-        <svg width={bredd} height={7} aria-hidden className="text-tra">
+        <svg width={bredd} height={7} aria-hidden className="text-dis">
           <path
             d={`M0.5 0.5 V6.5 M0.5 3.5 H${bredd - 0.5} M${bredd - 0.5} 0.5 V6.5`}
             stroke="currentColor"
@@ -34,7 +34,7 @@ export function Skalstock({ mpp }: { mpp: number }) {
       </div>
 
       <div className="flex flex-col items-center gap-0.5" aria-label="Norr">
-        <svg width={13} height={16} aria-hidden className="text-tra">
+        <svg width={13} height={16} aria-hidden className="text-dis">
           <path d="M6.5 1 L11 15 L6.5 11.5 L2 15 Z" fill="currentColor" opacity={0.85} />
         </svg>
         <span className="mono text-[10px] text-dis">N</span>

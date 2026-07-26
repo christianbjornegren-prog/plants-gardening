@@ -24,14 +24,14 @@ export function Ark({
   return (
     <Drawer.Root open={oppen} onOpenChange={onOppenChange} repositionInputs={false}>
       <Drawer.Portal>
-        <Drawer.Overlay className="fixed inset-0 z-40 bg-botten/75" />
+        <Drawer.Overlay className="fixed inset-0 z-40 bg-tusch/35" />
         <Drawer.Content
           className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[92dvh] w-full max-w-lg
             flex-col rounded-t-2xl border-t border-linje bg-panel outline-none"
         >
           <div className="mx-auto mt-2.5 h-1 w-9 shrink-0 rounded-full bg-linje" aria-hidden />
           <div className="flex items-baseline justify-between gap-4 px-5 pt-4 pb-1">
-            <Drawer.Title className="font-display text-lg font-semibold text-ljus">
+            <Drawer.Title className="font-display text-lg font-semibold text-tusch">
               {titel}
             </Drawer.Title>
           </div>

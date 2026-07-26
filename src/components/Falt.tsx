@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 export const inmatningsStil =
-  'w-full rounded-lg border border-linje bg-botten px-3 py-2.5 text-base text-ljus ' +
+  'w-full rounded-lg border border-linje bg-botten px-3 py-2.5 text-base text-tusch ' +
   'placeholder:text-dis-svag focus:border-dis-svag focus:outline-none'
 
 /** Etikett + fält, staplade. Fungerar med input, textarea och select som barn. */

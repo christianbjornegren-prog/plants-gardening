@@ -153,7 +153,7 @@ export function VaxterView() {
                           </span>
                         )}
                       </div>
-                      <span className="truncate text-sm text-ljus">{v.namn}</span>
+                      <span className="truncate text-sm text-tusch">{v.namn}</span>
                       {v.sort && <span className="truncate text-xs text-dis-svag">{v.sort}</span>}
                     </Link>
                   </li>

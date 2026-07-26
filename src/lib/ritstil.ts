@@ -10,10 +10,13 @@ function ton(token: string, procent: number): string {
   return `color-mix(in srgb, var(--color-${token}) ${procent}%, transparent)`
 }
 
-/** Tusch på mörk botten är ljust. Trä-tonen är ritningens bläck. */
-export const TUSCH = 'var(--color-tra)'
-export const TUSCH_SVAG = ton('tra', 62)
-export const GRONT_TUSCH = ton('lov', 78)
+/**
+ * Ritningen ligger på papper: mörkt tusch på ljus botten, som en riktig
+ * planritning. Grönt tusch för det som växer.
+ */
+export const TUSCH = 'var(--color-tusch)'
+export const TUSCH_SVAG = ton('tusch', 55)
+export const GRONT_TUSCH = ton('orm', 85)
 
 export interface PlatsStil {
   /** Fyllnad: hatchmönster (url(#…)) eller tonad token. */
@@ -31,25 +34,25 @@ export interface PlatsStil {
 
 export const RITSTIL: Record<PlatsTyp, PlatsStil> = {
   // Byggnader: grövst efter tomtgränsen, tät hatchning.
-  bod: { fyll: 'url(#h-bygg)', kontur: TUSCH, vikt: 1.8, etikett: 'var(--color-tra)' },
-  altan: { fyll: 'url(#h-trall)', kontur: TUSCH, vikt: 1.8, etikett: 'var(--color-tra)' },
+  bod: { fyll: 'url(#h-bygg)', kontur: TUSCH, vikt: 1.8, etikett: 'var(--color-dis)' },
+  altan: { fyll: 'url(#h-trall)', kontur: TUSCH, vikt: 1.8, etikett: 'var(--color-dis)' },
 
   // Planteringar: tunnare linje, grön ton.
-  rabatt: { fyll: 'url(#h-rabatt)', kontur: GRONT_TUSCH, vikt: 1.2, etikett: 'var(--color-lov)' },
-  pallkrage: { fyll: 'url(#h-pallkrage)', kontur: TUSCH_SVAG, vikt: 1.4, etikett: 'var(--color-tra)' },
-  gräsmatta: { fyll: 'url(#h-gras)', kontur: GRONT_TUSCH, vikt: 1, etikett: 'var(--color-lov)' },
-  häck: { fyll: 'url(#h-hack)', kontur: GRONT_TUSCH, vikt: 1.2, etikett: 'var(--color-lov)' },
-  träd: { fyll: 'url(#h-trad)', kontur: GRONT_TUSCH, vikt: 1.2, etikett: 'var(--color-lov)' },
+  rabatt: { fyll: 'url(#h-rabatt)', kontur: GRONT_TUSCH, vikt: 1.2, etikett: 'var(--color-orm)' },
+  pallkrage: { fyll: 'url(#h-pallkrage)', kontur: TUSCH_SVAG, vikt: 1.4, etikett: 'var(--color-dis)' },
+  gräsmatta: { fyll: 'url(#h-gras)', kontur: GRONT_TUSCH, vikt: 1, etikett: 'var(--color-orm)' },
+  häck: { fyll: 'url(#h-hack)', kontur: GRONT_TUSCH, vikt: 1.2, etikett: 'var(--color-orm)' },
+  träd: { fyll: 'url(#h-trad)', kontur: GRONT_TUSCH, vikt: 1.2, etikett: 'var(--color-orm)' },
 
   // Mark och vatten.
-  stenparti: { fyll: 'url(#h-stenparti)', kontur: TUSCH_SVAG, vikt: 1.2, etikett: 'var(--color-tra)' },
-  grus: { fyll: 'url(#h-grus)', kontur: TUSCH_SVAG, vikt: 1, etikett: 'var(--color-tra)' },
-  vatten: { fyll: 'url(#h-vatten)', kontur: GRONT_TUSCH, vikt: 1.2, etikett: 'var(--color-lov)' },
+  stenparti: { fyll: 'url(#h-stenparti)', kontur: TUSCH_SVAG, vikt: 1.2, etikett: 'var(--color-dis)' },
+  grus: { fyll: 'url(#h-grus)', kontur: TUSCH_SVAG, vikt: 1, etikett: 'var(--color-dis)' },
+  vatten: { fyll: 'url(#h-vatten)', kontur: GRONT_TUSCH, vikt: 1.2, etikett: 'var(--color-orm)' },
 
   // Linjeobjekt.
   staket: { fyll: 'none', kontur: TUSCH_SVAG, vikt: 1.4, oppen: true, streckad: true },
 
-  annat: { fyll: 'url(#h-annat)', kontur: TUSCH_SVAG, vikt: 1.2, etikett: 'var(--color-tra)' },
+  annat: { fyll: 'url(#h-annat)', kontur: TUSCH_SVAG, vikt: 1.2, etikett: 'var(--color-dis)' },
 }
 
 /** Tomtgränsen är alltid grövst — den håller ihop hela ritningen. */

@@ -17,8 +17,8 @@ export function Chip({
       className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm
         transition-colors duration-200 ease-[var(--ease-mjuk)] ${
           vald
-            ? 'border-transparent bg-ljus font-medium text-botten'
-            : 'border-linje text-dis hover:border-dis-svag hover:text-ljus'
+            ? 'border-transparent bg-salvia font-medium text-tusch'
+            : 'border-linje text-dis hover:border-dis-svag hover:text-tusch'
         } ${className}`}
     />
   )
@@ -37,7 +37,7 @@ export function Uppgift({
   return (
     <div className="flex items-baseline justify-between gap-4 py-2">
       <dt className="text-sm text-dis-svag">{etikett}</dt>
-      <dd className={`text-right text-sm text-ljus ${mono ? 'mono' : ''}`}>{children}</dd>
+      <dd className={`text-right text-sm text-tusch ${mono ? 'mono' : ''}`}>{children}</dd>
     </div>
   )
 }

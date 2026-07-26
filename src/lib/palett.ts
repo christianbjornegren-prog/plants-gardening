@@ -5,18 +5,26 @@
  */
 
 export const PALETT = {
-  botten: '#12110B',
-  panel: '#24231B',
-  upphojd: '#36342B',
-  linje: '#49483E',
-  'dis-svag': '#76756C',
-  dis: '#A09F96',
-  ljus: '#F7F5F0',
+  /** Sidan — varm kräm, aldrig rent vitt. */
+  botten: '#F5F2EB',
+  /** Kort och ytor som ligger ovanpå sidan. */
+  panel: '#FCFAF6',
+  /** Salviagröna paneler: nyckeltal, valda chips, platshållare. */
+  salvia: '#D5E1CD',
+  /** Tryckt/hovrat. */
+  upphojd: '#E9E6DD',
+  linje: '#DDD9CF',
+  'dis-svag': '#908C81',
+  dis: '#676359',
+  /** Tusch: brödtext, rubriker OCH ritningens linjer. */
+  tusch: '#211E17',
   tra: '#C9B694',
   lov: '#8FA96F',
+  /** Enda gröna som klarar brödtext på ljus botten. */
   orm: '#4E6B44',
   fermob: '#D3442E',
-  'fermob-lyft': '#E5644F',
+  /** Röd som TEXT — mörkare, eftersom botten numera är ljus. */
+  'fermob-text': '#AB3321',
 } as const
 
 export type PalettNyckel = keyof typeof PALETT
@@ -25,13 +33,16 @@ export type PalettNyckel = keyof typeof PALETT
 export const KROMTAK = 0.09
 
 /** Enda färgen som får bryta kromtaket — och därför den enda som kan signalera. */
-export const SIGNALFARGER: readonly PalettNyckel[] = ['fermob', 'fermob-lyft']
-
-/** Färger som bara får användas som fyllnad, aldrig som text. */
-export const ENDAST_FYLLNAD: readonly PalettNyckel[] = ['orm', 'fermob']
+export const SIGNALFARGER: readonly PalettNyckel[] = ['fermob', 'fermob-text']
 
 /**
- * Text ovanpå en fermob-fyllning är REN vit, inte `ljus`. Den varma vita ger
+ * Färger som bara får användas som fyllnad, aldrig som text.
+ * På ljus botten är det de LJUSA som faller — tvärtemot förut.
+ */
+export const ENDAST_FYLLNAD: readonly PalettNyckel[] = ['tra', 'lov', 'salvia']
+
+/**
+ * Text ovanpå en fermob-fyllning är REN vit. Den varma kräm-tonen ger
  * 4,2:1 mot #D3442E och underkänns; ren vit ger 4,5:1. Skillnaden syns knappt
  * men den är mätbar — därför är det en regel och inte en smaksak.
  */

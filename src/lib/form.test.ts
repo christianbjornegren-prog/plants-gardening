@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import type { PunktM } from '../data/types'
-import { allaRunda, arRund, formTillPath, formTillPolygon, vaxlaRunt } from './form'
+import {
+  allaRunda,
+  arRund,
+  formTillPath,
+  formTillPolygon,
+  laggTillPunkt,
+  segmentMitter,
+  taBortPunkt,
+  vaxlaRunt,
+} from './form'
 import { omslutandeRektangel, punktIPolygon } from './geometri'
 
 const RUTA: PunktM[] = [
@@ -140,3 +149,51 @@ function harSjalvkorsning(p: PunktM[]): boolean {
   }
   return false
 }
+
+describe('lägga till och ta bort hörn i efterhand', () => {
+  it('nytt hörn hamnar mitt på segmentet', () => {
+    const { punkter } = laggTillPunkt(RUTA, undefined, 0)
+    expect(punkter).toHaveLength(5)
+    expect(punkter[1]).toEqual([2, 0])
+  })
+
+  it('rundningen följer med när index förskjuts', () => {
+    // Hörn 3 är runt. Lägger vi till efter hörn 0 blir det gamla 3:an en 4:a.
+    const { runda } = laggTillPunkt(RUTA, [3], 0)
+    expect(runda).toEqual([4])
+  })
+
+  it('ett nytt hörn på en mjuk kant blir också mjukt', () => {
+    const { runda } = laggTillPunkt(RUTA, [1], 1)
+    expect(runda).toEqual([1, 2])
+  })
+
+  it('ett nytt hörn på en spetsig kant blir spetsigt', () => {
+    const { runda } = laggTillPunkt(RUTA, [3], 1)
+    expect(runda).not.toContain(2)
+  })
+
+  it('borttaget hörn drar med sig sin rundning och flyttar resten', () => {
+    const { punkter, runda } = taBortPunkt(RUTA, [1, 3], 1)
+    expect(punkter).toHaveLength(3)
+    expect(runda).toEqual([2])
+  })
+
+  it('en form kan inte krympas under tre hörn', () => {
+    const triangel: PunktM[] = [[0, 0], [2, 0], [1, 2]]
+    expect(taBortPunkt(triangel, undefined, 0).punkter).toEqual(triangel)
+  })
+
+  it('segmentMitter ger en plupp per kant', () => {
+    expect(segmentMitter(RUTA)).toHaveLength(4)
+    expect(segmentMitter(RUTA, false)).toHaveLength(3)
+  })
+
+  it('formen ser likadan ut direkt efter att ett hörn lagts till', () => {
+    // Mittpunkten ligger på linjen, så en spetsig form ändrar inte utseende.
+    const fore = formTillPolygon(RUTA)
+    const { punkter, runda } = laggTillPunkt(RUTA, undefined, 0)
+    const efter = formTillPolygon(punkter, runda)
+    expect(omslutandeRektangel(efter)).toEqual(omslutandeRektangel(fore))
+  })
+})

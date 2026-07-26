@@ -47,6 +47,59 @@ export function allaRunda(antalPunkter: number): number[] {
   return Array.from({ length: antalPunkter }, (_, i) => i)
 }
 
+/**
+ * Lägger till ett hörn MITT PÅ segmentet efter `index`.
+ *
+ * `runda` är en lista med index, så allt som ligger efter insättningen måste
+ * flyttas ett steg — annars hoppar rundningen till fel hörn.
+ */
+export function laggTillPunkt(
+  punkter: PunktM[],
+  runda: number[] | undefined,
+  index: number,
+): { punkter: PunktM[]; runda: number[] | undefined } {
+  const n = punkter.length
+  if (n < 2) return { punkter, runda }
+  const a = punkter[index % n]!
+  const b = punkter[(index + 1) % n]!
+  const mitt: PunktM = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
+  const nya = [...punkter.slice(0, index + 1), mitt, ...punkter.slice(index + 1)]
+  // Det nya hörnet ärver rundningen från segmentets början, så en mjuk kant
+  // förblir mjuk när man delar den.
+  const arvRund = runda?.includes(index % n) ?? false
+  const flyttade = (runda ?? []).map((i) => (i > index ? i + 1 : i))
+  return {
+    punkter: nya,
+    runda: arvRund ? [...flyttade, index + 1].sort((x, y) => x - y) : flyttade,
+  }
+}
+
+/** Tar bort ett hörn. En form måste behålla minst tre. */
+export function taBortPunkt(
+  punkter: PunktM[],
+  runda: number[] | undefined,
+  index: number,
+): { punkter: PunktM[]; runda: number[] | undefined } {
+  if (punkter.length <= 3) return { punkter, runda }
+  return {
+    punkter: punkter.filter((_, i) => i !== index),
+    runda: (runda ?? [])
+      .filter((i) => i !== index)
+      .map((i) => (i > index ? i - 1 : i))
+      .sort((a, b) => a - b),
+  }
+}
+
+/** Segmentens mittpunkter — där "lägg till hörn"-pluppen ritas. */
+export function segmentMitter(punkter: PunktM[], sluten = true): PunktM[] {
+  const antal = sluten ? punkter.length : punkter.length - 1
+  return Array.from({ length: Math.max(antal, 0) }, (_, i) => {
+    const a = punkter[i]!
+    const b = punkter[(i + 1) % punkter.length]!
+    return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] as PunktM
+  })
+}
+
 function vid(punkter: PunktM[], i: number, sluten: boolean): PunktM {
   const n = punkter.length
   if (sluten) return punkter[((i % n) + n) % n]!

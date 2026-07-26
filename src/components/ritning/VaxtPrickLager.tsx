@@ -62,8 +62,8 @@ export function VaxtPrickLager({
                 strokeWidth={vald ? 2 : 1.4}
                 strokeDasharray={planerad ? '3 3' : undefined}
                 style={{
-                  fill: planerad ? 'none' : 'var(--color-lov)',
-                  stroke: vald ? 'var(--color-fermob-lyft)' : 'var(--color-botten)',
+                  fill: planerad ? 'none' : 'var(--color-orm)',
+                  stroke: vald ? 'var(--color-fermob-text)' : 'var(--color-panel)',
                 }}
               />
             )}
@@ -104,7 +104,7 @@ function PrickMiniatyr({
   }, [fotoRef])
 
   if (!url) {
-    return <circle cx={x} cy={y} r={r} style={{ fill: 'var(--color-lov)' }} />
+    return <circle cx={x} cy={y} r={r} style={{ fill: 'var(--color-orm)' }} />
   }
 
   return (
@@ -130,7 +130,7 @@ function PrickMiniatyr({
         fill="none"
         vectorEffect="non-scaling-stroke"
         strokeWidth={2}
-        style={{ stroke: 'var(--color-fermob-lyft)' }}
+        style={{ stroke: 'var(--color-fermob-text)' }}
       />
     </>
   )

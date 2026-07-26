@@ -104,7 +104,7 @@ export function HemView() {
                 <li key={rad.id}>
                   <Link
                     to={'typ' in rad ? `/platser/${rad.id}` : `/vaxter/${rad.id}`}
-                    className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-dashed border-linje px-3 text-sm text-ljus hover:bg-panel"
+                    className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-dashed border-linje px-3 text-sm text-tusch hover:bg-panel"
                   >
                     <span className="truncate">{rad.namn}</span>
                     <span className="mono shrink-0 text-[11px] text-dis-svag">
@@ -151,7 +151,7 @@ export function HemView() {
                         alt={vaxt.namn}
                         className="aspect-square w-full rounded-lg"
                       />
-                      <span className="truncate text-xs text-ljus">{vaxt.namn}</span>
+                      <span className="truncate text-xs text-tusch">{vaxt.namn}</span>
                       <span className="mono text-[10px] text-dis-svag">
                         {senasteBild ? formatDatumKort(new Date(senasteBild.datum)) : '—'}
                       </span>
@@ -165,7 +165,7 @@ export function HemView() {
 
         <Link
           to="/logg"
-          className="inline-flex items-center gap-1.5 self-start text-sm text-lov underline underline-offset-4"
+          className="inline-flex items-center gap-1.5 self-start text-sm text-orm underline underline-offset-4"
         >
           Hela loggen
           <PilIkon width={14} height={14} />
@@ -178,19 +178,19 @@ export function HemView() {
 function Nyckeltal({ etikett, varde, till }: { etikett: string; varde: number; till?: string }) {
   const innehall = (
     <>
-      <dt className="text-xs text-dis-svag">{etikett}</dt>
-      <dd className="mono mt-1 text-2xl text-ljus">{varde}</dd>
+      <dt className="text-xs text-dis">{etikett}</dt>
+      <dd className="mono mt-1 text-2xl text-tusch">{varde}</dd>
     </>
   )
   return till ? (
     <Link
       to={till}
-      className="rounded-xl border border-linje bg-panel px-3 py-3 transition-colors duration-200 ease-[var(--ease-mjuk)] hover:bg-upphojd"
+      className="rounded-2xl bg-salvia px-3 py-3 transition-opacity duration-200 ease-[var(--ease-mjuk)] hover:opacity-85"
     >
       {innehall}
     </Link>
   ) : (
-    <div className="rounded-xl border border-linje bg-panel px-3 py-3">{innehall}</div>
+    <div className="rounded-2xl bg-salvia px-3 py-3">{innehall}</div>
   )
 }
 
@@ -205,7 +205,7 @@ function VaxtRutor({ vaxter, fotoAvVaxt }: { vaxter: Vaxt[]; fotoAvVaxt: Map<str
               alt={v.namn}
               className="aspect-square w-full rounded-lg"
             />
-            <span className="truncate text-xs text-ljus">{v.namn}</span>
+            <span className="truncate text-xs text-tusch">{v.namn}</span>
           </Link>
         </li>
       ))}
@@ -247,7 +247,7 @@ function SenasteBilden({ handelse }: { handelse: Handelse }) {
       </h2>
       <Link
         to={till}
-        className="flex items-center gap-4 rounded-xl border border-linje bg-panel p-3 transition-colors duration-200 ease-[var(--ease-mjuk)] hover:bg-upphojd"
+        className="flex items-center gap-4 rounded-2xl border border-linje bg-panel p-3 transition-colors duration-200 ease-[var(--ease-mjuk)] hover:bg-upphojd"
       >
         <FotoBild
           fotoRef={handelse.fotoRef}
@@ -255,7 +255,7 @@ function SenasteBilden({ handelse }: { handelse: Handelse }) {
           className="size-20 shrink-0 rounded-lg"
         />
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-display text-base font-semibold text-ljus">
+          <span className="block truncate font-display text-base font-semibold text-tusch">
             {vaxt?.namn ?? plats?.namn ?? 'Senaste bilden'}
           </span>
           <span className="mono block text-xs text-dis">

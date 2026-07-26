@@ -54,15 +54,15 @@ export function LoggaInView() {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-8 p-8">
       <div className="flex flex-col items-center gap-3">
-        <span className="flex size-14 items-center justify-center rounded-2xl bg-panel text-lov ring-1 ring-linje ring-inset">
+        <span className="flex size-14 items-center justify-center rounded-2xl bg-panel text-orm ring-1 ring-linje ring-inset">
           <VaxterIkon width={28} height={28} />
         </span>
-        <h1 className="font-display text-xl font-semibold text-ljus">Trädgårdsjournal</h1>
+        <h1 className="font-display text-xl font-semibold text-tusch">Trädgårdsjournal</h1>
       </div>
 
       {auth.status === 'ej-behorig' ? (
         <div className="flex w-full max-w-xs flex-col items-center gap-4 text-center">
-          <p role="alert" className="text-sm/6 text-ljus">
+          <p role="alert" className="text-sm/6 text-tusch">
             <span className="mono">{auth.epost}</span> har inte tillgång till den här trädgården.
           </p>
           <p className="text-sm/6 text-dis">
@@ -89,7 +89,7 @@ export function LoggaInView() {
         </button>
 
         {fel && (
-          <p role="alert" className="text-center text-sm text-fermob-lyft">
+          <p role="alert" className="text-center text-sm text-fermob-text">
             {fel}
           </p>
         )}

@@ -80,7 +80,7 @@ export function PlatsView() {
           <button
             type="button"
             onClick={() => oppna('namn')}
-            className="min-h-11 shrink-0 px-2 text-sm text-dis hover:text-ljus"
+            className="min-h-11 shrink-0 px-2 text-sm text-dis hover:text-tusch"
           >
             Ändra
           </button>
@@ -136,7 +136,7 @@ export function PlatsView() {
                     alt={v.namn}
                     className="aspect-square w-full rounded-lg"
                   />
-                  <span className="truncate text-xs text-ljus">{v.namn}</span>
+                  <span className="truncate text-xs text-tusch">{v.namn}</span>
                 </Link>
               </li>
             ))}

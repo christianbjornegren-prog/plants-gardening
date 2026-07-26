@@ -121,7 +121,7 @@ Paletten är genomgående **brutna färger** — den nordiska målartraditionens
 
 Gränssnittet är mörkt — samma svartbetsade ton som boden och staketet. Mot mörk botten lyser trädgårdsfoton och gränssnittet försvinner till förmån för innehållet.
 
-**Bark-rampen** — en enda kulör, H = 100° (mellan träets 82° och lövets 128°), jämna L-steg:
+**Ljus ram** — en enda varm kulör (H ≈ 88°), jämna L-steg. Se docs/DESIGNLOGG.md för hela tabellen och varför rollerna bytte plats när botten blev ljus.
 
 | Token | Hex | Roll | Kontrast mot panel |
 |---|---|---|---|
@@ -147,7 +147,7 @@ Fermob används mycket sparsamt — primär knapp, aktiv markering. Inget annat.
 
 ### Typografi
 
-- **Display** (rubriker, appnamnet): *Bricolage Grotesque*.
+- **Display** (rubriker, appnamnet): *Fraunces* — serif. Skillnaden mellan "app" och "journal".
 - **Brödtext/UI:** *Instrument Sans*.
 - **Mått, datum och antal:** *IBM Plex Mono* — en diskret CAD-blinkning. Allt som är en mätning eller ett datum sätts i mono, utan undantag: `4,2 m` · `12 juni` · `14 växter`.
 
