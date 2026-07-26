@@ -53,6 +53,12 @@ export interface Tradgard {
 
 export interface Geometri {
   punkter: PunktM[]
+  /**
+   * Index på de hörn som ska vara RUNDA. Punkterna är sanningen; kurvan
+   * härleds (se lib/form.ts). En D-formad rabatt är fyra punkter där de två
+   * på ena sidan står här.
+   */
+  runda?: number[]
 }
 
 /** users/{uid}/platser/{id} */

@@ -12,7 +12,12 @@ interface LagradPunkt {
 }
 
 export function tillLagradGeometri(geometri: Geometri): Record<string, unknown> {
-  return { punkter: geometri.punkter.map(([x, y]) => ({ x, y })) }
+  const lagrad: Record<string, unknown> = {
+    punkter: geometri.punkter.map(([x, y]) => ({ x, y })),
+  }
+  // Tom lista lagras inte — en helt spetsig form ska inte bära ett tomt fält.
+  if (geometri.runda?.length) lagrad.runda = [...geometri.runda]
+  return lagrad
 }
 
 /** undefined om fältet saknas eller är obrukbart. */
@@ -24,7 +29,12 @@ export function franLagradGeometri(data: unknown): Geometri | undefined {
     typeof p?.x === 'number' ? p.x : 0,
     typeof p?.y === 'number' ? p.y : 0,
   ])
-  return punkter.length > 0 ? { punkter } : undefined
+  if (punkter.length === 0) return undefined
+  const rader2 = (data as { runda?: unknown }).runda
+  const runda = Array.isArray(rader2)
+    ? rader2.filter((i): i is number => typeof i === 'number' && i >= 0 && i < punkter.length)
+    : undefined
+  return runda?.length ? { punkter, runda } : { punkter }
 }
 
 /**

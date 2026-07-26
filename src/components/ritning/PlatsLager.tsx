@@ -1,12 +1,9 @@
 import type { CSSProperties } from 'react'
-import type { Plats, PunktM, Tradgard } from '../../data/types'
+import type { Plats, Tradgard } from '../../data/types'
+import { formTillPath, formTillPolygon } from '../../lib/form'
 import { centroid, omkrets, omslutandeRektangel } from '../../lib/geometri'
 import { RITPRIO, RITSTIL, TOMTGRANS_VIKT, TUSCH } from '../../lib/ritstil'
 import { Hatchning } from './Hatchning'
-
-function punktStrang(punkter: PunktM[]): string {
-  return punkter.map((p) => p.join(',')).join(' ')
-}
 
 /**
  * Tomtgräns + alla platser med form + namnetiketter. Ren renderare —
@@ -91,11 +88,13 @@ export function PlatsLager({
         // Planerat ritas streckat — ritningskonvention, gratis semantik.
         const streck = planerad ? '7 5' : stil.streckad ? '0.45 0.3' : undefined
 
+        const runda = plats.geometri!.runda
+
         if (stil.oppen) {
           return (
-            <polyline
+            <path
               key={plats.id}
-              points={punktStrang(punkter)}
+              d={formTillPath(punkter, runda, false)}
               {...gemensamma}
               className={animera ? 'anim-tona' : undefined}
               strokeDasharray={streck ?? '0.45 0.3'}
@@ -104,11 +103,13 @@ export function PlatsLager({
           )
         }
 
-        const langdPx = omkrets(punkter) / mpp
+        // Dash-längden för tuschanimationen mäts på den samplade kurvan —
+        // en rundad kant är längre än sin polygon.
+        const langdPx = omkrets(formTillPolygon(punkter, runda)) / mpp
         return (
-          <polygon
+          <path
             key={plats.id}
-            points={punktStrang(punkter)}
+            d={formTillPath(punkter, runda)}
             {...gemensamma}
             className={animera ? 'anim-objekt' : undefined}
             strokeDasharray={planerad ? streck : undefined}
@@ -134,13 +135,13 @@ export function PlatsLager({
           Visas bara när formen är stor nog på skärmen. */}
       {medForm.map((plats) => {
         if (!plats.namn) return null
-        const punkter = plats.geometri!.punkter
-        const rekt = omslutandeRektangel(punkter)
+        const kurva = formTillPolygon(plats.geometri!.punkter, plats.geometri!.runda)
+        const rekt = omslutandeRektangel(kurva)
         if (rekt.bredd / mpp < 74 || rekt.hojd / mpp < 26) return null
         // Namnet får aldrig rinna ut ur sin form. Grov breddgissning räcker:
         // versal spärrad text i 9,5 px ≈ 7 px per tecken.
         if (plats.namn.length * 7 > (rekt.bredd / mpp) * 0.92) return null
-        const [cx, cy] = centroid(punkter)
+        const [cx, cy] = centroid(kurva)
         const stil = RITSTIL[plats.typ]
         return (
           <text

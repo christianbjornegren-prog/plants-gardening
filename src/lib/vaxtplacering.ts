@@ -1,4 +1,5 @@
 import type { Plats, PunktM, Vaxt } from '../data/types'
+import { formTillPolygon } from './form'
 import { centroid, punktIPolygon } from './geometri'
 
 export interface VaxtPrick {
@@ -38,7 +39,8 @@ export function beraknaPrickar(vaxter: Vaxt[], platser: Plats[], tradgardId: str
     }
     const index = autoRaknare.get(plats.id) ?? 0
     autoRaknare.set(plats.id, index + 1)
-    const [x, y] = autoLage(plats.geometri.punkter, index)
+    // Kurvan samplas — annars kan en prick hamna utanför en utbuktande kant.
+    const [x, y] = autoLage(formTillPolygon(plats.geometri.punkter, plats.geometri.runda), index)
     prickar.push({ vaxt, x, y, egenPosition: false })
   }
   return prickar
@@ -75,6 +77,6 @@ export function platsVidPunkt(
       (p) =>
         p.tradgardId === tradgardId &&
         (p.geometri?.punkter.length ?? 0) >= 3 &&
-        punktIPolygon(punkt, p.geometri!.punkter),
+        punktIPolygon(punkt, formTillPolygon(p.geometri!.punkter, p.geometri!.runda)),
     )
 }
