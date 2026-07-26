@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { gorBild, nyVaxt } from './hjalp'
 
-test('Hem svarar på "vad har jag och vad hände senast?"', async ({ page }) => {
+test('Hem är en dashboard: nyckeltal, senaste bilden och veckans händelser', async ({ page }) => {
   await page.goto('/')
   const bild = await gorBild(page, 'ormbunke')
   await nyVaxt(page, 'Ormbunken', bild)
@@ -9,11 +9,28 @@ test('Hem svarar på "vad har jag och vad hände senast?"', async ({ page }) => 
 
   await page.getByRole('link', { name: 'Hem' }).first().click()
 
-  // Öppnar med ett foto, inte med en rubrik.
+  // Siffrorna först — inte en helskärmsbild som ser ut som en uppladdningsruta.
+  const vaxtruta = page.getByRole('link', { name: /Växter/ }).filter({ hasText: '1' })
+  await expect(vaxtruta.first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Fota en växt' })).toBeVisible()
+
+  await expect(page.getByRole('heading', { name: 'Senast i trädgården' })).toBeVisible()
   await expect(page.getByRole('img', { name: 'Ormbunken' }).first()).toBeVisible()
-  await expect(page.getByText('1 växt')).toBeVisible()
-  await expect(page.getByText('Den här veckan')).toBeVisible()
+
+  await expect(page.getByRole('heading', { name: 'Den här veckan' })).toBeVisible()
   await expect(page.getByTestId('tidslinje').getByText('Vattnat')).toBeVisible()
+})
+
+test('Hem förklarar sina sektioner i stället för att bara lista', async ({ page }) => {
+  await page.goto('/')
+  await nyVaxt(page, 'Citronträdet')
+  await page.getByRole('link', { name: 'Hem' }).first().click()
+
+  // Växten saknar både bild och plats — båda sektionerna ska säga varför.
+  await expect(page.getByRole('heading', { name: 'Utan plats' })).toBeVisible()
+  await expect(page.getByText('Appen vet inte var de står')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Väntar på sin första bild' })).toBeVisible()
+  await expect(page.getByText('Utan bild går det inte att följa dem över säsongen')).toBeVisible()
 })
 
 test('globala loggen filtrerar på trädgård och typ', async ({ page }) => {

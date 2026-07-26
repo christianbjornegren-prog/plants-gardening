@@ -8,7 +8,7 @@ users/{uid}/
   tradgardar/{tradgardId}
     { namn, ordning, widthM?, heightM? }
   platser/{platsId}
-    { tradgardId, namn, typ, geometri?: { punkter: [{x,y}, …], runda?: [index] },
+    { tradgardId, namn, typ, egenTyp?, geometri?: { punkter: [{x,y}…], runda?: [index] },
       sol?, jord?, vetterMot?, vaderstreck?, status, anteckning? }
   vaxter/{vaxtId}
     { namn, platsId?, position?: {x,y}, status,
@@ -47,6 +47,9 @@ planteringar, anteckningar.
 - **Lagringsformat för punkter:** Firestore stödjer inte nästlade arrayer, så
   punkter lagras som `[{x, y}, …]` men är tupler `[x, y]` i appens typer.
   Konverteringen bor i `src/data/kartkonvertering.ts`.
+- **`egenTyp`** är ett eget namn på platstypen när standardlistan inte räcker.
+  `typ` styr fortfarande ritstilen; `egenTyp` styr bara etiketten. `häck` finns
+  kvar som giltig `typ` men erbjuds inte längre i ritläget.
 - **`geometri.runda`** är index på de hörn som ska vara MJUKA. Punkterna är
   sanningen, kurvan härleds (`src/lib/form.ts`) — så mått, snap och dragning
   fungerar precis som för raka former. En D-formad rabatt är fyra punkter där

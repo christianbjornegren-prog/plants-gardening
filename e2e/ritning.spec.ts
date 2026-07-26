@@ -266,3 +266,44 @@ test('en ny ritning kan läggas till bredvid nuläget', async ({ page }) => {
   // Måtten ärvs från den man stod på, så man slipper mäta om.
   await expect(page.getByTestId('tomtgrans')).toBeVisible()
 })
+
+test.describe('platstyper', () => {
+  test.skip(({ viewport }) => (viewport?.width ?? 0) < 1024, 'ritläget är desktop-först')
+
+  test('häck erbjuds inte, och egen typ går att skriva in', async ({ page }) => {
+    await angeMatt(page, 'Baksidan', '16', '11')
+    await page.getByRole('link', { name: 'Redigera' }).click()
+    await ritaPlats(page, RUTA, 'Stenpartiet')
+
+    await expect(page.getByRole('button', { name: 'Häck', exact: true })).toHaveCount(0)
+
+    await page.getByRole('button', { name: 'Egen…' }).click()
+    await page.getByRole('textbox', { name: 'Egen typ' }).fill('Stenparti')
+    await page.getByRole('textbox', { name: 'Egen typ' }).blur()
+
+    // Chipen visar det egna namnet, och ritstilen står kvar.
+    await expect(page.getByRole('button', { name: 'Stenparti' })).toBeVisible()
+    await expect(page.getByText(/Ritas som rabatt/)).toBeVisible()
+
+    // …och namnet följer med till platsens ark i läsläget.
+    await page.getByRole('button', { name: 'Klar' }).click()
+    await tryckIRitningen(page, 0.35, 0.4)
+    await expect(page.getByText('Stenparti', { exact: true })).toBeVisible()
+  })
+})
+
+test('loggens filter kapas inte — de radbryter', async ({ page }) => {
+  await page.goto('/logg')
+  await page.getByRole('button', { name: 'Alla slag' }).waitFor()
+  const overflow = await page.evaluate(() => {
+    const chips = [...document.querySelectorAll('button')].filter((b) =>
+      ['Anteckning', 'Flyttat'].includes(b.textContent?.trim() ?? ''),
+    )
+    return chips.map((c) => {
+      const r = c.getBoundingClientRect()
+      return r.right <= window.innerWidth + 1 && r.left >= -1
+    })
+  })
+  expect(overflow.length).toBeGreaterThan(0)
+  expect(overflow.every(Boolean)).toBe(true)
+})

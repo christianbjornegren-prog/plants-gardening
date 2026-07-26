@@ -62,6 +62,14 @@ export function NyVaxtProvider({ children }: { children: ReactNode }) {
   const [laddarFoto, setLaddarFoto] = useState(false)
   const [fel, setFel] = useState<string>()
 
+  /**
+   * Grov men pålitlig enhetsgissning: telefoner och plattor har grov pekare.
+   * På dator finns ingen kamera att öppna, och att slänga upp en filbläddrare
+   * innan man ens sett formuläret är bara förvirrande.
+   */
+  const harKamera = () =>
+    typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches === true
+
   const oppna = useCallback((nyttForval: NyVaxtForval = {}) => {
     setForval(nyttForval)
     setNamn('')
@@ -70,7 +78,7 @@ export function NyVaxtProvider({ children }: { children: ReactNode }) {
     setOppen(true)
     // Kameran öppnas i SAMMA gest som knapptrycket — annars blockerar Safari.
     // Arket ligger redan under, så ett avbrutet kamerapass landar mjukt.
-    if (!nyttForval.utanFoto) kameraRef.current?.click()
+    if (!nyttForval.utanFoto && harKamera()) kameraRef.current?.click()
   }, [])
 
   async function vidValdBild(e: ChangeEvent<HTMLInputElement>) {
@@ -170,18 +178,22 @@ export function NyVaxtProvider({ children }: { children: ReactNode }) {
             ) : (
               <span className="flex h-full flex-col items-center justify-center gap-2 text-dis">
                 <KameraIkon width={28} height={28} />
-                <span className="text-sm">{laddarFoto ? 'Sparar bilden…' : 'Ta en bild'}</span>
+                <span className="text-sm">
+                  {laddarFoto ? 'Sparar bilden…' : harKamera() ? 'Ta en bild' : 'Välj en bild'}
+                </span>
               </span>
             )}
           </button>
 
-          <button
-            type="button"
-            onClick={() => biblioteksRef.current?.click()}
-            className="-mt-1 self-center text-sm text-dis underline underline-offset-4 hover:text-ljus"
-          >
-            Välj ur biblioteket
-          </button>
+          {harKamera() && (
+            <button
+              type="button"
+              onClick={() => biblioteksRef.current?.click()}
+              className="-mt-1 self-center text-sm text-dis underline underline-offset-4 hover:text-ljus"
+            >
+              Välj ur biblioteket
+            </button>
+          )}
 
           <input
             type="text"

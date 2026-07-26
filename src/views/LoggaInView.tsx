@@ -1,13 +1,26 @@
-import { useState } from 'react'
-import { Adresskylt } from '../components/Adresskylt'
-import { GoogleIkon } from '../components/Ikoner'
+import { useEffect, useState } from 'react'
+import { GoogleIkon, VaxterIkon } from '../components/Ikoner'
 import { useAuth } from '../auth/AuthProvider'
 
-/** Visas bara i molnläge (riktig Firebase-config) när ingen är inloggad. */
+/**
+ * Visas bara i molnläge (riktig Firebase-config) när ingen är inloggad.
+ *
+ * INGEN adress här. Inloggningsskärmen är den enda sidan en främling kan nå,
+ * och den ska inte berätta var vi bor — varken i texten eller i fliktiteln.
+ * Adresskylten hör hemma innanför inloggningen.
+ */
 export function LoggaInView() {
   const auth = useAuth()
   const [fel, setFel] = useState<string>()
   const [skickar, setSkickar] = useState(false)
+
+  useEffect(() => {
+    const tidigare = document.title
+    document.title = 'Trädgårdsjournal'
+    return () => {
+      document.title = tidigare
+    }
+  }, [])
 
   async function loggaIn() {
     setFel(undefined)
@@ -47,7 +60,12 @@ export function LoggaInView() {
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-8 p-8">
-      <Adresskylt stor />
+      <div className="flex flex-col items-center gap-3">
+        <span className="flex size-14 items-center justify-center rounded-2xl bg-panel text-lov ring-1 ring-linje ring-inset">
+          <VaxterIkon width={28} height={28} />
+        </span>
+        <h1 className="font-display text-xl font-semibold text-ljus">Trädgårdsjournal</h1>
+      </div>
 
       {auth.status === 'ej-behorig' ? (
         <div className="flex w-full max-w-xs flex-col items-center gap-4 text-center">
@@ -55,12 +73,12 @@ export function LoggaInView() {
             <span className="mono">{auth.epost}</span> har inte tillgång till den här trädgården.
           </p>
           <p className="text-sm/6 text-dis">
-            Ripvägen 11 är privat. Logga in med det konto du blivit tillagd med.
+            Journalen är privat. Logga in med det konto du blivit tillagd med.
           </p>
         </div>
       ) : (
         <p className="max-w-xs text-center text-sm/6 text-dis">
-          Trädgårdsjournalen för Ripvägen 11. Privat — bara inbjudna konton kommer in.
+          Privat journal. Bara inbjudna konton kommer in.
         </p>
       )}
 

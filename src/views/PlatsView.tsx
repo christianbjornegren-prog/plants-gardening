@@ -14,7 +14,7 @@ import { SaknasVy, VyHuvud } from '../components/VyHuvud'
 import { useData } from '../data/DataProvider'
 import type { PlatsFalt } from '../data/repo'
 import { VADERSTRECK } from '../data/types'
-import { antalVaxter, platstypEtikett, SOLLAGEN, solEtikett, vaderstreckEtikett } from '../lib/etiketter'
+import { antalVaxter, platsEtikett, SOLLAGEN, solEtikett, vaderstreckEtikett } from '../lib/etiketter'
 import { fototidslinje, handelserForPlats, senasteFotoPerVaxt } from '../lib/handelser'
 
 /**
@@ -71,7 +71,7 @@ export function PlatsView() {
     <div className="tona-upp mx-auto w-full max-w-2xl px-5 py-5 md:px-8 md:py-8">
       <VyHuvud
         titel={plats.namn}
-        underrubrik={`${platstypEtikett(plats.typ)}${tradgard ? ` · ${tradgard.namn}` : ''}`}
+        underrubrik={`${platsEtikett(plats)}${tradgard ? ` · ${tradgard.namn}` : ''}`}
         tillbakaTill="/ritning"
         hoger={
           <button

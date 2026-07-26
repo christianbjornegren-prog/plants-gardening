@@ -94,6 +94,7 @@ function tillPlats(snap: QueryDocumentSnapshot<DocumentData>): Plats {
     tradgardId: typeof d.tradgardId === 'string' ? d.tradgardId : '',
     namn: typeof d.namn === 'string' ? d.namn : '',
     typ: tolkaPlatsTyp(d.typ),
+    egenTyp: d.egenTyp as string | undefined,
     geometri: franLagradGeometri(d.geometri),
     sol: d.sol as Sol | undefined,
     jord: d.jord as string | undefined,
@@ -212,6 +213,7 @@ export interface PlatsFalt {
   tradgardId: string
   namn: string
   typ: PlatsTyp
+  egenTyp?: string
   punkter?: PunktM[]
   runda?: number[]
   sol?: Sol
@@ -227,6 +229,7 @@ function platsPayload(falt: PlatsFalt): Record<string, unknown> {
     tradgardId: falt.tradgardId,
     namn: falt.namn,
     typ: falt.typ,
+    egenTyp: falt.egenTyp,
     geometri: falt.punkter?.length
       ? tillLagradGeometri({ punkter: falt.punkter, runda: falt.runda })
       : undefined,
@@ -286,7 +289,14 @@ export function uppdateraPlats(uid: string, id: string, falt: Partial<PlatsFalt>
       ? tillLagradGeometri({ punkter: falt.punkter, runda: falt.runda })
       : deleteField()
   }
-  for (const nyckel of ['sol', 'jord', 'vetterMot', 'vaderstreck', 'anteckning'] as const) {
+  for (const nyckel of [
+    'sol',
+    'jord',
+    'vetterMot',
+    'vaderstreck',
+    'anteckning',
+    'egenTyp',
+  ] as const) {
     if (nyckel in falt) uppdatering[nyckel] = falt[nyckel] ?? deleteField()
   }
   if (Object.keys(uppdatering).length === 0) return

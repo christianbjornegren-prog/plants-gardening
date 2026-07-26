@@ -28,6 +28,11 @@ export function platstypEtikett(typ: PlatsTyp): string {
   return PLATSTYP_ETIKETT[typ]
 }
 
+/** Platsens typ som den ska visas — eget namn vinner över standardtypen. */
+export function platsEtikett(plats: { typ: PlatsTyp; egenTyp?: string }): string {
+  return plats.egenTyp?.trim() || PLATSTYP_ETIKETT[plats.typ]
+}
+
 const HANDELSE_ETIKETT: Record<HandelseTyp, string> = {
   foto: 'Foto',
   vattnat: 'Vattnat',

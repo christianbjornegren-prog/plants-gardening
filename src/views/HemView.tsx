@@ -1,40 +1,41 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Adresskylt } from '../components/Adresskylt'
 import { FotoBild } from '../components/FotoBild'
-import { Knapp } from '../components/Knapp'
+import { Knapp, LankKnapp } from '../components/Knapp'
 import { useNyVaxt } from '../components/NyVaxt'
 import { PilIkon } from '../components/Ikoner'
 import { Tidslinje } from '../components/Tidslinje'
 import { TomtLage } from '../components/VyHuvud'
 import { useData } from '../data/DataProvider'
-import type { Handelse, Plats, Vaxt } from '../data/types'
-import { antalPlatser, antalVaxter } from '../lib/etiketter'
-import { formatDatum, formatSedan } from '../lib/format'
-import {
-  handelserSedan,
-  ofotograferade,
-  senastaFotot,
-  senasteFotoPerVaxt,
-} from '../lib/handelser'
+import type { Handelse, Vaxt } from '../data/types'
+import { formatDatum, formatDatumKort } from '../lib/format'
+import { handelserSedan, ofotograferade, senastaFotot, senasteFotoPerVaxt } from '../lib/handelser'
 
 /**
- * Hem — överblicken. Svarar på "vad har jag, och vad hände senast?".
- * Öppnar med ett stort foto, inte med en rubrik.
+ * Hem är en instrumentbräda, inte ett fotoalbum: siffrorna först, sedan vad
+ * som hänt och vad som väntar.
+ *
+ * Den stora hjältebilden låg här förut och lästes som "du ska ladda upp ett
+ * foto" — särskilt när den var tom. Nu är bilden ett kort bland andra, och
+ * varje sektion säger med egna ord varför den finns.
  */
+
+const DAGAR_TILL_UPPFOLJNING = 60
+
 export function HemView() {
-  const { vaxter, platser, handelser, laddad } = useData()
+  const { vaxter, platser, tradgardar, handelser, laddad } = useData()
   const { oppna } = useNyVaxt()
 
   if (!laddad) return null
 
-  const harNagot = vaxter.length > 0 || platser.length > 0
-  if (!harNagot) {
+  if (vaxter.length === 0 && platser.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-6 p-6">
         <Adresskylt stor />
         <TomtLage
           rubrik="Trädgården är tom än"
-          text="Börja med att fota något som växer. Namn räcker — plats och det andra kan komma sen."
+          text="Börja med att fota en växt. Namn räcker — plats och det andra kan komma sen."
           atgard={
             <Knapp variant="primar" onClick={() => oppna()}>
               Fota första växten
@@ -45,32 +46,48 @@ export function HemView() {
     )
   }
 
-  const hjalte = senastaFotot(handelser)
   const veckan = handelserSedan(handelser, 7)
   const planerade = [
     ...vaxter.filter((v) => v.status === 'planerad'),
     ...platser.filter((p) => p.status === 'planerad'),
   ]
-  const glomda = ofotograferade(vaxter, handelser).slice(0, 3)
+  const hemlosa = vaxter.filter((v) => !v.platsId && v.status === 'finns')
+  const uppfoljning = ofotograferade(vaxter, handelser, DAGAR_TILL_UPPFOLJNING)
+  const aldrigFotade = uppfoljning.filter((r) => r.dagarSedan === undefined).map((r) => r.vaxt)
+  const langeSedan = uppfoljning.filter((r) => r.dagarSedan !== undefined).slice(0, 6)
   const fotoAvVaxt = senasteFotoPerVaxt(handelser)
+  const senaste = senastaFotot(handelser)
+  const ritningar = tradgardar.filter((t) => t.widthM !== undefined)
 
   return (
-    <div className="tona-upp mx-auto w-full max-w-2xl">
-      <Hjalte handelse={hjalte} vaxter={vaxter} platser={platser} />
+    <div className="tona-upp mx-auto w-full max-w-2xl px-5 py-5 md:px-8 md:py-8">
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <Adresskylt />
+        <span className="mono text-xs text-dis-svag">
+          {new Intl.DateTimeFormat('sv-SE', { day: 'numeric', month: 'long' }).format(new Date())}
+        </span>
+      </div>
 
-      <div className="flex flex-col gap-8 px-5 pt-6 pb-10 md:px-8">
-        <p className="flex flex-wrap items-baseline gap-x-1.5 text-sm text-dis">
-          <span className="mono text-ljus">{antalVaxter(vaxter.length)}</span>
-          <span>på</span>
-          <span className="mono text-ljus">{antalPlatser(platser.length)}</span>
-        </p>
+      <dl className="mb-6 grid grid-cols-3 gap-3">
+        <Nyckeltal etikett="Växter" varde={vaxter.length} till="/vaxter" />
+        <Nyckeltal etikett="Platser" varde={platser.length} />
+        <Nyckeltal etikett="Denna vecka" varde={veckan.length} till="/logg" />
+      </dl>
+
+      <div className="mb-8 flex flex-wrap gap-2">
+        <Knapp variant="primar" onClick={() => oppna()}>
+          Fota en växt
+        </Knapp>
+        {ritningar.length > 0 && <LankKnapp to="/ritning">Öppna ritningen</LankKnapp>}
+      </div>
+
+      <div className="flex flex-col gap-8">
+        {senaste && <SenasteBilden handelse={senaste} />}
 
         <Avsnitt
           rubrik="Den här veckan"
           tom={veckan.length === 0 ? 'Inget loggat den här veckan.' : undefined}
         >
-          {/* Små bilder: hjältebilden bär redan det visuella, och veckan
-              ska gå att skumma utan att scrolla förbi fem helbilder. */}
           <Tidslinje
             handelser={veckan.slice(0, 6)}
             vaxter={vaxter}
@@ -81,7 +98,7 @@ export function HemView() {
         </Avsnitt>
 
         {planerade.length > 0 && (
-          <Avsnitt rubrik="Planerat">
+          <Avsnitt rubrik="Planerat" underrubrik="Ritat men inte planterat än.">
             <ul className="flex flex-col gap-1">
               {planerade.map((rad) => (
                 <li key={rad.id}>
@@ -100,24 +117,48 @@ export function HemView() {
           </Avsnitt>
         )}
 
-        {glomda.length > 0 && (
-          <Avsnitt rubrik="Inte fotad på länge">
+        {hemlosa.length > 0 && (
+          <Avsnitt
+            rubrik="Utan plats"
+            underrubrik="Appen vet inte var de står. Öppna kortet och välj plats."
+          >
+            <VaxtRutor vaxter={hemlosa.slice(0, 6)} fotoAvVaxt={fotoAvVaxt} />
+          </Avsnitt>
+        )}
+
+        {aldrigFotade.length > 0 && (
+          <Avsnitt
+            rubrik="Väntar på sin första bild"
+            underrubrik="Utan bild går det inte att följa dem över säsongen."
+          >
+            <VaxtRutor vaxter={aldrigFotade.slice(0, 6)} fotoAvVaxt={fotoAvVaxt} />
+          </Avsnitt>
+        )}
+
+        {langeSedan.length > 0 && (
+          <Avsnitt
+            rubrik="Dags att fota igen"
+            underrubrik={`Inte fotade på ${DAGAR_TILL_UPPFOLJNING} dagar. En bild nu ger jämförelsen mot i våras.`}
+          >
             <ul className="grid grid-cols-3 gap-3">
-              {glomda.map(({ vaxt, dagarSedan }) => (
-                <li key={vaxt.id}>
-                  <Link to={`/vaxter/${vaxt.id}`} className="flex flex-col gap-1.5">
-                    <FotoBild
-                      fotoRef={fotoAvVaxt.get(vaxt.id)}
-                      alt={vaxt.namn}
-                      className="aspect-square w-full rounded-lg"
-                    />
-                    <span className="truncate text-xs text-ljus">{vaxt.namn}</span>
-                    <span className="mono text-[10px] text-dis-svag">
-                      {dagarSedan === undefined ? 'aldrig fotad' : formatSedan(dagarSedan)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
+              {langeSedan.map(({ vaxt }) => {
+                const senasteBild = handelser.find((h) => h.vaxtId === vaxt.id && h.fotoRef)
+                return (
+                  <li key={vaxt.id}>
+                    <Link to={`/vaxter/${vaxt.id}`} className="flex flex-col gap-1.5">
+                      <FotoBild
+                        fotoRef={fotoAvVaxt.get(vaxt.id)}
+                        alt={vaxt.namn}
+                        className="aspect-square w-full rounded-lg"
+                      />
+                      <span className="truncate text-xs text-ljus">{vaxt.namn}</span>
+                      <span className="mono text-[10px] text-dis-svag">
+                        {senasteBild ? formatDatumKort(new Date(senasteBild.datum)) : '—'}
+                      </span>
+                    </Link>
+                  </li>
+                )
+              })}
             </ul>
           </Avsnitt>
         )}
@@ -134,67 +175,95 @@ export function HemView() {
   )
 }
 
+function Nyckeltal({ etikett, varde, till }: { etikett: string; varde: number; till?: string }) {
+  const innehall = (
+    <>
+      <dt className="text-xs text-dis-svag">{etikett}</dt>
+      <dd className="mono mt-1 text-2xl text-ljus">{varde}</dd>
+    </>
+  )
+  return till ? (
+    <Link
+      to={till}
+      className="rounded-xl border border-linje bg-panel px-3 py-3 transition-colors duration-200 ease-[var(--ease-mjuk)] hover:bg-upphojd"
+    >
+      {innehall}
+    </Link>
+  ) : (
+    <div className="rounded-xl border border-linje bg-panel px-3 py-3">{innehall}</div>
+  )
+}
+
+function VaxtRutor({ vaxter, fotoAvVaxt }: { vaxter: Vaxt[]; fotoAvVaxt: Map<string, string> }) {
+  return (
+    <ul className="grid grid-cols-3 gap-3">
+      {vaxter.map((v) => (
+        <li key={v.id}>
+          <Link to={`/vaxter/${v.id}`} className="flex flex-col gap-1.5">
+            <FotoBild
+              fotoRef={fotoAvVaxt.get(v.id)}
+              alt={v.namn}
+              className="aspect-square w-full rounded-lg"
+            />
+            <span className="truncate text-xs text-ljus">{v.namn}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function Avsnitt({
   rubrik,
+  underrubrik,
   tom,
   children,
 }: {
   rubrik: string
+  underrubrik?: string
   tom?: string
-  children: React.ReactNode
+  children: ReactNode
 }) {
   return (
     <section>
-      <h2 className="mb-1 text-xs font-medium tracking-[0.08em] text-dis-svag uppercase">
-        {rubrik}
-      </h2>
-      {tom ? <p className="py-3 text-sm text-dis">{tom}</p> : children}
+      <h2 className="text-xs font-medium tracking-[0.08em] text-dis-svag uppercase">{rubrik}</h2>
+      {underrubrik && <p className="mt-1 text-xs text-dis">{underrubrik}</p>}
+      {tom ? <p className="py-3 text-sm text-dis">{tom}</p> : <div className="mt-2">{children}</div>}
     </section>
   )
 }
 
-/** Hjältebilden: senaste händelsen med foto. Saknas den blir kylten hjälten. */
-function Hjalte({
-  handelse,
-  vaxter,
-  platser,
-}: {
-  handelse: Handelse | undefined
-  vaxter: Vaxt[]
-  platser: Plats[]
-}) {
-  if (!handelse) {
-    return (
-      <div className="flex aspect-[4/3] max-h-72 w-full flex-col items-center justify-center gap-4 border-b border-linje bg-panel">
-        <Adresskylt stor />
-        <p className="max-w-xs px-6 text-center text-sm/6 text-dis">
-          Ingen bild än. Nästa foto du tar hamnar här.
-        </p>
-      </div>
-    )
-  }
-
+/** Senaste bilden som ett kort — inte som en helskärmshjälte. */
+function SenasteBilden({ handelse }: { handelse: Handelse }) {
+  const { vaxter, platser } = useData()
   const vaxt = vaxter.find((v) => v.id === handelse.vaxtId)
   const plats = platser.find((p) => p.id === handelse.platsId)
   const till = vaxt ? `/vaxter/${vaxt.id}` : plats ? `/platser/${plats.id}` : '/logg'
 
   return (
-    <Link to={till} className="relative block">
-      <FotoBild
-        fotoRef={handelse.fotoRef}
-        alt={vaxt?.namn ?? plats?.namn ?? 'Senaste bilden'}
-        className="aspect-[4/3] max-h-[26rem] w-full"
-      />
-      {/* Läsbarhet utan glasmorfism: en enkel mörk platta i botten. */}
-      <div className="absolute inset-x-0 bottom-0 bg-botten/80 px-5 py-3 md:px-8">
-        <p className="font-display text-lg font-semibold text-ljus">
-          {vaxt?.namn ?? plats?.namn ?? 'Senaste bilden'}
-        </p>
-        <p className="mono text-xs text-dis">{formatDatum(new Date(handelse.datum))}</p>
-      </div>
-      <div className="absolute top-3 left-3 md:left-8">
-        <Adresskylt />
-      </div>
-    </Link>
+    <section>
+      <h2 className="mb-2 text-xs font-medium tracking-[0.08em] text-dis-svag uppercase">
+        Senast i trädgården
+      </h2>
+      <Link
+        to={till}
+        className="flex items-center gap-4 rounded-xl border border-linje bg-panel p-3 transition-colors duration-200 ease-[var(--ease-mjuk)] hover:bg-upphojd"
+      >
+        <FotoBild
+          fotoRef={handelse.fotoRef}
+          alt={vaxt?.namn ?? plats?.namn ?? 'Senaste bilden'}
+          className="size-20 shrink-0 rounded-lg"
+        />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-display text-base font-semibold text-ljus">
+            {vaxt?.namn ?? plats?.namn ?? 'Senaste bilden'}
+          </span>
+          <span className="mono block text-xs text-dis">
+            {formatDatum(new Date(handelse.datum))}
+          </span>
+        </span>
+        <PilIkon width={16} height={16} className="shrink-0 text-dis-svag" />
+      </Link>
+    </section>
   )
 }

@@ -51,7 +51,9 @@ export function LoggView() {
     <div className="tona-upp mx-auto w-full max-w-2xl px-5 py-5 md:px-8 md:py-8">
       <VyHuvud titel="Logg" />
 
-      <div className="dolj-scroll -mx-5 mb-2 flex gap-2 overflow-x-auto px-5 md:-mx-8 md:px-8">
+      {/* Radbryt hellre än scrolla: med dold scrollbar såg det bara ut som
+          att sista filtret var avklippt. */}
+      <div className="mb-2 flex flex-wrap gap-2">
         <Chip vald={!mal} onClick={() => setMal(undefined)}>
           Allt
         </Chip>
@@ -65,7 +67,7 @@ export function LoggView() {
         </Chip>
       </div>
 
-      <div className="dolj-scroll -mx-5 mb-4 flex gap-2 overflow-x-auto px-5 md:-mx-8 md:px-8">
+      <div className="mb-4 flex flex-wrap gap-2">
         <Chip vald={!typ} onClick={() => setTyp(undefined)}>
           Alla slag
         </Chip>

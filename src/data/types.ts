@@ -21,13 +21,31 @@ export type PlatsTyp =
   | 'staket'
   | 'annat'
 
-export const PLATSTYPER: readonly PlatsTyp[] = [
+/** Allt som får finnas i databasen — inklusive äldre värden. */
+export const ALLA_PLATSTYPER: readonly PlatsTyp[] = [
   'rabatt',
   'gräsmatta',
   'pallkrage',
   'altan',
   'bod',
   'häck',
+  'träd',
+  'staket',
+  'annat',
+]
+
+/**
+ * Det som erbjuds i ritläget. 'häck' ligger kvar som giltigt värde så att
+ * befintliga former inte tappar sin stil, men föreslås inte längre. Behövs
+ * något som inte finns här väljer man 'annat' och skriver ett eget namn
+ * (`egenTyp`).
+ */
+export const PLATSTYPER: readonly PlatsTyp[] = [
+  'rabatt',
+  'gräsmatta',
+  'pallkrage',
+  'altan',
+  'bod',
   'träd',
   'staket',
   'annat',
@@ -67,6 +85,8 @@ export interface Plats {
   tradgardId: string
   namn: string
   typ: PlatsTyp
+  /** Eget namn på typen när 'annat' inte räcker: "Stenparti", "Kompost". */
+  egenTyp?: string
   /** Saknas för platser utan form, t.ex. "Köksfönstret". */
   geometri?: Geometri
   sol?: Sol

@@ -658,6 +658,7 @@ function PlatsPanel({
   const uid = useUid()
   const { vaxter, handelser } = useData()
   const [namn, setNamn] = useState(plats.namn)
+  const [skriverEgenTyp, setSkriverEgenTyp] = useState(false)
   const [anteckning, setAnteckning] = useState(plats.anteckning ?? '')
   const rekt = omslutandeRektangel(plats.geometri?.punkter ?? [])
   const [bredd, setBredd] = useState(mattText(rekt.bredd))
@@ -680,6 +681,13 @@ function PlatsPanel({
         repo.uppdateraPlats(uid, plats.id, fore)
       })()
     })
+  }
+
+  function sparaEgenTyp(varde: string) {
+    setSkriverEgenTyp(false)
+    const eget = varde.trim()
+    if ((plats.egenTyp ?? '') === eget) return
+    uppdatera({ egenTyp: eget || undefined }, 'den egna typen', { egenTyp: plats.egenTyp })
   }
 
   function sparaMatt() {
@@ -721,13 +729,45 @@ function PlatsPanel({
           {PLATSTYPER.map((typ) => (
             <Chip
               key={typ}
-              vald={typ === plats.typ}
-              onClick={() => uppdatera({ typ }, 'typbytet', { typ: plats.typ })}
+              vald={typ === plats.typ && !plats.egenTyp}
+              onClick={() =>
+                uppdatera({ typ, egenTyp: undefined }, 'typbytet', {
+                  typ: plats.typ,
+                  egenTyp: plats.egenTyp,
+                })
+              }
             >
               {platstypEtikett(typ)}
             </Chip>
           ))}
+          {/* Allt får inte plats i en fast lista — stenparti, kompost, damm. */}
+          <Chip vald={!!plats.egenTyp} onClick={() => setSkriverEgenTyp(true)}>
+            {plats.egenTyp ? plats.egenTyp : 'Egen…'}
+          </Chip>
         </div>
+        {skriverEgenTyp && (
+          <div className="mt-1 flex gap-2">
+            <input
+              type="text"
+              autoFocus
+              defaultValue={plats.egenTyp ?? ''}
+              placeholder="Stenparti"
+              aria-label="Egen typ"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') sparaEgenTyp((e.target as HTMLInputElement).value)
+                if (e.key === 'Escape') setSkriverEgenTyp(false)
+              }}
+              onBlur={(e) => sparaEgenTyp(e.target.value)}
+              className={inmatningsStil}
+            />
+          </div>
+        )}
+        {plats.egenTyp && (
+          <p className="text-xs text-dis-svag">
+            Ritas som {platstypEtikett(plats.typ).toLowerCase()}. Byt standardtyp ovan för att
+            ändra utseendet.
+          </p>
+        )}
       </div>
 
       {/* Kurvor: trädgården har sällan bara raka kanter. */}

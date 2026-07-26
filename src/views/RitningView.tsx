@@ -23,7 +23,7 @@ import { VaxtPrickLager } from '../components/ritning/VaxtPrickLager'
 import { useData } from '../data/DataProvider'
 import { usePlacera } from '../data/PlaceraProvider'
 import type { Plats, Tradgard } from '../data/types'
-import { antalVaxter, platstypEtikett } from '../lib/etiketter'
+import { antalVaxter, platsEtikett } from '../lib/etiketter'
 import { tolkaMeter } from '../lib/format'
 import { handelserForVaxt, senasteFotoPerVaxt } from '../lib/handelser'
 import { avstand, snappaPunkt } from '../lib/geometri'
@@ -550,7 +550,7 @@ function LevandeRitning({ tradgard }: { tradgard: Tradgard }) {
         oppen={valdPlats !== undefined}
         onOppenChange={(o) => !o && setVal(undefined)}
         titel={valdPlats?.namn ?? ''}
-        beskrivning={valdPlats ? platstypEtikett(valdPlats.typ) : undefined}
+        beskrivning={valdPlats ? platsEtikett(valdPlats) : undefined}
       >
         {valdPlats && (
           <div className="flex flex-col gap-5">

@@ -129,6 +129,45 @@ Det betyder att allt annat fungerar som förut: mått, snap till 0,1 m,
 dragning av hörn. Kurvan är en presentation av punkterna, inte en egen
 datamodell.
 
+### Hem blev en instrumentbräda
+
+Första versionen öppnade med en helskärmsbild från senaste händelsen. När den
+var tom stod det "Ingen bild än" — och hela vyn lästes som en uppmaning att
+ladda upp ett foto. Fel budskap: appen ska svara på *vad har jag och vad hände
+senast*.
+
+Nu: nyckeltal överst (växter, platser, veckans händelser — klickbara),
+snabbåtgärd, och sedan sektioner som var och en **säger varför de finns**.
+"Senast i trädgården" är ett kort, inte en hjälte.
+
+**"Inte fotad på länge" var för vagt** och delades i två med tydliga rubriker:
+*Väntar på sin första bild* (aldrig fotade — utan bild går det inte att följa
+dem över säsongen) och *Dags att fota igen* (inte fotade på 60 dagar, med
+datumet utskrivet). Och *Utan plats*, som faktiskt går att åtgärda.
+
+### Inloggningen får inte skvallra om adressen
+
+Inloggningsskärmen är den enda sidan en främling kan nå. Den visade
+adresskylten och "Trädgårdsjournalen för Ripvägen 11". Nu ett neutralt märke,
+"Trädgårdsjournal", och fliktiteln byts medan man är utloggad. Adresskylten hör
+hemma innanför inloggningen. Ett komponenttest vaktar att adressen inte smyger
+tillbaka.
+
+### Två småsaker som gjorde stor skillnad
+
+- **Loggens filter radbryter i stället för att scrolla.** Med dold scrollbar
+  såg ett avklippt sista filter bara ut som en bugg.
+- **Kameran öppnas automatiskt bara där det finns en kamera.** På dator slängde
+  appen upp en filbläddrare innan man ens sett formuläret. Nu gissas enheten på
+  `(pointer: coarse)`; på telefon går det rakt in i kameran som förut.
+
+### Typlistan får inte vara en tvångströja
+
+`häck` erbjuds inte längre (men är kvar som giltigt värde så gamla former
+behåller sin stil). I stället finns **Egen…** — ett eget namn på typen
+(`egenTyp`) för stenparti, kompost, damm. Ritstilen kommer fortfarande från en
+standardtyp, så hatchning och linjevikt fungerar som vanligt.
+
 ### Metadata utan formulär
 
 Ifyllda fält visas som rader, tomma erbjuds som chips (`+ Sol  + Jord  + Antal`).

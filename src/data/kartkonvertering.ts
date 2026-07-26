@@ -1,4 +1,4 @@
-import { PLATSTYPER, type Geometri, type PlatsTyp, type PunktM } from './types'
+import { ALLA_PLATSTYPER, type Geometri, type PlatsTyp, type PunktM } from './types'
 
 /**
  * Firestore stödjer inte nästlade arrayer, så polygonpunkter lagras som
@@ -42,5 +42,5 @@ export function franLagradGeometri(data: unknown): Geometri | undefined {
  * renderingen — falla tillbaka på 'annat'.
  */
 export function tolkaPlatsTyp(varde: unknown): PlatsTyp {
-  return PLATSTYPER.includes(varde as PlatsTyp) ? (varde as PlatsTyp) : 'annat'
+  return ALLA_PLATSTYPER.includes(varde as PlatsTyp) ? (varde as PlatsTyp) : 'annat'
 }
