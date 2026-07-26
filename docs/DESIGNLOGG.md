@@ -22,3 +22,18 @@ Designbeslut + vad som provats och förkastats.
 - **Tomma vyer:** inbjudande text utan döda knappar (knappar kommer med
   funktionen i Fas 1–2).
 - **Fokus:** `:focus-visible` med 2 px fermob-kontur globalt.
+
+## Fas 1
+
+- **Kort:** listrader för ytor/växter på `bg-tra/20` med `border-tra` — den
+  varma trallkänslan utan att dränka sidan. Växtrader har 56 px fototumnagel
+  med lövikon på `bg-tra/30` som platshållare.
+- **Fermob-budget per vy:** max en primärknapp ("Ny yta"/"Spara") + ev.
+  borttagningsflöde. Sollägesväljaren använder mörk panel som vald-markering,
+  inte fermob.
+- **Borttagning:** tvåstegsknapp ("Ta bort" → "Tryck igen för att ta bort",
+  avarmerar efter 4 s) i stället för modal — färre lager, självförklarande.
+- **Formulär:** etikett över fält, vita fält med panel-kant, placeholders med
+  vardagsexempel ("Rabatten vid staketet"). Autofokus på namnfältet.
+- **Yta-skydd:** en yta med växter visar en förklaring i stället för en
+  inaktiverad knapp — hellre säga varför än gråa ut.

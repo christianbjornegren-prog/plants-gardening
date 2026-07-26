@@ -14,9 +14,19 @@
 | Område | Test | Typ |
 |---|---|---|
 | Formatering | `formatMeter` (decimalkomma, avrundning), `formatDatum` (i dag/i går/år) | enhet |
+| Bildkomprimering | `beraknaMalstorlek` (skalning, gränser, aldrig 0 px) | enhet |
+| Firestore-payload | `utanUndefined` (tar bort undefined, behåller falsy) | enhet |
 | Adresskylt | renderar adressen | komponent |
 | Layout | fyra menyposter, renderar vyinnehåll | komponent |
+| TaBortKnapp | kräver två tryck, avarmerar efter timeout | komponent |
 | Skal | adresskylt på startvyn, navigering mellan alla vyer, svensk titel, inga konsolfel | e2e (desktop + mobil) |
+| Ytor | skapa med solläge/jordmån, visas i lista med växtantal | e2e |
+| Offline | data kvar efter omladdning (Firestore-cache) | e2e |
+| Växter | skapa i yta, visas i listor, ändra namn/anteckning | e2e |
+| Flytt | byte av yta skapar flytthistorik | e2e |
+| Foto | uppladdning → komprimering → visas som blob-URL | e2e |
+| Borttagning | växt (två tryck), yta blockeras med växter, tom yta kan tas bort | e2e |
+| Tomtillstånd | växtformulär utan ytor leder till "skapa yta" | e2e |
 
 ## Kända luckor
 
