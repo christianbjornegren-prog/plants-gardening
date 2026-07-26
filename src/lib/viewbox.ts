@@ -8,23 +8,65 @@ export interface ViewBox {
   h: number
 }
 
-/** Hela tomten med marginal, anpassad till behållarens proportioner. */
+export interface Rutan {
+  x: number
+  y: number
+  bredd: number
+  hojd: number
+}
+
+/**
+ * Minsta yta en öppning zoomar in till. Utan golv skulle en enda liten rabatt
+ * fylla hela skärmen och tappa allt sammanhang.
+ */
+const MINSTA_VY_M = 6
+
+/**
+ * Vad ritningen ska visa när den öppnas: innehållet, inte tomten.
+ *
+ * Är tomten ritad men innehållet litet låg förut en liten teckning mitt i en
+ * stor tom yta. Ligger inget ritat ännu visas hela tomten.
+ */
+export function innehallsRuta(
+  breddM: number,
+  hojdM: number,
+  innehall: Rutan | undefined,
+): Rutan {
+  const hela: Rutan = { x: 0, y: 0, bredd: breddM, hojd: hojdM }
+  if (!innehall || innehall.bredd <= 0 || innehall.hojd <= 0) return hela
+
+  const bredd = Math.max(innehall.bredd, MINSTA_VY_M)
+  const hojd = Math.max(innehall.hojd, MINSTA_VY_M)
+  const cx = innehall.x + innehall.bredd / 2
+  const cy = innehall.y + innehall.hojd / 2
+  // Aldrig större än tomten — då är hela tomten det rimliga.
+  if (bredd >= breddM && hojd >= hojdM) return hela
+  return { x: cx - bredd / 2, y: cy - hojd / 2, bredd, hojd }
+}
+
+/** Ytan med marginal, anpassad till behållarens proportioner. */
 export function anpassaViewBox(
   breddM: number,
   hojdM: number,
   behallareBredd: number,
   behallareHojd: number,
   marginalM = 0.8,
+  ruta: Rutan = { x: 0, y: 0, bredd: breddM, hojd: hojdM },
 ): ViewBox {
-  const innehallB = breddM + marginalM * 2
-  const innehallH = hojdM + marginalM * 2
+  const innehallB = ruta.bredd + marginalM * 2
+  const innehallH = ruta.hojd + marginalM * 2
   const skala = Math.max(
     innehallB / Math.max(behallareBredd, 1),
     innehallH / Math.max(behallareHojd, 1),
   )
   const w = skala * Math.max(behallareBredd, 1)
   const h = skala * Math.max(behallareHojd, 1)
-  return { x: breddM / 2 - w / 2, y: hojdM / 2 - h / 2, w, h }
+  return {
+    x: ruta.x + ruta.bredd / 2 - w / 2,
+    y: ruta.y + ruta.hojd / 2 - h / 2,
+    w,
+    h,
+  }
 }
 
 /** Zoomar med faktor (>1 = zooma ut) kring ett fokus i meter. */

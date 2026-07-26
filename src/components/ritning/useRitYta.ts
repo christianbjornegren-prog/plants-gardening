@@ -3,8 +3,10 @@ import type { PunktM } from '../../data/types'
 import {
   anpassaViewBox,
   begransaViewBox,
+  innehallsRuta,
   panoreraViewBox,
   zoomaViewBox,
+  type Rutan,
   type ViewBox,
 } from '../../lib/viewbox'
 
@@ -12,7 +14,7 @@ import {
  * Behållarmätning + viewBox-tillstånd + konvertering skärm↔meter.
  * Delas av läsläget och ritläget.
  */
-export function useRitYta(breddM: number, hojdM: number) {
+export function useRitYta(breddM: number, hojdM: number, innehall?: Rutan) {
   const behallareRef = useRef<HTMLDivElement>(null)
   const [storlek, setStorlek] = useState<{ b: number; h: number }>()
   const [vb, setVb] = useState<ViewBox>()
@@ -30,10 +32,16 @@ export function useRitYta(breddM: number, hojdM: number) {
     return () => observer.disconnect()
   }, [])
 
-  // Passa in hela tomten när storleken är känd eller tomtens mått ändras.
+  /**
+   * Zooma till INNEHÅLLET första gången ytan mäts. Bara första gången — annars
+   * skulle vyn hoppa tillbaka varje gång man ritar eller flyttar något.
+   */
+  const innehallRef = useRef(innehall)
+  innehallRef.current = innehall
   useEffect(() => {
     if (!storlek) return
-    setVb(anpassaViewBox(breddM, hojdM, storlek.b, storlek.h))
+    const ruta = innehallsRuta(breddM, hojdM, innehallRef.current)
+    setVb(anpassaViewBox(breddM, hojdM, storlek.b, storlek.h, 0.8, ruta))
   }, [storlek, breddM, hojdM])
 
   const mpp = vb && storlek ? vb.w / storlek.b : 0.02
@@ -47,6 +55,20 @@ export function useRitYta(breddM: number, hojdM: number) {
         vb.x + ((clientX - rekt.left) / rekt.width) * vb.w,
         vb.y + ((clientY - rekt.top) / rekt.height) * vb.h,
       ]
+    },
+    [vb],
+  )
+
+  /** Meter → skärmkoordinater. Behövs för knappar som ska ligga vid ett hörn. */
+  const tillSkarm = useCallback(
+    (punkt: PunktM): { x: number; y: number } | undefined => {
+      const el = behallareRef.current
+      if (!el || !vb) return undefined
+      const rekt = el.getBoundingClientRect()
+      return {
+        x: rekt.left + ((punkt[0] - vb.x) / vb.w) * rekt.width,
+        y: rekt.top + ((punkt[1] - vb.y) / vb.h) * rekt.height,
+      }
     },
     [vb],
   )
@@ -84,5 +106,5 @@ export function useRitYta(breddM: number, hojdM: number) {
     return () => el.removeEventListener('wheel', vidHjul)
   }, [zoomaVid, tillMeter])
 
-  return { behallareRef, vb, mpp, tillMeter, panoreraPx, zoomaVid }
+  return { behallareRef, vb, mpp, tillMeter, tillSkarm, panoreraPx, zoomaVid }
 }

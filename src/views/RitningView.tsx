@@ -5,7 +5,7 @@ import {
   type FormEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useDataRot } from '../auth/AuthProvider'
 import { Adresskylt } from '../components/Adresskylt'
 import { FotoBild } from '../components/FotoBild'
@@ -27,7 +27,7 @@ import type { Plats, Tradgard } from '../data/types'
 import { antalVaxter, platsEtikett } from '../lib/etiketter'
 import { formatArea, tolkaMeter } from '../lib/format'
 import { handelserForVaxt, senasteFotoPerVaxt } from '../lib/handelser'
-import { area, avstand, snappaPunkt } from '../lib/geometri'
+import { area, avstand, omslutandeRektangel, snappaPunkt } from '../lib/geometri'
 import { formTillPolygon } from '../lib/form'
 import { beraknaPrickar, platsVidPunkt } from '../lib/vaxtplacering'
 import { viewBoxAttribut } from '../lib/viewbox'
@@ -40,6 +40,7 @@ export function RitningView() {
   const [valdId, setValdId] = useState<string>()
   const [visaNy, setVisaNy] = useState(false)
   const [jamforId, setJamforId] = useState<string>()
+  const [visaJamfor, setVisaJamfor] = useState(false)
 
   if (!laddad) return null
   if (tradgardar.length === 0) return null
@@ -64,36 +65,60 @@ export function RitningView() {
             {t.namn}
           </Chip>
         ))}
-        {/* Flera ritningar över samma tomt: "Baksidan" som den ser ut nu,
-            "Baksidan kommande" som den ska bli. */}
-        <Chip onClick={() => setVisaNy(true)}>+ Ny ritning</Chip>
-        {/* Egen wrapper: knappens egen `inline-flex` vinner annars över `hidden`,
+        {/* Chipsen är ritningar man byter mellan. "Ny ritning" är något annat
+            och låg i samma rad som om det vore en till ritning — nu ligger den
+            med de andra verktygen till höger.
+            Egen wrapper: knappens egen `inline-flex` vinner annars över `hidden`,
             och Redigera dyker upp i mobilen där ritläget inte hör hemma. */}
-        {vald.widthM !== undefined && (
-          <div className="ml-auto hidden shrink-0 lg:block">
-            <LankKnapp to={`/ritning/rita?tradgard=${vald.id}`} className="min-h-9">
-              Redigera
-            </LankKnapp>
-          </div>
-        )}
+        <div className="ml-auto flex shrink-0 items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setVisaNy(true)}
+            className="text-xs text-dis hover:text-tusch"
+          >
+            + Ny ritning
+          </button>
+          {vald.widthM !== undefined && (
+            <div className="hidden lg:block">
+              <LankKnapp to={`/ritning/rita?tradgard=${vald.id}`} className="min-h-9">
+                Redigera
+              </LankKnapp>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Jämför: lägg en annan ritning som spöke under den aktuella. */}
+      {/* Jämför: lägg en annan ritning som spöke under den aktuella. Fälls ut
+          vid behov — den låg som en permanent rad och stal höjd från kartan
+          varje gång man öppnade appen. */}
       {vald.widthM !== undefined && jamforbara.length > 0 && (
-        <div className="dolj-scroll flex items-center gap-2 border-b border-linje px-4 py-2">
-          <span className="shrink-0 text-xs text-dis-svag">Jämför med</span>
-          <Chip vald={!jamforId} onClick={() => setJamforId(undefined)}>
-            Ingen
-          </Chip>
-          {jamforbara.map((t) => (
-            <Chip
-              key={t.id}
-              vald={jamforId === t.id}
-              onClick={() => setJamforId(jamforId === t.id ? undefined : t.id)}
-            >
-              {t.namn}
-            </Chip>
-          ))}
+        <div className="flex flex-col gap-2 border-b border-linje px-4 py-2">
+          <button
+            type="button"
+            onClick={() => setVisaJamfor((n) => !n)}
+            aria-expanded={visaJamfor}
+            className="self-start text-xs text-dis hover:text-tusch"
+          >
+            {jamforId
+              ? `Jämför med ${jamforbara.find((t) => t.id === jamforId)?.namn ?? ''}`
+              : 'Jämför med en annan ritning'}
+          </button>
+          {visaJamfor && (
+            <div className="dolj-scroll flex items-center gap-2">
+              <Chip vald={!jamforId} onClick={() => setJamforId(undefined)}>
+                Ingen
+              </Chip>
+              {jamforbara.map((t) => (
+                <Chip
+                  key={t.id}
+                  vald={jamforId === t.id}
+                  onClick={() => setJamforId(jamforId === t.id ? undefined : t.id)}
+                >
+                  {t.namn}
+                </Chip>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -222,6 +247,7 @@ function NyRitningArk({
 /** Inomhus har ingen ritning — och det är avsiktligt, inte en lucka. */
 function UtanRitning({ tradgard }: { tradgard: Tradgard }) {
   const uid = useDataRot()
+  const navigera = useNavigate()
   const { platser, vaxter } = useData()
   const [visaMatt, setVisaMatt] = useState(false)
   const [bredd, setBredd] = useState('')
@@ -242,6 +268,11 @@ function UtanRitning({ tradgard }: { tradgard: Tradgard }) {
       const repo = await import('../data/repo')
       repo.sparaTradgardMatt(uid, tradgard.id, breddM, djupM)
     })()
+    // Måtten är inte målet — ritningen är. Gå direkt in i ritläget på dator,
+    // annars blev nästa steg ett tomt rutnät och en knapp man skulle hitta.
+    if (window.matchMedia('(min-width: 1024px)').matches) {
+      navigera(`/ritning/rita?tradgard=${tradgard.id}`)
+    }
   }
 
   return (
@@ -332,9 +363,21 @@ function LevandeRitning({
   const { platser, vaxter, handelser } = useData()
   const uid = useDataRot()
   const placera = usePlacera()
+  const iTradgarden = platser.filter((p) => p.tradgardId === tradgard.id)
+  // Öppna zoomad till det som faktiskt är ritat. En tomt på 20×20 m med en
+  // rabatt i ena hörnet öppnade förut som en nästan tom yta. Fångas en gång —
+  // annars hoppar vyn varje gång något ändras.
+  const innehall = useRef(
+    omslutandeRektangel(
+      iTradgarden.flatMap((p) =>
+        p.geometri ? formTillPolygon(p.geometri.punkter, p.geometri.runda) : [],
+      ),
+    ),
+  ).current
   const { behallareRef, vb, mpp, tillMeter, panoreraPx, zoomaVid } = useRitYta(
     tradgard.widthM ?? 0,
     tradgard.heightM ?? 0,
+    innehall.bredd > 0 ? innehall : undefined,
   )
 
   const [animera, setAnimera] = useState(() => !startanimationVisad)
@@ -353,7 +396,6 @@ function LevandeRitning({
   const gestRef = useRef<Gest | null>(null)
   const pekareRef = useRef(new Map<number, { x: number; y: number }>())
 
-  const iTradgarden = platser.filter((p) => p.tradgardId === tradgard.id)
   const prickar = beraknaPrickar(vaxter, platser, tradgard.id)
   const fotoAvVaxt = senasteFotoPerVaxt(handelser)
 

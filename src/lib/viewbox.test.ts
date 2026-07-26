@@ -5,6 +5,7 @@ import {
   panoreraViewBox,
   viewBoxAttribut,
   zoomaViewBox,
+  innehallsRuta,
 } from './viewbox'
 
 describe('anpassaViewBox', () => {
@@ -60,5 +61,37 @@ describe('begransaViewBox', () => {
 describe('viewBoxAttribut', () => {
   it('formaterar för SVG', () => {
     expect(viewBoxAttribut({ x: 0, y: 1, w: 2, h: 3 })).toBe('0 1 2 3')
+  })
+})
+
+describe('innehallsRuta', () => {
+  it('visar hela tomten när inget är ritat', () => {
+    expect(innehallsRuta(16, 11, undefined)).toEqual({ x: 0, y: 0, bredd: 16, hojd: 11 })
+  })
+
+  it('zoomar till innehållet i stället för till tomten', () => {
+    const r = innehallsRuta(40, 40, { x: 10, y: 10, bredd: 8, hojd: 8 })
+    expect(r.bredd).toBe(8)
+    expect(r.x + r.bredd / 2).toBe(14)
+  })
+
+  it('har ett golv så en enda liten rabatt inte fyller skärmen', () => {
+    const r = innehallsRuta(40, 40, { x: 20, y: 20, bredd: 1, hojd: 1 })
+    expect(r.bredd).toBe(6)
+    expect(r.hojd).toBe(6)
+    // Fortfarande centrerad på innehållet.
+    expect(r.x + r.bredd / 2).toBeCloseTo(20.5, 6)
+  })
+
+  it('faller tillbaka på hela tomten när innehållet fyller den ändå', () => {
+    expect(innehallsRuta(16, 11, { x: 0, y: 0, bredd: 16, hojd: 11 })).toEqual({
+      x: 0, y: 0, bredd: 16, hojd: 11,
+    })
+  })
+
+  it('ignorerar degenererat innehåll', () => {
+    expect(innehallsRuta(16, 11, { x: 2, y: 2, bredd: 0, hojd: 0 })).toEqual({
+      x: 0, y: 0, bredd: 16, hojd: 11,
+    })
   })
 })
