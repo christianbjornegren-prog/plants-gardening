@@ -1,15 +1,14 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useUid } from '../auth/AuthProvider'
-import type { Area, GardenMap, LogEntry, Plant } from './types'
+import type { Handelse, Plats, Tradgard, Vaxt } from './types'
 
 export interface DataVarde {
-  ytor: Area[]
-  vaxter: Plant[]
+  tradgardar: Tradgard[]
+  platser: Plats[]
+  vaxter: Vaxt[]
   /** Sorterad med nyaste först. */
-  logg: LogEntry[]
-  /** null = ingen karta upplagd än. */
-  karta: GardenMap | null
-  /** false tills alla lyssnare gett sitt första svar — visa inget innan dess. */
+  handelser: Handelse[]
+  /** false tills migrering körts och alla lyssnare svarat — visa inget innan dess. */
   laddad: boolean
 }
 
@@ -17,30 +16,25 @@ const DataContext = createContext<DataVarde | undefined>(undefined)
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const uid = useUid()
-  const [ytor, setYtor] = useState<Area[]>()
-  const [vaxter, setVaxter] = useState<Plant[]>()
-  const [logg, setLogg] = useState<LogEntry[]>()
-  const [karta, setKarta] = useState<GardenMap | null>()
+  const [tradgardar, setTradgardar] = useState<Tradgard[]>()
+  const [platser, setPlatser] = useState<Plats[]>()
+  const [vaxter, setVaxter] = useState<Vaxt[]>()
+  const [handelser, setHandelser] = useState<Handelse[]>()
 
   useEffect(() => {
     let aktiv = true
     const stangare: (() => void)[] = []
     void (async () => {
       const repo = await import('./repo')
+      // Migreringen körs FÖRE lyssnarna så att vyerna aldrig ser ett halvt
+      // migrerat tillstånd (se docs/ARKITEKTUR.md).
+      await repo.sakerstallDatamodell(uid)
       if (!aktiv) return
       stangare.push(
-        repo.lyssnaPaYtor(uid, (nya) => {
-          if (aktiv) setYtor(nya)
-        }),
-        repo.lyssnaPaVaxter(uid, (nya) => {
-          if (aktiv) setVaxter(nya)
-        }),
-        repo.lyssnaPaLogg(uid, (nya) => {
-          if (aktiv) setLogg(nya)
-        }),
-        repo.lyssnaPaKarta(uid, (ny) => {
-          if (aktiv) setKarta(ny)
-        }),
+        repo.lyssnaPaTradgardar(uid, (nya) => aktiv && setTradgardar(nya)),
+        repo.lyssnaPaPlatser(uid, (nya) => aktiv && setPlatser(nya)),
+        repo.lyssnaPaVaxter(uid, (nya) => aktiv && setVaxter(nya)),
+        repo.lyssnaPaHandelser(uid, (nya) => aktiv && setHandelser(nya)),
       )
     })()
     return () => {
@@ -49,14 +43,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [uid])
 
-  const varde: DataVarde = {
-    ytor: ytor ?? [],
-    vaxter: vaxter ?? [],
-    logg: logg ?? [],
-    karta: karta ?? null,
-    laddad:
-      ytor !== undefined && vaxter !== undefined && logg !== undefined && karta !== undefined,
-  }
+  const varde = useMemo<DataVarde>(
+    () => ({
+      tradgardar: tradgardar ?? [],
+      platser: platser ?? [],
+      vaxter: vaxter ?? [],
+      handelser: handelser ?? [],
+      laddad:
+        tradgardar !== undefined &&
+        platser !== undefined &&
+        vaxter !== undefined &&
+        handelser !== undefined,
+    }),
+    [tradgardar, platser, vaxter, handelser],
+  )
+
   return <DataContext.Provider value={varde}>{children}</DataContext.Provider>
 }
 
@@ -66,6 +67,19 @@ export function useData(): DataVarde {
   return varde
 }
 
-export function ytaNamn(ytor: Area[], id: string): string {
-  return ytor.find((y) => y.id === id)?.name ?? 'Okänd yta'
+/* ------------------------------------------------------------- uppslagshjälp */
+
+export function platsNamn(platser: Plats[], id: string | undefined): string | undefined {
+  if (!id) return undefined
+  return platser.find((p) => p.id === id)?.namn
+}
+
+export function tradgardNamn(tradgardar: Tradgard[], id: string | undefined): string | undefined {
+  if (!id) return undefined
+  return tradgardar.find((t) => t.id === id)?.namn
+}
+
+/** Trädgårdar som har mått, och därmed en ritning. */
+export function medRitning(tradgardar: Tradgard[]): Tradgard[] {
+  return tradgardar.filter((t) => t.widthM !== undefined && t.heightM !== undefined)
 }

@@ -1,9 +1,16 @@
 /**
  * Datamodellen — se docs/DATAMODELL.md, som ska hållas i synk med denna fil.
- * Appen handlar om platser och individer, inte arter.
+ *
+ * Fyra begrepp: Trädgård → Plats → Växt → Händelse.
+ * Ordet "yta" finns inte. Det som ritas på ritningen och det som håller
+ * växter är SAMMA sak: en plats.
  */
 
-export type MapObjectType =
+/** En punkt i meter, origo i tomtens ena hörn. */
+export type PunktM = [number, number]
+
+/** Styr ritstil och namnförslag — ALDRIG vad som är tillåtet. */
+export type PlatsTyp =
   | 'bod'
   | 'altan'
   | 'rabatt'
@@ -14,67 +21,100 @@ export type MapObjectType =
   | 'staket'
   | 'annat'
 
-/** Kartobjektstyper som kan kopplas till en yta med växter. */
-export const VAXTBARA_TYPER: readonly MapObjectType[] = ['rabatt', 'pallkrage', 'gräsmatta', 'annat']
+export const PLATSTYPER: readonly PlatsTyp[] = [
+  'rabatt',
+  'gräsmatta',
+  'pallkrage',
+  'altan',
+  'bod',
+  'häck',
+  'träd',
+  'staket',
+  'annat',
+]
 
-/** En punkt i meter, origo i tomtens ena hörn. */
-export type PunktM = [number, number]
+/** Planerat ritas streckat och listas separat på Hem. */
+export type Status = 'finns' | 'planerad'
 
-export interface MapObject {
+export type Sol = 'sol' | 'halvskugga' | 'skugga'
+
+export type Vaderstreck = 'N' | 'NO' | 'O' | 'SO' | 'S' | 'SV' | 'V' | 'NV'
+
+export const VADERSTRECK: readonly Vaderstreck[] = ['N', 'NO', 'O', 'SO', 'S', 'SV', 'V', 'NV']
+
+/** users/{uid}/tradgardar/{id} — saknas mått finns ingen ritning. */
+export interface Tradgard {
   id: string
-  type: MapObjectType
-  name: string
-  points: PunktM[]
-  note?: string
+  namn: string
+  ordning: number
+  widthM?: number
+  heightM?: number
 }
 
-/** ETT dokument: users/{uid}/garden/map */
-export interface GardenMap {
-  widthM: number
-  heightM: number
-  objects: MapObject[]
+export interface Geometri {
+  punkter: PunktM[]
 }
 
-export type SunExposure = 'sol' | 'halvskugga' | 'skugga'
-
-/** users/{uid}/areas/{areaId} */
-export interface Area {
+/** users/{uid}/platser/{id} */
+export interface Plats {
   id: string
-  name: string
-  mapObjectId?: string
-  sunExposure?: SunExposure
-  soil?: string
-  note?: string
+  tradgardId: string
+  namn: string
+  typ: PlatsTyp
+  /** Saknas för platser utan form, t.ex. "Köksfönstret". */
+  geometri?: Geometri
+  sol?: Sol
+  jord?: string
+  /** Trädgårds-id. Bara meningsfull för platser utan geometri. */
+  vetterMot?: string
+  vaderstreck?: Vaderstreck
+  status: Status
+  anteckning?: string
 }
 
-/** Datum lagras som ISO-strängar (t.ex. "2026-07-26T14:02:00.000Z"). */
-export interface PlantMove {
-  fromAreaId: string
-  toAreaId: string
-  date: string
-}
-
-/** users/{uid}/plants/{plantId} */
-export interface Plant {
+/** users/{uid}/vaxter/{id} — allt utom namn är valfritt. */
+export interface Vaxt {
   id: string
-  name: string
-  areaId: string
-  /** Läge på kartan i meter, om växten är utplacerad. */
+  namn: string
+  /** Saknas = hemlös växt. Fullt giltigt tillstånd. */
+  platsId?: string
+  /** Läge på ritningen i meter. */
   position?: { x: number; y: number }
-  photoRefs: string[]
-  note?: string
-  moveHistory: PlantMove[]
+  status: Status
+  /** Fri text, hennes egna ord. Aldrig en artdatabas. */
+  sort?: string
+  /** Fri text: "2023", "maj 2023", "12 maj 2023". */
+  planterad?: string
+  antal?: number
+  sol?: Sol
+  jord?: string
+  anteckning?: string
 }
 
-export type LogType = 'vattnat' | 'gödslat' | 'beskuret' | 'planterat' | 'anteckning'
+export type HandelseTyp =
+  | 'foto'
+  | 'vattnat'
+  | 'gödslat'
+  | 'beskuret'
+  | 'planterat'
+  | 'flyttat'
+  | 'anteckning'
 
-/** users/{uid}/logEntries/{entryId} — minst en av plantId/areaId sätts. */
-export interface LogEntry {
+/**
+ * users/{uid}/handelser/{id} — ALL historik. Foton är händelser, flyttar är
+ * händelser. Datum lagras som ISO-sträng.
+ */
+export interface Handelse {
   id: string
-  plantId?: string
-  areaId?: string
-  type: LogType
-  date: string
-  note?: string
-  photoRef?: string
+  typ: HandelseTyp
+  datum: string
+  vaxtId?: string
+  platsId?: string
+  fotoRef?: string
+  anteckning?: string
+  /** Endast på 'flyttat'. */
+  franPlatsId?: string
+  tillPlatsId?: string
+  /** Migrerat foto vars exakta datum inte gick att återskapa. */
+  datumOkant?: boolean
 }

@@ -1,30 +1,42 @@
 import {
-  arrayUnion,
   collection,
   deleteDoc,
   deleteField,
   doc,
-  getDocsFromCache,
+  getDoc,
+  getDocs,
   onSnapshot,
   query,
   setDoc,
   updateDoc,
   where,
+  writeBatch,
   type DocumentData,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore'
 import { getDb } from '../lib/firebase'
 import { utanUndefined } from '../lib/rensa'
-import { franLagratObjekt, tillLagradKarta } from './kartkonvertering'
+import { franLagradGeometri, tillLagradGeometri, tolkaPlatsTyp } from './kartkonvertering'
+import {
+  grundTradgardar,
+  migreraV1TillV2,
+  MIGRERINGSVERSION,
+  type V1Area,
+  type V1Data,
+  type V1LogEntry,
+  type V1Plant,
+} from './migrering'
 import type {
-  Area,
-  GardenMap,
-  LogEntry,
-  LogType,
-  MapObject,
-  Plant,
-  PlantMove,
-  SunExposure,
+  Handelse,
+  HandelseTyp,
+  Plats,
+  PlatsTyp,
+  PunktM,
+  Sol,
+  Status,
+  Tradgard,
+  Vaderstreck,
+  Vaxt,
 } from './types'
 
 /**
@@ -42,185 +54,352 @@ function loggaFel(fel: unknown): void {
   console.error('Ripvägen 11: skrivning misslyckades', fel)
 }
 
-function ytaCol(uid: string) {
-  return collection(getDb(), 'users', uid, 'areas')
-}
+const tradgardCol = (uid: string) => collection(getDb(), 'users', uid, 'tradgardar')
+const platsCol = (uid: string) => collection(getDb(), 'users', uid, 'platser')
+const vaxtCol = (uid: string) => collection(getDb(), 'users', uid, 'vaxter')
+const handelseCol = (uid: string) => collection(getDb(), 'users', uid, 'handelser')
+const migreringDoc = (uid: string) => doc(getDb(), 'users', uid, 'meta', 'migrering')
 
-function vaxtCol(uid: string) {
-  return collection(getDb(), 'users', uid, 'plants')
-}
-
-function loggCol(uid: string) {
-  return collection(getDb(), 'users', uid, 'logEntries')
-}
-
-function kartaDoc(uid: string) {
-  return doc(getDb(), 'users', uid, 'garden', 'map')
-}
-
-function tillYta(snap: QueryDocumentSnapshot<DocumentData>): Area {
-  const data = snap.data()
-  return {
-    id: snap.id,
-    name: typeof data.name === 'string' ? data.name : '',
-    mapObjectId: data.mapObjectId as string | undefined,
-    sunExposure: data.sunExposure as SunExposure | undefined,
-    soil: data.soil as string | undefined,
-    note: data.note as string | undefined,
-  }
-}
-
-function tillVaxt(snap: QueryDocumentSnapshot<DocumentData>): Plant {
-  const data = snap.data()
-  return {
-    id: snap.id,
-    name: typeof data.name === 'string' ? data.name : '',
-    areaId: typeof data.areaId === 'string' ? data.areaId : '',
-    position: data.position as Plant['position'],
-    photoRefs: Array.isArray(data.photoRefs) ? (data.photoRefs as string[]) : [],
-    note: data.note as string | undefined,
-    moveHistory: Array.isArray(data.moveHistory) ? (data.moveHistory as PlantMove[]) : [],
-  }
-}
-
-export function lyssnaPaYtor(uid: string, mottagare: (ytor: Area[]) => void): () => void {
-  return onSnapshot(ytaCol(uid), (snap) => {
-    mottagare(snap.docs.map(tillYta).sort((a, b) => sorterare.compare(a.name, b.name)))
-  })
-}
-
-export function lyssnaPaVaxter(uid: string, mottagare: (vaxter: Plant[]) => void): () => void {
-  return onSnapshot(vaxtCol(uid), (snap) => {
-    mottagare(snap.docs.map(tillVaxt).sort((a, b) => sorterare.compare(a.name, b.name)))
-  })
-}
-
-function tillLoggpost(snap: QueryDocumentSnapshot<DocumentData>): LogEntry {
-  const data = snap.data()
-  return {
-    id: snap.id,
-    plantId: data.plantId as string | undefined,
-    areaId: data.areaId as string | undefined,
-    type: (data.type as LogType | undefined) ?? 'anteckning',
-    date: typeof data.date === 'string' ? data.date : '',
-    note: data.note as string | undefined,
-    photoRef: data.photoRef as string | undefined,
-  }
-}
-
-/** Sorterad med nyaste först (ISO-strängar jämförs lexikografiskt). */
-export function lyssnaPaLogg(uid: string, mottagare: (poster: LogEntry[]) => void): () => void {
-  return onSnapshot(loggCol(uid), (snap) => {
-    mottagare(snap.docs.map(tillLoggpost).sort((a, b) => b.date.localeCompare(a.date)))
-  })
-}
-
-export interface LoggFalt {
-  plantId?: string
-  areaId?: string
-  type: LogType
-  note?: string
-  photoRef?: string
-}
-
-export function skapaLoggpost(uid: string, falt: LoggFalt): string {
-  const ny = doc(loggCol(uid))
-  void setDoc(ny, utanUndefined({ ...falt, date: new Date().toISOString() })).catch(loggaFel)
-  return ny.id
-}
-
-export function taBortLoggpost(uid: string, id: string): void {
-  void deleteDoc(doc(loggCol(uid), id)).catch(loggaFel)
-}
-
-/** null = ingen karta upplagd än. */
-export function lyssnaPaKarta(uid: string, mottagare: (karta: GardenMap | null) => void): () => void {
-  return onSnapshot(kartaDoc(uid), (snap) => {
-    if (!snap.exists()) {
-      mottagare(null)
-      return
-    }
-    const data = snap.data()
-    mottagare({
-      widthM: typeof data.widthM === 'number' ? data.widthM : 0,
-      heightM: typeof data.heightM === 'number' ? data.heightM : 0,
-      objects: Array.isArray(data.objects) ? data.objects.map(franLagratObjekt) : [],
-    })
-  })
-}
-
-export function skapaKarta(uid: string, widthM: number, heightM: number): void {
-  void setDoc(kartaDoc(uid), { widthM, heightM, objects: [] }).catch(loggaFel)
-}
-
-export function uppdateraKartaMatt(uid: string, widthM: number, heightM: number): void {
-  void updateDoc(kartaDoc(uid), { widthM, heightM }).catch(loggaFel)
-}
-
-/**
- * Lägger till eller ersätter ett objekt i kartan (hela dokumentet skrivs om).
- * Befintliga objekt ersätts PÅ PLATS — arrayordningen är z-ordningen, och en
- * namnändring får inte lyfta objektet över sina grannar.
- */
-export function sparaKartobjekt(uid: string, karta: GardenMap, objekt: MapObject): void {
-  const finns = karta.objects.some((o) => o.id === objekt.id)
-  const objects = finns
-    ? karta.objects.map((o) => (o.id === objekt.id ? objekt : o))
-    : [...karta.objects, objekt]
-  void setDoc(kartaDoc(uid), tillLagradKarta({ ...karta, objects })).catch(loggaFel)
-}
-
-/** Tar bort objektet och kopplar loss ytor som pekade på det. */
-export function taBortKartobjekt(
-  uid: string,
-  karta: GardenMap,
-  objektId: string,
-  kopplladeYtaIds: string[],
-): void {
-  void setDoc(
-    kartaDoc(uid),
-    tillLagradKarta({ ...karta, objects: karta.objects.filter((o) => o.id !== objektId) }),
-  ).catch(loggaFel)
-  for (const ytaId of kopplladeYtaIds) {
-    void updateDoc(doc(ytaCol(uid), ytaId), { mapObjectId: deleteField() }).catch(loggaFel)
-  }
-}
-
-export function nyttObjektId(): string {
+export function nyttId(): string {
   return crypto.randomUUID().slice(0, 8)
 }
 
-export function kopplaYtaTillObjekt(uid: string, ytaId: string, objektId: string | undefined): void {
-  void updateDoc(doc(ytaCol(uid), ytaId), {
-    mapObjectId: objektId ?? deleteField(),
-  }).catch(loggaFel)
+/* ------------------------------------------------------------------ läsning */
+
+function tillTradgard(snap: QueryDocumentSnapshot<DocumentData>): Tradgard {
+  const d = snap.data()
+  return {
+    id: snap.id,
+    namn: typeof d.namn === 'string' ? d.namn : '',
+    ordning: typeof d.ordning === 'number' ? d.ordning : 99,
+    widthM: typeof d.widthM === 'number' ? d.widthM : undefined,
+    heightM: typeof d.heightM === 'number' ? d.heightM : undefined,
+  }
 }
 
-/** Sätter växtens läge på kartan (position i meter). */
-export function placeraVaxt(uid: string, plantId: string, x: number, y: number): void {
-  void updateDoc(doc(vaxtCol(uid), plantId), { position: { x, y } }).catch(loggaFel)
+function tillPlats(snap: QueryDocumentSnapshot<DocumentData>): Plats {
+  const d = snap.data()
+  return {
+    id: snap.id,
+    tradgardId: typeof d.tradgardId === 'string' ? d.tradgardId : '',
+    namn: typeof d.namn === 'string' ? d.namn : '',
+    typ: tolkaPlatsTyp(d.typ),
+    geometri: franLagradGeometri(d.geometri),
+    sol: d.sol as Sol | undefined,
+    jord: d.jord as string | undefined,
+    vetterMot: d.vetterMot as string | undefined,
+    vaderstreck: d.vaderstreck as Vaderstreck | undefined,
+    status: d.status === 'planerad' ? 'planerad' : 'finns',
+    anteckning: d.anteckning as string | undefined,
+  }
 }
 
-export interface YtaFalt {
-  name: string
-  sunExposure?: SunExposure
-  soil?: string
-  note?: string
+function tillVaxt(snap: QueryDocumentSnapshot<DocumentData>): Vaxt {
+  const d = snap.data()
+  return {
+    id: snap.id,
+    namn: typeof d.namn === 'string' ? d.namn : '',
+    platsId: d.platsId as string | undefined,
+    position: d.position as Vaxt['position'],
+    status: d.status === 'planerad' ? 'planerad' : 'finns',
+    sort: d.sort as string | undefined,
+    planterad: d.planterad as string | undefined,
+    antal: typeof d.antal === 'number' ? d.antal : undefined,
+    sol: d.sol as Sol | undefined,
+    jord: d.jord as string | undefined,
+    anteckning: d.anteckning as string | undefined,
+  }
 }
 
-export function skapaYta(uid: string, falt: YtaFalt): string {
-  const ny = doc(ytaCol(uid))
-  void setDoc(ny, utanUndefined({ ...falt })).catch(loggaFel)
+function tillHandelse(snap: QueryDocumentSnapshot<DocumentData>): Handelse {
+  const d = snap.data()
+  return {
+    id: snap.id,
+    typ: (d.typ as HandelseTyp | undefined) ?? 'anteckning',
+    datum: typeof d.datum === 'string' ? d.datum : '',
+    vaxtId: d.vaxtId as string | undefined,
+    platsId: d.platsId as string | undefined,
+    fotoRef: d.fotoRef as string | undefined,
+    anteckning: d.anteckning as string | undefined,
+    franPlatsId: d.franPlatsId as string | undefined,
+    tillPlatsId: d.tillPlatsId as string | undefined,
+    datumOkant: d.datumOkant === true ? true : undefined,
+  }
+}
+
+export function lyssnaPaTradgardar(uid: string, mottagare: (v: Tradgard[]) => void): () => void {
+  return onSnapshot(tradgardCol(uid), (snap) => {
+    mottagare(snap.docs.map(tillTradgard).sort((a, b) => a.ordning - b.ordning))
+  })
+}
+
+export function lyssnaPaPlatser(uid: string, mottagare: (v: Plats[]) => void): () => void {
+  return onSnapshot(platsCol(uid), (snap) => {
+    mottagare(snap.docs.map(tillPlats).sort((a, b) => sorterare.compare(a.namn, b.namn)))
+  })
+}
+
+export function lyssnaPaVaxter(uid: string, mottagare: (v: Vaxt[]) => void): () => void {
+  return onSnapshot(vaxtCol(uid), (snap) => {
+    mottagare(snap.docs.map(tillVaxt).sort((a, b) => sorterare.compare(a.namn, b.namn)))
+  })
+}
+
+/** Sorterad med nyaste först (ISO-strängar jämförs lexikografiskt). */
+export function lyssnaPaHandelser(uid: string, mottagare: (v: Handelse[]) => void): () => void {
+  return onSnapshot(handelseCol(uid), (snap) => {
+    mottagare(snap.docs.map(tillHandelse).sort((a, b) => b.datum.localeCompare(a.datum)))
+  })
+}
+
+/* ---------------------------------------------------------------- trädgårdar */
+
+export function sparaTradgardMatt(uid: string, id: string, widthM: number, heightM: number): void {
+  void setDoc(doc(tradgardCol(uid), id), { widthM, heightM }, { merge: true }).catch(loggaFel)
+}
+
+export function dopOmTradgard(uid: string, id: string, namn: string): void {
+  void updateDoc(doc(tradgardCol(uid), id), { namn }).catch(loggaFel)
+}
+
+/* -------------------------------------------------------------------- platser */
+
+export interface PlatsFalt {
+  tradgardId: string
+  namn: string
+  typ: PlatsTyp
+  punkter?: PunktM[]
+  sol?: Sol
+  jord?: string
+  vetterMot?: string
+  vaderstreck?: Vaderstreck
+  status?: Status
+  anteckning?: string
+}
+
+function platsPayload(falt: PlatsFalt): Record<string, unknown> {
+  return utanUndefined({
+    tradgardId: falt.tradgardId,
+    namn: falt.namn,
+    typ: falt.typ,
+    geometri: falt.punkter?.length ? tillLagradGeometri({ punkter: falt.punkter }) : undefined,
+    sol: falt.sol,
+    jord: falt.jord,
+    vetterMot: falt.vetterMot,
+    vaderstreck: falt.vaderstreck,
+    status: falt.status ?? 'finns',
+    anteckning: falt.anteckning,
+  })
+}
+
+export function skapaPlats(uid: string, falt: PlatsFalt): string {
+  const ny = doc(platsCol(uid))
+  void setDoc(ny, platsPayload(falt)).catch(loggaFel)
   return ny.id
 }
 
-export function uppdateraYta(uid: string, id: string, falt: YtaFalt): void {
-  void updateDoc(doc(ytaCol(uid), id), {
-    name: falt.name,
-    sunExposure: falt.sunExposure ?? deleteField(),
-    soil: falt.soil ?? deleteField(),
-    note: falt.note ?? deleteField(),
+/** Bara de fält som skickas med rörs; undefined raderar fältet. */
+export function uppdateraPlats(uid: string, id: string, falt: Partial<PlatsFalt>): void {
+  const uppdatering: Record<string, unknown> = {}
+  if ('tradgardId' in falt) uppdatering.tradgardId = falt.tradgardId
+  if ('namn' in falt) uppdatering.namn = falt.namn
+  if ('typ' in falt) uppdatering.typ = falt.typ
+  if ('status' in falt) uppdatering.status = falt.status ?? 'finns'
+  if ('punkter' in falt) {
+    uppdatering.geometri = falt.punkter?.length
+      ? tillLagradGeometri({ punkter: falt.punkter })
+      : deleteField()
+  }
+  for (const nyckel of ['sol', 'jord', 'vetterMot', 'vaderstreck', 'anteckning'] as const) {
+    if (nyckel in falt) uppdatering[nyckel] = falt[nyckel] ?? deleteField()
+  }
+  if (Object.keys(uppdatering).length === 0) return
+  void updateDoc(doc(platsCol(uid), id), uppdatering).catch(loggaFel)
+}
+
+export function sparaPlatsGeometri(uid: string, id: string, punkter: PunktM[]): void {
+  void updateDoc(doc(platsCol(uid), id), {
+    geometri: tillLagradGeometri({ punkter }),
   }).catch(loggaFel)
+}
+
+/**
+ * Tar bort platsen. Växterna där blir HEMLÖSA — aldrig raderade. Platsens egna
+ * händelser (och deras foton) städas.
+ */
+export function taBortPlats(uid: string, id: string, vaxterDar: Vaxt[], handelser: Handelse[]): void {
+  void deleteDoc(doc(platsCol(uid), id)).catch(loggaFel)
+  for (const vaxt of vaxterDar) {
+    void updateDoc(doc(vaxtCol(uid), vaxt.id), {
+      platsId: deleteField(),
+      position: deleteField(),
+    }).catch(loggaFel)
+  }
+  void stadaHandelser(uid, 'platsId', id, handelser).catch(loggaFel)
+}
+
+/* --------------------------------------------------------------------- växter */
+
+export interface VaxtFalt {
+  namn: string
+  platsId?: string
+  status?: Status
+  sort?: string
+  planterad?: string
+  antal?: number
+  sol?: Sol
+  jord?: string
+  anteckning?: string
+}
+
+export function skapaVaxt(uid: string, falt: VaxtFalt): string {
+  const ny = doc(vaxtCol(uid))
+  void setDoc(
+    ny,
+    utanUndefined({
+      namn: falt.namn,
+      platsId: falt.platsId,
+      status: falt.status ?? 'finns',
+      sort: falt.sort,
+      planterad: falt.planterad,
+      antal: falt.antal,
+      sol: falt.sol,
+      jord: falt.jord,
+      anteckning: falt.anteckning,
+    }),
+  ).catch(loggaFel)
+  return ny.id
+}
+
+/**
+ * Bara de fält som skickas med rörs; undefined raderar fältet.
+ * (Ingen automatisk "Planterat"-post — den ljög, se docs/DESIGNLOGG.md.)
+ */
+export function uppdateraVaxt(uid: string, id: string, falt: Partial<VaxtFalt>): void {
+  const uppdatering: Record<string, unknown> = {}
+  if ('namn' in falt) uppdatering.namn = falt.namn
+  if ('status' in falt) uppdatering.status = falt.status ?? 'finns'
+  for (const nyckel of [
+    'platsId',
+    'sort',
+    'planterad',
+    'antal',
+    'sol',
+    'jord',
+    'anteckning',
+  ] as const) {
+    if (nyckel in falt) uppdatering[nyckel] = falt[nyckel] ?? deleteField()
+  }
+  if (Object.keys(uppdatering).length === 0) return
+  void updateDoc(doc(vaxtCol(uid), id), uppdatering).catch(loggaFel)
+}
+
+/** Sätter växtens läge på ritningen (position i meter). */
+export function placeraVaxt(uid: string, vaxtId: string, x: number, y: number): void {
+  void updateDoc(doc(vaxtCol(uid), vaxtId), { position: { x, y } }).catch(loggaFel)
+}
+
+export function taBortPlacering(uid: string, vaxtId: string): void {
+  void updateDoc(doc(vaxtCol(uid), vaxtId), { position: deleteField() }).catch(loggaFel)
+}
+
+/**
+ * Byte av plats; kartläget nollställs.
+ *
+ * En hemlös växt som får sin FÖRSTA plats har inte flyttat någonstans — det
+ * är att fylla i en uppgift, inte en händelse i trädgården. Därför loggas
+ * bara riktiga flyttar, annars fylls loggen av "Flyttat" direkt efter att
+ * varje ny växt lagts till.
+ */
+export function flyttaVaxt(uid: string, vaxt: Vaxt, tillPlatsId: string | undefined): void {
+  if (tillPlatsId === vaxt.platsId) return
+  void updateDoc(doc(vaxtCol(uid), vaxt.id), {
+    platsId: tillPlatsId ?? deleteField(),
+    position: deleteField(),
+  }).catch(loggaFel)
+  if (!vaxt.platsId) return
+  skapaHandelse(uid, {
+    typ: 'flyttat',
+    vaxtId: vaxt.id,
+    platsId: tillPlatsId,
+    franPlatsId: vaxt.platsId,
+    tillPlatsId,
+  })
+}
+
+/**
+ * Flytt via ritningen: ny position, och om prickens nya läge hör till en annan
+ * plats byts även platsen (med flyttat-händelse).
+ */
+export function flyttaVaxtPaRitningen(
+  uid: string,
+  vaxt: Vaxt,
+  x: number,
+  y: number,
+  tillPlatsId: string | undefined,
+): void {
+  if (tillPlatsId && tillPlatsId !== vaxt.platsId) {
+    void updateDoc(doc(vaxtCol(uid), vaxt.id), {
+      platsId: tillPlatsId,
+      position: { x, y },
+    }).catch(loggaFel)
+    // Samma regel som flyttaVaxt: första platsen är ingen flytt.
+    if (vaxt.platsId) {
+      skapaHandelse(uid, {
+        typ: 'flyttat',
+        vaxtId: vaxt.id,
+        platsId: tillPlatsId,
+        franPlatsId: vaxt.platsId,
+        tillPlatsId,
+      })
+    }
+    return
+  }
+  placeraVaxt(uid, vaxt.id, x, y)
+}
+
+/** Planerad → finns, med en planterat-händelse daterad i dag. */
+export function markeraPlanterad(uid: string, vaxt: Vaxt): void {
+  void updateDoc(doc(vaxtCol(uid), vaxt.id), { status: 'finns' }).catch(loggaFel)
+  skapaHandelse(uid, { typ: 'planterat', vaxtId: vaxt.id, platsId: vaxt.platsId })
+}
+
+export function markeraPlatsAnlagd(uid: string, plats: Plats): void {
+  void updateDoc(doc(platsCol(uid), plats.id), { status: 'finns' }).catch(loggaFel)
+  skapaHandelse(uid, { typ: 'planterat', platsId: plats.id })
+}
+
+/** Tar även bort växtens händelser och alla deras foton. */
+export function taBortVaxt(uid: string, vaxt: Vaxt, handelser: Handelse[]): void {
+  void deleteDoc(doc(vaxtCol(uid), vaxt.id)).catch(loggaFel)
+  void stadaHandelser(uid, 'vaxtId', vaxt.id, handelser).catch(loggaFel)
+}
+
+/* ------------------------------------------------------------------ händelser */
+
+export interface HandelseFalt {
+  typ: HandelseTyp
+  vaxtId?: string
+  platsId?: string
+  fotoRef?: string
+  anteckning?: string
+  franPlatsId?: string
+  tillPlatsId?: string
+  /** Endast för migrerad/backdaterad data. */
+  datum?: string
+}
+
+export function skapaHandelse(uid: string, falt: HandelseFalt): string {
+  const ny = doc(handelseCol(uid))
+  void setDoc(
+    ny,
+    utanUndefined({ ...falt, datum: falt.datum ?? new Date().toISOString() }),
+  ).catch(loggaFel)
+  return ny.id
+}
+
+export function taBortHandelse(uid: string, id: string): void {
+  void deleteDoc(doc(handelseCol(uid), id)).catch(loggaFel)
 }
 
 function stadaFoton(fotoRefs: string[]): void {
@@ -232,123 +411,137 @@ function stadaFoton(fotoRefs: string[]): void {
 }
 
 /**
- * Loggposter för ett mål, hämtade ur den lokala cachen vid raderingstillfället
- * (fångar även poster som vyns state ännu inte hunnit se).
+ * Raderar händelser för ett mål och städar deras foton. Frågar även den lokala
+ * cachen — vyns state kan sakna poster som just skrivits.
  */
-async function loggposterFranCache(
+async function stadaHandelser(
   uid: string,
-  falt: 'plantId' | 'areaId',
+  falt: 'vaxtId' | 'platsId',
   varde: string,
-): Promise<LogEntry[]> {
+  kanda: Handelse[],
+): Promise<void> {
+  let cachade: Handelse[] = []
   try {
-    const snap = await getDocsFromCache(query(loggCol(uid), where(falt, '==', varde)))
-    return snap.docs.map(tillLoggpost)
+    const snap = await getDocs(query(handelseCol(uid), where(falt, '==', varde)))
+    cachade = snap.docs.map(tillHandelse)
+  } catch {
+    cachade = []
+  }
+  const alla = new Map([...kanda, ...cachade].map((h) => [h.id, h]))
+  for (const handelse of alla.values()) taBortHandelse(uid, handelse.id)
+  stadaFoton([...alla.values()].flatMap((h) => (h.fotoRef ? [h.fotoRef] : [])))
+}
+
+/* ------------------------------------------------------------------ migrering */
+
+async function hamtaAlla<T>(
+  ref: ReturnType<typeof collection>,
+  omvandla: (snap: QueryDocumentSnapshot<DocumentData>) => T,
+): Promise<T[]> {
+  try {
+    const snap = await getDocs(ref)
+    return snap.docs.map(omvandla)
   } catch {
     return []
   }
 }
 
-/** Tar även bort ytans egna loggposter och deras foton. */
-export function taBortYta(uid: string, id: string, loggposter: LogEntry[]): void {
-  void deleteDoc(doc(ytaCol(uid), id)).catch(loggaFel)
-  void (async () => {
-    const cachade = await loggposterFranCache(uid, 'areaId', id)
-    const alla = new Map([...loggposter, ...cachade].map((post) => [post.id, post]))
-    for (const post of alla.values()) taBortLoggpost(uid, post.id)
-    stadaFoton([...alla.values()].flatMap((post) => (post.photoRef ? [post.photoRef] : [])))
-  })().catch(loggaFel)
-}
-
-export interface VaxtFalt {
-  name: string
-  areaId: string
-  note?: string
-  photoRefs?: string[]
-}
-
-export function skapaVaxt(uid: string, falt: VaxtFalt): string {
-  const ny = doc(vaxtCol(uid))
-  void setDoc(
-    ny,
-    utanUndefined({
-      name: falt.name,
-      areaId: falt.areaId,
-      note: falt.note,
-      photoRefs: falt.photoRefs ?? [],
-      moveHistory: [],
-    }),
-  ).catch(loggaFel)
-  // Varje växt börjar sin tidslinje med en planterad-post.
-  skapaLoggpost(uid, { plantId: ny.id, type: 'planterat' })
-  return ny.id
-}
-
-export function uppdateraVaxt(uid: string, id: string, falt: { name: string; note?: string }): void {
-  void updateDoc(doc(vaxtCol(uid), id), {
-    name: falt.name,
-    note: falt.note ?? deleteField(),
-  }).catch(loggaFel)
-}
-
-/** Byte av yta loggas alltid i moveHistory; kartpositionen nollställs. */
-export function flyttaVaxt(uid: string, vaxt: Plant, tillYtaId: string): void {
-  if (tillYtaId === vaxt.areaId) return
-  const flytt: PlantMove = {
-    fromAreaId: vaxt.areaId,
-    toAreaId: tillYtaId,
-    date: new Date().toISOString(),
-  }
-  void updateDoc(doc(vaxtCol(uid), vaxt.id), {
-    areaId: tillYtaId,
-    moveHistory: arrayUnion(flytt),
-    position: deleteField(),
-  }).catch(loggaFel)
-}
-
 /**
- * Flytt via kartan: ny position, och om prickens nya läge hör till en annan
- * yta byts även ytan (med post i moveHistory).
+ * Körs en gång per datamängd innan UI:t visar något. Migrerar v1 → v2 och
+ * sår de tre trädgårdarna. Är datamängden tom blir resultatet bara
+ * trädgårdarna — samma kodväg täcker både migrering och första start.
+ *
+ * OBS: lokalt läge och molnläge är SKILDA datamängder och migreras var för sig.
+ * Gamla kollektioner raderas aldrig — det är hela rollbacken.
  */
-export function flyttaVaxtPaKartan(
-  uid: string,
-  vaxt: Plant,
-  x: number,
-  y: number,
-  tillYtaId: string | undefined,
-): void {
-  if (tillYtaId && tillYtaId !== vaxt.areaId) {
-    const flytt: PlantMove = {
-      fromAreaId: vaxt.areaId,
-      toAreaId: tillYtaId,
-      date: new Date().toISOString(),
-    }
-    void updateDoc(doc(vaxtCol(uid), vaxt.id), {
-      areaId: tillYtaId,
-      moveHistory: arrayUnion(flytt),
-      position: { x, y },
-    }).catch(loggaFel)
-    return
+export async function sakerstallDatamodell(uid: string): Promise<void> {
+  const db = getDb()
+  let redanGjord = false
+  try {
+    const stampel = await getDoc(migreringDoc(uid))
+    redanGjord = (stampel.data()?.version ?? 0) >= MIGRERINGSVERSION
+  } catch {
+    redanGjord = false
   }
-  placeraVaxt(uid, vaxt.id, x, y)
+  if (redanGjord) return
+
+  const [karta, areas, plants, logEntries] = await Promise.all([
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'users', uid, 'garden', 'map'))
+        if (!snap.exists()) return null
+        const d = snap.data()
+        return {
+          widthM: typeof d.widthM === 'number' ? d.widthM : 0,
+          heightM: typeof d.heightM === 'number' ? d.heightM : 0,
+          objects: (Array.isArray(d.objects) ? d.objects : []).map((rad: Record<string, unknown>) => ({
+            id: typeof rad.id === 'string' ? rad.id : '',
+            type: typeof rad.type === 'string' ? rad.type : 'annat',
+            name: typeof rad.name === 'string' ? rad.name : '',
+            points: (Array.isArray(rad.points) ? rad.points : []).map(
+              (p: { x?: number; y?: number }): PunktM => [p?.x ?? 0, p?.y ?? 0],
+            ),
+            note: typeof rad.note === 'string' ? rad.note : undefined,
+          })),
+        }
+      } catch {
+        return null
+      }
+    })(),
+    hamtaAlla<V1Area>(collection(db, 'users', uid, 'areas'), (s) => ({
+      id: s.id,
+      ...(s.data() as Omit<V1Area, 'id'>),
+    })),
+    hamtaAlla<V1Plant>(collection(db, 'users', uid, 'plants'), (s) => ({
+      id: s.id,
+      ...(s.data() as Omit<V1Plant, 'id'>),
+    })),
+    hamtaAlla<V1LegacyLogg>(collection(db, 'users', uid, 'logEntries'), (s) => ({
+      id: s.id,
+      ...(s.data() as Omit<V1LegacyLogg, 'id'>),
+    })),
+  ])
+
+  const v1: V1Data = { karta, areas, plants, logEntries }
+  const v2 = migreraV1TillV2(v1, new Date().toISOString())
+
+  // Trädgårdar som redan finns (t.ex. halvkörd migrering) skrivs inte över.
+  const befintligaTradgardar = new Set(
+    (await hamtaAlla(tradgardCol(uid), (s) => s.id)).map((id) => id),
+  )
+
+  const batch = writeBatch(db)
+  for (const tradgard of v2.tradgardar) {
+    if (befintligaTradgardar.has(tradgard.id)) continue
+    const { id, ...falt } = tradgard
+    batch.set(doc(tradgardCol(uid), id), utanUndefined(falt))
+  }
+  for (const plats of v2.platser) {
+    const { id, geometri, ...falt } = plats
+    batch.set(
+      doc(platsCol(uid), id),
+      utanUndefined({
+        ...falt,
+        geometri: geometri ? tillLagradGeometri(geometri) : undefined,
+      }),
+    )
+  }
+  for (const vaxt of v2.vaxter) {
+    const { id, ...falt } = vaxt
+    batch.set(doc(vaxtCol(uid), id), utanUndefined(falt))
+  }
+  for (const handelse of v2.handelser) {
+    const { id, ...falt } = handelse
+    batch.set(doc(handelseCol(uid), id), utanUndefined(falt))
+  }
+  batch.set(migreringDoc(uid), { version: MIGRERINGSVERSION })
+
+  // Fire-and-forget mot cachen, precis som övriga skrivningar.
+  void batch.commit().catch(loggaFel)
 }
 
-export function laggTillVaxtFoto(uid: string, vaxt: Plant, fotoRef: string): void {
-  void updateDoc(doc(vaxtCol(uid), vaxt.id), {
-    photoRefs: arrayUnion(fotoRef),
-  }).catch(loggaFel)
-}
+type V1LegacyLogg = V1LogEntry
 
-/** Tar även bort växtens loggposter och alla foton (galleri + loggfoton). */
-export function taBortVaxt(uid: string, vaxt: Plant, loggposter: LogEntry[]): void {
-  void deleteDoc(doc(vaxtCol(uid), vaxt.id)).catch(loggaFel)
-  void (async () => {
-    const cachade = await loggposterFranCache(uid, 'plantId', vaxt.id)
-    const alla = new Map([...loggposter, ...cachade].map((post) => [post.id, post]))
-    for (const post of alla.values()) taBortLoggpost(uid, post.id)
-    const fotoRefs = new Set(vaxt.photoRefs)
-    for (const post of alla.values()) {
-      if (post.photoRef) fotoRefs.add(post.photoRef)
-    }
-    stadaFoton([...fotoRefs])
-  })().catch(loggaFel)
+export function seedTradgardar(): Tradgard[] {
+  return grundTradgardar()
 }
