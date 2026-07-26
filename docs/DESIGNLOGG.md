@@ -73,3 +73,15 @@ Designbeslut + vad som provats och förkastats.
   (fungerar inte med non-scaling-stroke, gav permanent streckade konturer);
   autoplacering av prickar exakt på centroiden (krockade med namnetiketten,
   flyttad 0,6 m nedåt).
+
+## Fas 4
+
+- **Foto = loggpost.** I stället för en separat fotomodul är ett foto en
+  daterad anteckning i loggen (kameraknapp i snabbloggen; växtdetaljens
+  "Lägg till foto" loggar också). Fototidslinjen "april vs juli" faller ut
+  gratis ur ytans tidslinje. Foton i tidslinjen visas 4:3, max 240 px breda.
+- **Årstidston:** ett CSS-filter på kartobjektslagret, bara i levande läget
+  (redigeringen är färgneutral). Svalare vår, mättad sommar, varmare höst,
+  avmättad vinter — en tonjustering, inte ett tema.
+- **Städning:** borttagen växt/yta tar med sig loggposter OCH deras foton;
+  Ångra på ett loggfoto raderar även blobben.

@@ -1,9 +1,9 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useUid } from '../auth/AuthProvider'
 import type { LogType } from '../data/types'
 import { LOGGTYPER } from '../lib/logg'
 import { inmatningsStil } from './Falt'
-import { DroppeIkon, GodselIkon, PennaIkon, SaxIkon } from './Ikoner'
+import { DroppeIkon, GodselIkon, KameraIkon, PennaIkon, SaxIkon } from './Ikoner'
 import { Knapp } from './Knapp'
 
 const SNABBVAL: { typ: LogType; Ikon: typeof DroppeIkon }[] = [
@@ -18,9 +18,11 @@ const SNABBVAL: { typ: LogType; Ikon: typeof DroppeIkon }[] = [
  */
 export function SnabbLogg({ plantId, areaId }: { plantId?: string; areaId?: string }) {
   const uid = useUid()
-  const [senaste, setSenaste] = useState<{ id: string; typ: LogType }>()
+  const [senaste, setSenaste] = useState<{ id: string; typ: LogType; fotoRef?: string }>()
   const [antecknar, setAntecknar] = useState(false)
   const [text, setText] = useState('')
+  const [sparasFoto, setSparasFoto] = useState(false)
+  const fotoInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!senaste) return
@@ -28,21 +30,43 @@ export function SnabbLogg({ plantId, areaId }: { plantId?: string; areaId?: stri
     return () => clearTimeout(timer)
   }, [senaste])
 
-  function logga(typ: LogType, note?: string) {
+  function logga(typ: LogType, note?: string, fotoRef?: string) {
     void (async () => {
       const { skapaLoggpost } = await import('../data/repo')
-      const id = skapaLoggpost(uid, { plantId, areaId, type: typ, note })
-      setSenaste({ id, typ })
+      const id = skapaLoggpost(uid, { plantId, areaId, type: typ, note, photoRef: fotoRef })
+      setSenaste({ id, typ, fotoRef })
     })()
   }
 
   function angra() {
     if (!senaste) return
-    const { id } = senaste
+    const { id, fotoRef } = senaste
     setSenaste(undefined)
     void (async () => {
       const { taBortLoggpost } = await import('../data/repo')
       taBortLoggpost(uid, id)
+      if (fotoRef) {
+        const { taBortFoto } = await import('../lib/photoStore')
+        await taBortFoto(fotoRef)
+      }
+    })()
+  }
+
+  /** Ett foto är en daterad loggpost — det bygger fototidslinjen. */
+  function valjFoto(e: ChangeEvent<HTMLInputElement>) {
+    const fil = e.target.files?.[0]
+    e.target.value = ''
+    if (!fil) return
+    setSparasFoto(true)
+    void (async () => {
+      try {
+        const { komprimeraBild } = await import('../lib/bild')
+        const { sparaFoto } = await import('../lib/photoStore')
+        const fotoRef = await sparaFoto(uid, await komprimeraBild(fil))
+        logga('anteckning', undefined, fotoRef)
+      } finally {
+        setSparasFoto(false)
+      }
     })()
   }
 
@@ -89,14 +113,33 @@ export function SnabbLogg({ plantId, areaId }: { plantId?: string; areaId?: stri
           </button>
         ) : (
           !antecknar && (
-            <button
-              type="button"
-              onClick={() => setAntecknar(true)}
-              className="flex min-h-8 items-center gap-1.5 rounded px-2 text-sm text-panel/70"
-            >
-              <PennaIkon width={16} height={16} />
-              Skriv anteckning
-            </button>
+            <span className="flex items-center gap-1">
+              <input
+                ref={fotoInput}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={valjFoto}
+                aria-label="Välj loggfoto"
+              />
+              <button
+                type="button"
+                disabled={sparasFoto}
+                onClick={() => fotoInput.current?.click()}
+                className="flex min-h-8 items-center gap-1.5 rounded px-2 text-sm text-panel/70 disabled:opacity-50"
+              >
+                <KameraIkon width={16} height={16} />
+                {sparasFoto ? 'Sparar …' : 'Foto'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAntecknar(true)}
+                className="flex min-h-8 items-center gap-1.5 rounded px-2 text-sm text-panel/70"
+              >
+                <PennaIkon width={16} height={16} />
+                Skriv anteckning
+              </button>
+            </span>
           )
         )}
       </div>

@@ -15,6 +15,7 @@ import { VaxtPrickLager } from '../components/karta/VaxtPrickLager'
 import { Knapp, LankKnapp } from '../components/Knapp'
 import { useData } from '../data/DataProvider'
 import type { GardenMap } from '../data/types'
+import { arstidston } from '../lib/arstid'
 import { avstand, punktIPolygon, snappaPunkt } from '../lib/geometri'
 import { tolkaMeter } from '../lib/format'
 import { KARTSTIL } from '../lib/kartstil'
@@ -259,13 +260,16 @@ function LevandeKarta({ karta }: { karta: GardenMap }) {
           onPointerUp={vidPekareUpp}
           onPointerCancel={vidPekareUpp}
         >
-          <KartobjektLager
-            karta={karta}
-            mpp={mpp}
-            animera={animera}
-            interaktiv
-            valtObjektId={infoval?.typ === 'objekt' ? infoval.id : undefined}
-          />
+          {/* Årstidstonen läggs bara på levande kartan — redigeringen är neutral. */}
+          <g style={{ filter: arstidston() }}>
+            <KartobjektLager
+              karta={karta}
+              mpp={mpp}
+              animera={animera}
+              interaktiv
+              valtObjektId={infoval?.typ === 'objekt' ? infoval.id : undefined}
+            />
+          </g>
           <VaxtPrickLager
             prickar={prickar}
             mpp={mpp}

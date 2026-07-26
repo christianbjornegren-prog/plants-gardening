@@ -28,9 +28,15 @@ Uppdateras varje session.
   dra-prick-för-att-flytta med moveHistory, startanimationen med
   prefers-reduced-motion-stöd.
 
+- **Fas 4 — Polish:** foton är daterade loggposter (kameraknapp i snabb-
+  loggen + växtdetaljens foton loggas) → fototidslinje per yta/växt i
+  tidslinjerna ("samma rabatt, april vs juli"); årstidston på levande kartan
+  (CSS-filter per säsong); fotostädning vid borttagning av växt/yta och vid
+  Ångra; PWA-bygget verifierat (manifest + service worker + ikoner).
+
 ## Pågår
 
-- **Fas 4 — Polish:** fototidslinje, årstidston, offline-finslipning.
+—
 
 ## Senare
 - Ta bort enskilda foton från en växt (nu tas foton bara bort med växten).

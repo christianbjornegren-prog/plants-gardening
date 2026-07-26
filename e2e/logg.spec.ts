@@ -81,6 +81,41 @@ test('ytans logg visar växternas poster med länk', async ({ page }) => {
   await expect(loggsektion.getByRole('link', { name: 'Funkia' }).first()).toBeVisible()
 })
 
+const TEST_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+)
+
+test('foto via snabbloggen blir en daterad post i fototidslinjen', async ({ page }) => {
+  await skapaYta(page, 'Rabatten vid staketet')
+
+  await page.getByLabel('Välj loggfoto').setInputFiles({
+    name: 'april.png',
+    mimeType: 'image/png',
+    buffer: TEST_PNG,
+  })
+  await expect(page.getByRole('status')).toHaveText('Anteckning — antecknat.')
+
+  const loggsektion = page.locator('section', { has: page.getByRole('heading', { name: 'Logg' }) })
+  await expect(loggsektion.locator('img[src^="blob:"]')).toBeVisible()
+
+  await page.getByRole('link', { name: 'Logg' }).first().click()
+  await expect(page.locator('img[src^="blob:"]')).toBeVisible()
+})
+
+test('foto på växtdetaljen loggas också i tidslinjen', async ({ page }) => {
+  await skapaYta(page, 'Pallkragen')
+  await skapaVaxt(page, 'Salvia', 'Pallkragen')
+
+  await page.getByLabel('Välj foto').setInputFiles({
+    name: 'foto.png',
+    mimeType: 'image/png',
+    buffer: TEST_PNG,
+  })
+  const loggsektion = page.locator('section', { has: page.getByRole('heading', { name: 'Logg' }) })
+  await expect(loggsektion.locator('img[src^="blob:"]')).toBeVisible()
+})
+
 test('borttagen växt försvinner ur loggen', async ({ page }) => {
   await skapaYta(page, 'Uterummet')
   await skapaVaxt(page, 'Rosmarin', 'Uterummet')

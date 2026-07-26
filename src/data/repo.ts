@@ -215,10 +215,19 @@ export function uppdateraYta(uid: string, id: string, falt: YtaFalt): void {
   }).catch(loggaFel)
 }
 
-/** Tar även bort ytans egna loggposter (skickas in från vyn som redan har dem). */
-export function taBortYta(uid: string, id: string, loggIds: string[]): void {
+function stadaFoton(fotoRefs: string[]): void {
+  if (fotoRefs.length === 0) return
+  void (async () => {
+    const { taBortFoto } = await import('../lib/photoStore')
+    await Promise.all(fotoRefs.map(taBortFoto))
+  })().catch(loggaFel)
+}
+
+/** Tar även bort ytans egna loggposter och deras foton. */
+export function taBortYta(uid: string, id: string, loggposter: LogEntry[]): void {
   void deleteDoc(doc(ytaCol(uid), id)).catch(loggaFel)
-  for (const loggId of loggIds) taBortLoggpost(uid, loggId)
+  for (const post of loggposter) taBortLoggpost(uid, post.id)
+  stadaFoton(loggposter.flatMap((post) => (post.photoRef ? [post.photoRef] : [])))
 }
 
 export interface VaxtFalt {
@@ -300,12 +309,13 @@ export function laggTillVaxtFoto(uid: string, vaxt: Plant, fotoRef: string): voi
   }).catch(loggaFel)
 }
 
-/** Tar även bort växtens loggposter (skickas in från vyn som redan har dem). */
-export function taBortVaxt(uid: string, vaxt: Plant, loggIds: string[]): void {
+/** Tar även bort växtens loggposter och alla foton (galleri + loggfoton). */
+export function taBortVaxt(uid: string, vaxt: Plant, loggposter: LogEntry[]): void {
   void deleteDoc(doc(vaxtCol(uid), vaxt.id)).catch(loggaFel)
-  for (const loggId of loggIds) taBortLoggpost(uid, loggId)
-  void (async () => {
-    const { taBortFoto } = await import('../lib/photoStore')
-    await Promise.all(vaxt.photoRefs.map(taBortFoto))
-  })().catch(loggaFel)
+  for (const post of loggposter) taBortLoggpost(uid, post.id)
+  const fotoRefs = new Set(vaxt.photoRefs)
+  for (const post of loggposter) {
+    if (post.photoRef) fotoRefs.add(post.photoRef)
+  }
+  stadaFoton([...fotoRefs])
 }

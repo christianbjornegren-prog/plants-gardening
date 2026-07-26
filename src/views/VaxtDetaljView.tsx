@@ -36,10 +36,12 @@ export function VaxtDetaljView() {
       try {
         const { komprimeraBild } = await import('../lib/bild')
         const { sparaFoto } = await import('../lib/photoStore')
-        const { laggTillVaxtFoto } = await import('../data/repo')
+        const { laggTillVaxtFoto, skapaLoggpost } = await import('../data/repo')
         const blob = await komprimeraBild(fil)
         const fotoRef = await sparaFoto(uid, blob)
         laggTillVaxtFoto(uid, vaxt, fotoRef)
+        // Fotot blir också en daterad loggpost — det bygger fototidslinjen.
+        skapaLoggpost(uid, { plantId: vaxt.id, type: 'anteckning', photoRef: fotoRef })
       } finally {
         setSparasFoto(false)
       }
@@ -49,11 +51,7 @@ export function VaxtDetaljView() {
   function taBort() {
     void (async () => {
       const { taBortVaxt } = await import('../data/repo')
-      taBortVaxt(
-        uid,
-        vaxt,
-        vaxtLogg.map((post) => post.id),
-      )
+      taBortVaxt(uid, vaxt, vaxtLogg)
       navigate('/vaxter', { replace: true })
     })()
   }

@@ -41,6 +41,8 @@
 | Infokort | tryck på objekt/prick, stäng, Vattnat från kartan (3 tryck) | e2e |
 | Prickdragning | dra till annat objekt → ny yta + flytthistorik | e2e |
 | Rörelse | reducedMotion: kartan visas direkt | e2e |
+| Årstidston | månader → årstid → CSS-filter | enhet |
+| Fototidslinje | loggfoto via snabblogg + växtfoto → daterad post med bild i tidslinjer | e2e |
 
 ## Kända luckor
 
@@ -48,4 +50,6 @@
   i riktig webbläsare från Fas 1.
 - Molnläget (riktig Firebase-config + inloggning) kan inte e2e-testas utan
   Firebase-projekt; `LoggaInView` är endast typkontrollerad.
-- PWA/servicearbetare testas inte automatiskt (byggs bara i produktion).
+- PWA/servicearbetare testas inte automatiskt (byggs bara i produktion);
+  manifest, sw.js och ikoner röktestas manuellt via `vite preview`.
+- Årstidstonen verifieras som ren funktion (enhet), inte visuellt per säsong.

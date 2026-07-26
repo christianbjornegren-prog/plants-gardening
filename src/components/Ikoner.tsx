@@ -79,6 +79,15 @@ export function SaxIkon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function KameraIkon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...ikonProps(props)}>
+      <path d="M4.5 8.5A1.5 1.5 0 0 1 6 7h2l1.3-2h5.4L16 7h2a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 18 19H6a1.5 1.5 0 0 1-1.5-1.5v-9Z" />
+      <circle cx="12" cy="12.5" r="3.2" />
+    </svg>
+  )
+}
+
 export function PennaIkon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...ikonProps(props)}>

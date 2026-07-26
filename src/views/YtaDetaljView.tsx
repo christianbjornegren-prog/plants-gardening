@@ -31,7 +31,7 @@ export function YtaDetaljView() {
       taBortYta(
         uid,
         yta.id,
-        logg.filter((post) => post.areaId === yta.id).map((post) => post.id),
+        logg.filter((post) => post.areaId === yta.id),
       )
       navigate('/ytor', { replace: true })
     })()

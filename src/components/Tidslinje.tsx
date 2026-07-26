@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import type { LogEntry, LogType } from '../data/types'
 import { formatDatum } from '../lib/format'
 import { LOGGTYPER } from '../lib/logg'
+import { FotoBild } from './FotoBild'
 import { DroppeIkon, GodselIkon, PennaIkon, SaxIkon, VaxterIkon } from './Ikoner'
 
 const TYP_IKON: Record<LogType, typeof DroppeIkon> = {
@@ -69,6 +70,13 @@ export function Tidslinje({
               </div>
               {post.note && (
                 <p className="mt-0.5 text-sm whitespace-pre-wrap text-panel/75">{post.note}</p>
+              )}
+              {post.photoRef && (
+                <FotoBild
+                  fotoRef={post.photoRef}
+                  alt="Loggfoto"
+                  className="mt-2 aspect-[4/3] w-full max-w-60 overflow-hidden rounded-md"
+                />
               )}
             </div>
           </li>
