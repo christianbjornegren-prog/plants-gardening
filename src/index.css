@@ -1,0 +1,31 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Palett — hämtad från den verkliga trädgården (se CLAUDE.md) */
+  --color-panel: #232823;
+  --color-tra: #c9b694;
+  --color-orm: #4e6b44;
+  --color-lov: #8fa96f;
+  --color-fermob: #d3442e;
+  --color-ljus: #f7f5f0;
+
+  --font-display: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', sans-serif;
+  --font-sans: 'Instrument Sans Variable', 'Instrument Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+}
+
+@layer base {
+  body {
+    margin: 0;
+    background-color: var(--color-ljus);
+    color: var(--color-panel);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-fermob);
+    outline-offset: 2px;
+  }
+}
