@@ -8,6 +8,7 @@ import {
 import { Link } from 'react-router-dom'
 import { useUid } from '../auth/AuthProvider'
 import { Adresskylt } from '../components/Adresskylt'
+import { FotoBild } from '../components/FotoBild'
 import { Ark } from '../components/Ark'
 import { Chip } from '../components/Chip'
 import { Falt, inmatningsStil } from '../components/Falt'
@@ -35,6 +36,7 @@ let startanimationVisad = false
 export function RitningView() {
   const { tradgardar, platser, laddad } = useData()
   const [valdId, setValdId] = useState<string>()
+  const [visaNy, setVisaNy] = useState(false)
 
   if (!laddad) return null
   if (tradgardar.length === 0) return null
@@ -55,6 +57,9 @@ export function RitningView() {
             {t.namn}
           </Chip>
         ))}
+        {/* Flera ritningar över samma tomt: "Baksidan" som den ser ut nu,
+            "Baksidan kommande" som den ska bli. */}
+        <Chip onClick={() => setVisaNy(true)}>+ Ny ritning</Chip>
         {/* Egen wrapper: knappens egen `inline-flex` vinner annars över `hidden`,
             och Redigera dyker upp i mobilen där ritläget inte hör hemma. */}
         {vald.widthM !== undefined && (
@@ -71,7 +76,116 @@ export function RitningView() {
       ) : (
         <LevandeRitning key={vald.id} tradgard={vald} />
       )}
+
+      <NyRitningArk
+        oppen={visaNy}
+        onOppenChange={setVisaNy}
+        forslag={vald.widthM ? { bredd: vald.widthM, djup: vald.heightM ?? 0 } : undefined}
+        onSkapad={setValdId}
+      />
     </div>
+  )
+}
+
+/** Ny ritning — t.ex. "Baksidan kommande" bredvid nuläget. */
+function NyRitningArk({
+  oppen,
+  onOppenChange,
+  forslag,
+  onSkapad,
+}: {
+  oppen: boolean
+  onOppenChange: (o: boolean) => void
+  forslag?: { bredd: number; djup: number }
+  onSkapad: (id: string) => void
+}) {
+  const uid = useUid()
+  const { tradgardar } = useData()
+  const [namn, setNamn] = useState('')
+  const [bredd, setBredd] = useState('')
+  const [djup, setDjup] = useState('')
+  const [fel, setFel] = useState<string>()
+
+  function skapa(e: FormEvent) {
+    e.preventDefault()
+    const trimmat = namn.trim()
+    if (!trimmat) {
+      setFel('Ge ritningen ett namn.')
+      return
+    }
+    const breddM = tolkaMeter(bredd || String(forslag?.bredd ?? ''), 2)
+    const djupM = tolkaMeter(djup || String(forslag?.djup ?? ''), 2)
+    if (!breddM || !djupM) {
+      setFel('Ange måtten i meter, t.ex. 18 och 11,5.')
+      return
+    }
+    void (async () => {
+      const repo = await import('../data/repo')
+      const id = repo.skapaTradgard(uid, {
+        namn: trimmat,
+        ordning: tradgardar.length,
+        widthM: breddM,
+        heightM: djupM,
+      })
+      setNamn('')
+      setBredd('')
+      setDjup('')
+      setFel(undefined)
+      onOppenChange(false)
+      onSkapad(id)
+    })()
+  }
+
+  return (
+    <Ark
+      oppen={oppen}
+      onOppenChange={onOppenChange}
+      titel="Ny ritning"
+      beskrivning="En egen ritning över samma tomt — bra för att skissa om utan att röra nuläget."
+    >
+      <form onSubmit={skapa} className="flex flex-col gap-4">
+        <Falt etikett="Namn">
+          <input
+            type="text"
+            autoFocus
+            value={namn}
+            onChange={(e) => setNamn(e.target.value)}
+            placeholder="Baksidan kommande"
+            className={inmatningsStil}
+          />
+        </Falt>
+        <div className="flex gap-3">
+          <Falt etikett="Bredd (m)">
+            <input
+              type="text"
+              inputMode="decimal"
+              value={bredd}
+              onChange={(e) => setBredd(e.target.value)}
+              placeholder={forslag ? String(forslag.bredd).replace('.', ',') : '18'}
+              className={`${inmatningsStil} mono`}
+            />
+          </Falt>
+          <Falt etikett="Djup (m)">
+            <input
+              type="text"
+              inputMode="decimal"
+              value={djup}
+              onChange={(e) => setDjup(e.target.value)}
+              placeholder={forslag ? String(forslag.djup).replace('.', ',') : '11,5'}
+              className={`${inmatningsStil} mono`}
+            />
+          </Falt>
+        </div>
+        {fel && (
+          <p role="alert" className="text-sm text-fermob-lyft">
+            {fel}
+          </p>
+        )}
+        <Knapp type="submit" variant="primar">
+          Skapa ritningen
+        </Knapp>
+      </form>
+    </Ark>
   )
 }
 
@@ -440,9 +554,40 @@ function LevandeRitning({ tradgard }: { tradgard: Tradgard }) {
       >
         {valdPlats && (
           <div className="flex flex-col gap-5">
-            <p className="mono text-sm text-dis">
-              {antalVaxter(vaxter.filter((v) => v.platsId === valdPlats.id).length)}
-            </p>
+            {/* Vilka växter som står här är det man vill veta när man trycker
+                på en form — inte bara hur många. */}
+            <section>
+              <h3 className="mb-2 flex items-baseline justify-between gap-3">
+                <span className="text-xs font-medium tracking-[0.08em] text-dis-svag uppercase">
+                  Växter här
+                </span>
+                <span className="mono shrink-0 text-xs text-dis-svag">
+                  {antalVaxter(vaxter.filter((v) => v.platsId === valdPlats.id).length)}
+                </span>
+              </h3>
+              {vaxter.filter((v) => v.platsId === valdPlats.id).length === 0 ? (
+                <p className="text-sm text-dis">Inga växter här än.</p>
+              ) : (
+                <ul className="grid grid-cols-4 gap-2">
+                  {vaxter
+                    .filter((v) => v.platsId === valdPlats.id)
+                    .map((v) => (
+                      <li key={v.id}>
+                        <Link to={`/vaxter/${v.id}`} className="flex flex-col gap-1">
+                          <FotoBild
+                            fotoRef={fotoAvVaxt.get(v.id)}
+                            alt={v.namn}
+                            className={`aspect-square w-full rounded-lg ${
+                              v.status === 'planerad' ? 'opacity-60 ring-1 ring-linje' : ''
+                            }`}
+                          />
+                          <span className="truncate text-[11px] text-ljus">{v.namn}</span>
+                        </Link>
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </section>
             <HandelseKnappar
               platsId={valdPlats.id}
               handelser={handelser.filter((h) => h.platsId === valdPlats.id)}

@@ -5,12 +5,13 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useUid } from '../auth/AuthProvider'
 import { Chip } from '../components/Chip'
 import { Falt, inmatningsStil } from '../components/Falt'
 import { TillbakaIkon } from '../components/Ikoner'
 import { Knapp, TaBortKnapp } from '../components/Knapp'
+import { useAngra } from '../components/ritning/useAngra'
 import { PlatsLager } from '../components/ritning/PlatsLager'
 import { Skalstock } from '../components/ritning/Skalstock'
 import { useRitYta } from '../components/ritning/useRitYta'
@@ -20,6 +21,7 @@ import { useData } from '../data/DataProvider'
 import type { PlatsFalt } from '../data/repo'
 import { PLATSTYPER, type Plats, type PlatsTyp, type PunktM, type Tradgard } from '../data/types'
 import { platstypEtikett } from '../lib/etiketter'
+import { allaRunda, arRund, vaxlaRunt } from '../lib/form'
 import { formatMeter, tolkaMeter } from '../lib/format'
 import {
   avstand,
@@ -36,8 +38,8 @@ import { viewBoxAttribut } from '../lib/viewbox'
 
 /**
  * Ritläget — planeringsverktyget. Desktop-först: mus, stor skärm, snap 0,1 m.
- * Här ritas formerna och här sitter hon en kväll och placerar ut veckans
- * fotograferingar.
+ * Läget är avsiktligt tydligt markerat och har en Klar-knapp; det ska aldrig
+ * gå att undra om man är i det eller inte.
  */
 export function RitaView() {
   const { tradgardar, laddad } = useData()
@@ -50,7 +52,7 @@ export function RitaView() {
     tradgardar.find((t) => t.widthM !== undefined)
 
   if (!tradgard) {
-    return <SaknasVy text="Ange måtten på en trädgård först." tillbakaTill="/ritning" />
+    return <SaknasVy text="Ange måtten på en ritning först." tillbakaTill="/ritning" />
   }
   return <Ritare key={tradgard.id} tradgard={tradgard} />
 }
@@ -70,6 +72,8 @@ type Gest =
 function Ritare({ tradgard }: { tradgard: Tradgard }) {
   const { platser, vaxter, handelser } = useData()
   const uid = useUid()
+  const navigera = useNavigate()
+  const angra = useAngra()
   const { behallareRef, vb, mpp, tillMeter, panoreraPx } = useRitYta(
     tradgard.widthM ?? 0,
     tradgard.heightM ?? 0,
@@ -93,11 +97,21 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
     (v) => !prickar.some((p) => p.vaxt.id === v.id) && v.status !== 'planerad',
   )
 
-  function sparaGeometri(plats: Plats, punkter: PunktM[]) {
+  /** Sparar geometri och lägger den gamla formen på ångra-stacken. */
+  function sparaGeometri(plats: Plats, punkter: PunktM[], runda: number[] | undefined, vad: string) {
+    const foreP = plats.geometri?.punkter
+    const foreR = plats.geometri?.runda
     void (async () => {
       const repo = await import('../data/repo')
-      repo.sparaPlatsGeometri(uid, plats.id, punkter)
+      repo.sparaPlatsGeometri(uid, plats.id, punkter, runda)
     })()
+    if (!foreP) return
+    angra.minns(vad, () => {
+      void (async () => {
+        const repo = await import('../data/repo')
+        repo.sparaPlatsGeometri(uid, plats.id, foreP, foreR)
+      })()
+    })
   }
 
   function avbrytRitning() {
@@ -130,6 +144,13 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
         punkter,
       })
       setValtId(id)
+      angra.minns('rita platsen', () => {
+        void (async () => {
+          const r = await import('../data/repo')
+          r.taBortPlats(uid, id, [], [])
+          setValtId(undefined)
+        })()
+      })
     })()
   }
 
@@ -205,24 +226,30 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
     if (!gest || e.pointerId !== gest.pekarId) return
 
     if (gest.typ === 'horn') {
-      gest.flyttad = true
       const plats = iTradgarden.find((p) => p.id === gest.platsId)
       if (!plats?.geometri) return
       const punkt = snappaPunkt(tillMeter(e.clientX, e.clientY))
+      // Rör man sig inte räknas det som ett klick — och ett klick vänder
+      // hörnet mellan runt och spetsigt.
+      if (!gest.flyttad && avstand(punkt, plats.geometri.punkter[gest.index]!) < 0.05) return
+      gest.flyttad = true
       const punkter = plats.geometri.punkter.map((p, i) => (i === gest.index ? punkt : p))
-      setUtkast({ ...plats, geometri: { punkter } })
+      setUtkast({ ...plats, geometri: { ...plats.geometri, punkter } })
       return
     }
 
     if (gest.typ === 'form') {
       const plats = iTradgarden.find((p) => p.id === gest.platsId)
-      if (!plats) return
+      if (!plats?.geometri) return
       const [mx, my] = tillMeter(e.clientX, e.clientY)
       const dx = snappa(mx - gest.startMeter[0])
       const dy = snappa(my - gest.startMeter[1])
       if (Math.abs(dx) > 0.05 || Math.abs(dy) > 0.05) gest.flyttad = true
       if (gest.flyttad) {
-        setUtkast({ ...plats, geometri: { punkter: flyttaPunkter(gest.origPunkter, dx, dy) } })
+        setUtkast({
+          ...plats,
+          geometri: { ...plats.geometri, punkter: flyttaPunkter(gest.origPunkter, dx, dy) },
+        })
       }
       return
     }
@@ -241,10 +268,29 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
     if (!gest || e.pointerId !== gest.pekarId) return
     gestRef.current = null
 
-    if (gest.typ === 'horn' || gest.typ === 'form') {
+    if (gest.typ === 'horn') {
+      const plats = iTradgarden.find((p) => p.id === gest.platsId)
       if (utkast?.geometri && gest.flyttad) {
-        sparaGeometri(utkast, utkast.geometri.punkter)
-      } else if (gest.typ === 'form' && !gest.flyttad) {
+        sparaGeometri(plats ?? utkast, utkast.geometri.punkter, utkast.geometri.runda, 'flytta hörnet')
+      } else if (plats?.geometri && !gest.flyttad) {
+        // Klick utan rörelse → runda eller spetsa hörnet.
+        const runda = vaxlaRunt(plats.geometri.runda, gest.index)
+        sparaGeometri(
+          plats,
+          plats.geometri.punkter,
+          runda,
+          arRund(runda, gest.index) ? 'runda hörnet' : 'spetsa hörnet',
+        )
+      }
+      setUtkast(undefined)
+      return
+    }
+
+    if (gest.typ === 'form') {
+      const plats = iTradgarden.find((p) => p.id === gest.platsId)
+      if (utkast?.geometri && gest.flyttad) {
+        sparaGeometri(plats ?? utkast, utkast.geometri.punkter, utkast.geometri.runda, 'flytta platsen')
+      } else if (!gest.flyttad) {
         setValtId(gest.platsId)
       }
       setUtkast(undefined)
@@ -267,24 +313,39 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
       setRitPunkter((nu) => [...nu, punkt])
       return
     }
-    if (armerad) {
-      const plats = platsVidPunkt(punkt, platser, tradgard.id)
-      if (!plats) return
-      const vaxt = vaxter.find((v) => v.id === armerad)
-      if (!vaxt) return
+    if (!armerad) return
+
+    const plats = platsVidPunkt(punkt, platser, tradgard.id)
+    const vaxt = vaxter.find((v) => v.id === armerad)
+    if (!vaxt) return
+    if (!plats) {
+      // Tyst misslyckande var det gamla beteendet — säg i stället varför.
+      setPlaceringsfel('Klicka inuti en plats. Växten måste stå någonstans.')
+      return
+    }
+    const foreP = vaxt.platsId
+    const forePos = vaxt.position
+    void (async () => {
+      const repo = await import('../data/repo')
+      repo.flyttaVaxtPaRitningen(uid, vaxt, punkt[0], punkt[1], plats.id)
+    })()
+    setArmerad(undefined)
+    setPlaceringsfel(undefined)
+    angra.minns(`placera ${vaxt.namn}`, () => {
       void (async () => {
         const repo = await import('../data/repo')
-        repo.flyttaVaxtPaRitningen(uid, vaxt, punkt[0], punkt[1], plats.id)
+        repo.aterstallVaxtPlacering(uid, vaxt.id, foreP, forePos)
       })()
-      setArmerad(undefined)
-    }
+    })
   }
 
+  const [placeringsfel, setPlaceringsfel] = useState<string>()
   const ritVisning = hovrad && ritPunkter.length > 0 ? [...ritPunkter, hovrad] : ritPunkter
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-3 border-b border-linje px-4 py-2.5">
+      {/* Ritläget ska synas på en meter håll. */}
+      <div className="flex flex-nowrap items-center gap-3 overflow-x-auto border-b-2 border-fermob/60 bg-fermob/10 px-4 py-2.5">
         <Link
           to="/ritning"
           aria-label="Tillbaka till ritningen"
@@ -292,19 +353,27 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
         >
           <TillbakaIkon />
         </Link>
+        <span className="mono rounded bg-fermob px-2 py-0.5 text-[11px] font-medium tracking-[0.1em] text-white uppercase">
+          Ritläge
+        </span>
         <h1 className="font-display text-lg font-semibold text-ljus">{tradgard.namn}</h1>
         <TomtMatt tradgard={tradgard} />
+
         <div className="ml-auto flex items-center gap-2">
+          {/* Fast bredd och fast text: en etikett som växer med åtgärdens
+              namn radbryter verktygsraden, och då hoppar hela ritytan. Vad
+              som ångras står i hjälpraden nedanför i stället. */}
+          <Knapp
+            onClick={angra.angra}
+            disabled={!angra.kanAngra}
+            aria-label={angra.nastaEtikett ? `Ångra ${angra.nastaEtikett}` : 'Ångra'}
+          >
+            Ångra
+          </Knapp>
           {ritar ? (
-            <>
-              <p className="hidden text-sm text-dis sm:block">
-                Klicka ut hörnen · Enter avslutar · Esc ångrar
-              </p>
-              <Knapp onClick={avbrytRitning}>Avbryt</Knapp>
-            </>
+            <Knapp onClick={avbrytRitning}>Avbryt ritandet</Knapp>
           ) : (
             <Knapp
-              variant="primar"
               onClick={() => {
                 setValtId(undefined)
                 setArmerad(undefined)
@@ -314,14 +383,29 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
               Rita ny plats
             </Knapp>
           )}
+          <Knapp variant="primar" onClick={() => navigera('/ritning')}>
+            Klar
+          </Knapp>
         </div>
       </div>
 
-      <p className="border-b border-linje px-4 py-1.5 text-xs text-dis-svag lg:hidden">
-        Ritningen görs enklast på datorn.
-      </p>
+      <div className="flex items-baseline justify-between gap-4 border-b border-linje px-4 py-1.5">
+        <p className="text-xs text-dis">
+          {ritar
+            ? 'Klicka ut hörnen · Enter avslutar · Esc ångrar senaste hörnet'
+            : armerad
+              ? `Klicka inuti en plats för att sätta ${vaxter.find((v) => v.id === armerad)?.namn} där.`
+              : 'Dra formen för att flytta · dra ett hörn för att ändra · klicka ett hörn för att runda det'}
+        </p>
+        {angra.nastaEtikett && (
+          <p className="shrink-0 text-xs text-dis-svag">Ångra: {angra.nastaEtikett}</p>
+        )}
+      </div>
 
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+      {/* Fast höjd på desktop, och flex-none så att flex-basis inte äter upp
+          den: annars växer raden med panelens innehåll och hela sidan börjar
+          scrolla — då hoppar ritytan under handen medan man ritar. */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:h-[72vh] lg:flex-none lg:flex-row">
         <div
           ref={behallareRef}
           data-testid="ritredigering"
@@ -393,33 +477,53 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
                 </g>
               )}
 
-              {/* Hörnhandtag för vald plats */}
+              {/* Hörnhandtag. Rund = mjukt hörn, fyrkant = spetsigt. */}
               {valt?.geometri &&
                 !ritar &&
-                valt.geometri.punkter.map((p, i) => (
-                  <circle
-                    key={`horn-${i}`}
-                    data-horn-index={i}
-                    cx={p[0]}
-                    cy={p[1]}
-                    r={6 * mpp}
-                    fill="var(--color-botten)"
-                    stroke="var(--color-fermob-lyft)"
-                    strokeWidth={2}
-                    vectorEffect="non-scaling-stroke"
-                    cursor="grab"
-                  />
-                ))}
+                valt.geometri.punkter.map((p, i) => {
+                  const rund = arRund(valt.geometri!.runda, i)
+                  const r = 6 * mpp
+                  return rund ? (
+                    <circle
+                      key={`horn-${i}`}
+                      data-horn-index={i}
+                      cx={p[0]}
+                      cy={p[1]}
+                      r={r}
+                      fill="var(--color-lov)"
+                      stroke="var(--color-botten)"
+                      strokeWidth={2}
+                      vectorEffect="non-scaling-stroke"
+                      cursor="grab"
+                    />
+                  ) : (
+                    <rect
+                      key={`horn-${i}`}
+                      data-horn-index={i}
+                      x={p[0] - r}
+                      y={p[1] - r}
+                      width={r * 2}
+                      height={r * 2}
+                      fill="var(--color-botten)"
+                      stroke="var(--color-fermob-lyft)"
+                      strokeWidth={2}
+                      vectorEffect="non-scaling-stroke"
+                      cursor="grab"
+                    />
+                  )
+                })}
             </svg>
           )}
 
           {vb && <Skalstock mpp={mpp} />}
 
-          {armerad && (
-            <div className="absolute inset-x-3 top-3 rounded-xl border border-fermob-lyft/40 bg-panel px-4 py-3 text-sm text-ljus">
-              Klicka på en plats för att sätta{' '}
-              <span className="font-medium">{vaxter.find((v) => v.id === armerad)?.namn}</span> där.
-            </div>
+          {placeringsfel && (
+            <p
+              role="alert"
+              className="absolute inset-x-3 top-3 rounded-xl border border-fermob-lyft/40 bg-panel px-4 py-3 text-sm text-ljus"
+            >
+              {placeringsfel}
+            </p>
           )}
 
           {iTradgarden.length === 0 && !ritar && (
@@ -430,12 +534,14 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
           )}
         </div>
 
-        <aside className="flex w-full flex-col gap-5 overflow-y-auto border-t border-linje p-4 lg:w-80 lg:border-t-0 lg:border-l">
+        <aside className="flex w-full min-h-0 flex-col gap-5 overflow-y-auto border-t border-linje p-4 lg:w-80 lg:border-t-0 lg:border-l">
           {valt && !ritar ? (
             <PlatsPanel
               key={valt.id}
               plats={valt}
               antalVaxter={vaxter.filter((v) => v.platsId === valt.id).length}
+              onGeometri={sparaGeometri}
+              onMinns={angra.minns}
               onTaBort={() => setValtId(undefined)}
             />
           ) : (
@@ -456,7 +562,10 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
                   <li key={v.id}>
                     <Chip
                       vald={armerad === v.id}
-                      onClick={() => setArmerad(armerad === v.id ? undefined : v.id)}
+                      onClick={() => {
+                        setPlaceringsfel(undefined)
+                        setArmerad(armerad === v.id ? undefined : v.id)
+                      }}
                     >
                       {v.namn}
                     </Chip>
@@ -475,7 +584,7 @@ function mattText(varde: number): string {
   return String(Number(varde.toFixed(2))).replace('.', ',')
 }
 
-/** Trädgårdens mått, redigerbara direkt i verktygsraden. */
+/** Ritningens mått, redigerbara direkt i verktygsraden. */
 function TomtMatt({ tradgard }: { tradgard: Tradgard }) {
   const uid = useUid()
   const [bredd, setBredd] = useState(mattText(tradgard.widthM ?? 0))
@@ -504,7 +613,7 @@ function TomtMatt({ tradgard }: { tradgard: Tradgard }) {
   return (
     <div className="flex items-center gap-1.5 text-sm">
       <label className="sr-only" htmlFor="tomt-bredd">
-        Trädgårdens bredd i meter
+        Ritningens bredd i meter
       </label>
       <input
         id="tomt-bredd"
@@ -517,7 +626,7 @@ function TomtMatt({ tradgard }: { tradgard: Tradgard }) {
       />
       <span className="text-dis-svag">×</span>
       <label className="sr-only" htmlFor="tomt-djup">
-        Trädgårdens djup i meter
+        Ritningens djup i meter
       </label>
       <input
         id="tomt-djup"
@@ -536,10 +645,14 @@ function TomtMatt({ tradgard }: { tradgard: Tradgard }) {
 function PlatsPanel({
   plats,
   antalVaxter,
+  onGeometri,
+  onMinns,
   onTaBort,
 }: {
   plats: Plats
   antalVaxter: number
+  onGeometri: (plats: Plats, punkter: PunktM[], runda: number[] | undefined, vad: string) => void
+  onMinns: (etikett: string, gor: () => void) => void
   onTaBort: () => void
 }) {
   const uid = useUid()
@@ -555,11 +668,18 @@ function PlatsPanel({
     setHojd(mattText(rekt.hojd))
   }, [rekt.bredd, rekt.hojd])
 
-  function uppdatera(falt: Partial<PlatsFalt>) {
+  /** Skriver och lägger motsatsen på ångra-stacken. */
+  function uppdatera(falt: Partial<PlatsFalt>, etikett: string, fore: Partial<PlatsFalt>) {
     void (async () => {
       const repo = await import('../data/repo')
       repo.uppdateraPlats(uid, plats.id, falt)
     })()
+    onMinns(etikett, () => {
+      void (async () => {
+        const repo = await import('../data/repo')
+        repo.uppdateraPlats(uid, plats.id, fore)
+      })()
+    })
   }
 
   function sparaMatt() {
@@ -572,11 +692,11 @@ function PlatsPanel({
       return
     }
     if (Math.abs(nyBredd - rekt.bredd) < 0.005 && Math.abs(nyHojd - rekt.hojd) < 0.005) return
-    void (async () => {
-      const repo = await import('../data/repo')
-      repo.sparaPlatsGeometri(uid, plats.id, skalaTillMatt(punkter, nyBredd, nyHojd))
-    })()
+    onGeometri(plats, skalaTillMatt(punkter, nyBredd, nyHojd), plats.geometri?.runda, 'ändra måtten')
   }
+
+  const antalHorn = plats.geometri?.punkter.length ?? 0
+  const allaAr = antalHorn > 0 && (plats.geometri?.runda?.length ?? 0) === antalHorn
 
   return (
     <div className="flex flex-col gap-4">
@@ -587,8 +707,9 @@ function PlatsPanel({
           onChange={(e) => setNamn(e.target.value)}
           onBlur={() => {
             const trimmat = namn.trim()
-            if (trimmat && trimmat !== plats.namn) uppdatera({ namn: trimmat })
-            else if (!trimmat) setNamn(plats.namn)
+            if (trimmat && trimmat !== plats.namn) {
+              uppdatera({ namn: trimmat }, 'namnbytet', { namn: plats.namn })
+            } else if (!trimmat) setNamn(plats.namn)
           }}
           className={inmatningsStil}
         />
@@ -598,12 +719,41 @@ function PlatsPanel({
         <span className="text-sm font-medium text-dis">Typ</span>
         <div className="flex flex-wrap gap-1.5">
           {PLATSTYPER.map((typ) => (
-            <Chip key={typ} vald={typ === plats.typ} onClick={() => uppdatera({ typ })}>
+            <Chip
+              key={typ}
+              vald={typ === plats.typ}
+              onClick={() => uppdatera({ typ }, 'typbytet', { typ: plats.typ })}
+            >
               {platstypEtikett(typ)}
             </Chip>
           ))}
         </div>
       </div>
+
+      {/* Kurvor: trädgården har sällan bara raka kanter. */}
+      {antalHorn >= 3 && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-dis">Kanter</span>
+          <div className="flex flex-wrap gap-1.5">
+            <Chip
+              onClick={() =>
+                onGeometri(
+                  plats,
+                  plats.geometri!.punkter,
+                  allaAr ? [] : allaRunda(antalHorn),
+                  allaAr ? 'spetsa kanterna' : 'runda kanterna',
+                )
+              }
+            >
+              {allaAr ? 'Gör spetsiga' : 'Runda alla'}
+            </Chip>
+          </div>
+          <p className="text-xs text-dis-svag">
+            Klicka ett enskilt hörn i ritningen för att runda just det — så blir en rabatt
+            D-formad.
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-col gap-1.5">
         <span className="text-sm font-medium text-dis">Mått (m)</span>
@@ -638,7 +788,13 @@ function PlatsPanel({
 
       <Chip
         vald={plats.status === 'planerad'}
-        onClick={() => uppdatera({ status: plats.status === 'planerad' ? 'finns' : 'planerad' })}
+        onClick={() =>
+          uppdatera(
+            { status: plats.status === 'planerad' ? 'finns' : 'planerad' },
+            'planerad-växlingen',
+            { status: plats.status },
+          )
+        }
         className="self-start"
       >
         Planerad
@@ -652,7 +808,9 @@ function PlatsPanel({
           onBlur={() => {
             const trimmat = anteckning.trim()
             if ((plats.anteckning ?? '') !== trimmat) {
-              uppdatera({ anteckning: trimmat || undefined })
+              uppdatera({ anteckning: trimmat || undefined }, 'anteckningen', {
+                anteckning: plats.anteckning,
+              })
             }
           }}
           className={inmatningsStil}
@@ -666,22 +824,38 @@ function PlatsPanel({
       <div className="border-t border-linje pt-4">
         <TaBortKnapp
           onBekraftad={() => {
+            const vaxterDar = vaxter.filter((v) => v.platsId === plats.id)
+            const platsFore = plats
+            const placeringar = vaxterDar.map((v) => ({
+              id: v.id,
+              platsId: v.platsId,
+              position: v.position,
+            }))
             void (async () => {
               const repo = await import('../data/repo')
               repo.taBortPlats(
                 uid,
                 plats.id,
-                vaxter.filter((v) => v.platsId === plats.id),
+                vaxterDar,
                 handelser.filter((h) => h.platsId === plats.id),
               )
               onTaBort()
             })()
+            onMinns('ta bort platsen', () => {
+              void (async () => {
+                const repo = await import('../data/repo')
+                repo.aterskapaPlats(uid, platsFore)
+                for (const p of placeringar) {
+                  repo.aterstallVaxtPlacering(uid, p.id, p.platsId, p.position)
+                }
+              })()
+            })
           }}
         >
           Ta bort platsen
         </TaBortKnapp>
         <p className="mt-2 text-xs text-dis-svag">
-          Växterna här blir kvar — de hamnar under "Utan plats".
+          Växterna här blir kvar — de hamnar under "Utan plats". Går att ångra.
         </p>
       </div>
     </div>
