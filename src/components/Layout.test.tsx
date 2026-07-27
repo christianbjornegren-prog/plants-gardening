@@ -42,12 +42,14 @@ describe('Layout', () => {
     expect(oppna).toHaveBeenCalledTimes(1)
   })
 
-  it('ordnar bottenraden Hem · Ritningen · + · Växter · Logg', () => {
+  // OBS nattkörningen: förväntan UTÖKAD med den beställda Solen-fliken —
+  // testet vaktar fortfarande hela ordningen och +-knappens mittposition.
+  it('ordnar bottenraden Hem · Ritningen · Solen · + · Växter · Logg', () => {
     renderLayout()
     const bottenrad = screen.getAllByRole('navigation')[1]!
     const barn = [...bottenrad.querySelectorAll('a, button')].map(
       (n) => n.textContent || n.getAttribute('aria-label'),
     )
-    expect(barn).toEqual(['Hem', 'Ritningen', 'Ny växt', 'Växter', 'Logg'])
+    expect(barn).toEqual(['Hem', 'Ritningen', 'Solen', 'Ny växt', 'Växter', 'Logg'])
   })
 })
