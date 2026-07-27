@@ -30,7 +30,7 @@ test('varje vy visar exakt en röd åtgärd', async ({ page }) => {
   // Växtkortet.
   expect(await antalRoda(page)).toBe(1)
 
-  for (const flik of ['Hem', 'Växter', 'Logg', 'Ritningen']) {
+  for (const flik of ['Hem', 'Växter', 'Logg', 'Ritningen', 'Solen']) {
     await page.getByRole('link', { name: flik }).first().click()
     await page.waitForTimeout(300)
     expect(await antalRoda(page), `${flik} ska ha exakt en röd åtgärd`).toBe(1)
