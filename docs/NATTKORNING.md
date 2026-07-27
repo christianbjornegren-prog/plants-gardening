@@ -133,7 +133,22 @@ desktop-först-läge.
 
 ## 6. Deploy
 
-*(fylls i efter merge — se slutet av filen)*
+**Live: https://plants-gardeing.web.app** — mergad `main@25e8fc0`.
+
+- CI (GitHub Actions): kontrolljobbet (typecheck, lint, enhetstester,
+  e2e desktop+mobil, bygge) **grönt** på merge-commiten. Deployjobbet
+  stoppas som förut av vakten "Vägra deploya en lokal-bundle" —
+  `VITE_FIREBASE_*`-secrets saknas fortfarande i GitHub, så CI kan bara
+  bygga lokal-bundlar. Deployen gjordes därför manuellt (etablerad
+  praxis i repot), efter grön CI-kontroll.
+- CI fångade dessutom ett äkta typfel i sol.ts som lokala kontroller
+  missat: `npm run typecheck` (tsc -b) är sanningen, `npx tsc --noEmit`
+  mot rotens solution-tsconfig kontrollerar ingenting. Fixat i 25e8fc0.
+- Smoke-test av live: serverad bundle identisk med lokala bygget
+  (index-IpRSn4f5.js), titeln neutral ("Trädgårdsjournal"), `/` utan
+  cache och assets immutable-cachade, `/solen` svarar 200 via
+  SPA-rewriten. Inloggning kunde inte smoke-testas i natt — kräver
+  Google-kontot interaktivt.
 
 ## 7. Siffror
 
