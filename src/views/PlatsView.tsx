@@ -229,7 +229,8 @@ export function PlatsView() {
           Ta bort platsen
         </TaBortKnapp>
         <p className="mt-2 text-xs text-dis-svag">
-          Växterna här blir kvar — de hamnar under "Utan plats".
+          Växterna här blir kvar — de hamnar under "Utan plats". Platsens egna
+          anteckningar och foton följer med bort.
         </p>
       </div>
 

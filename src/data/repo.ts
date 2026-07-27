@@ -4,7 +4,9 @@ import {
   deleteField,
   doc,
   getDoc,
+  getDocFromServer,
   getDocs,
+  getDocsFromServer,
   onSnapshot,
   query,
   setDoc,
@@ -12,9 +14,12 @@ import {
   where,
   writeBatch,
   type DocumentData,
+  type DocumentReference,
+  type Query,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore'
 import { getDb } from '../lib/firebase'
+import { appLage } from '../lib/lage'
 import { rapporteraDataFel } from './fel'
 import { utanUndefined } from '../lib/rensa'
 import { franLagradGeometri, tillLagradGeometri, tolkaPlatsTyp } from './kartkonvertering'
@@ -340,22 +345,59 @@ export function sparaPlatsGeometri(
   }).catch(loggaFel)
 }
 
+export interface TaBortPlatsAlternativ {
+  /**
+   * Behåll fotoblobbarna när raderingen erbjuds med ångra: en raderad blob
+   * går aldrig att återskapa, så "Går att ångra" kräver att filerna får
+   * ligga kvar. Priset är en föräldralös fil om ångra aldrig trycks —
+   * osynligt, mot att ett tryck på Ångra faktiskt återställer allt.
+   */
+  bevaraFoton?: boolean
+  /** Får de raderade händelserna — det är dessa ångra ska återskapa. */
+  vidStadat?: (handelser: Handelse[]) => void
+}
+
 /**
  * Tar bort platsen. Växterna där blir HEMLÖSA — aldrig raderade. Platsens egna
- * händelser (och deras foton) städas.
+ * händelser städas; foton bara om raderingen inte är ångringsbar.
+ *
+ * Utöver vyns listor frågas den lokala cachen — både efter händelser och
+ * efter växter med platsId mot platsen: vyns state kan sakna poster som just
+ * skrivits, eller växter som placerades här från en annan flik/enhet.
  */
-export function taBortPlats(uid: string, id: string, vaxterDar: Vaxt[], handelser: Handelse[]): void {
+export function taBortPlats(
+  uid: string,
+  id: string,
+  vaxterDar: Vaxt[],
+  handelser: Handelse[],
+  alternativ: TaBortPlatsAlternativ = {},
+): void {
   void deleteDoc(doc(platsCol(uid), id)).catch(loggaFel)
-  for (const vaxt of vaxterDar) {
-    void updateDoc(doc(vaxtCol(uid), vaxt.id), {
-      platsId: deleteField(),
-      position: deleteField(),
-    }).catch(loggaFel)
-  }
+
+  void (async () => {
+    let cachade: Vaxt[] = []
+    try {
+      const snap = await getDocs(query(vaxtCol(uid), where('platsId', '==', id)))
+      cachade = snap.docs.map(tillVaxt)
+    } catch {
+      cachade = []
+    }
+    const beroras = new Map([...vaxterDar, ...cachade].map((v) => [v.id, v] as const))
+    for (const vaxt of beroras.values()) {
+      void updateDoc(doc(vaxtCol(uid), vaxt.id), {
+        platsId: deleteField(),
+        position: deleteField(),
+      }).catch(loggaFel)
+    }
+  })().catch(loggaFel)
+
   // BARA platsens EGNA händelser. Växternas händelser bär också platsId (de
   // loggas med platsen de stod på), och att radera dem skulle förstöra
   // växternas historik och foton — trots att UI:t lovar att växterna blir kvar.
-  void stadaHandelser(uid, 'platsId', id, handelser, (h) => h.vaxtId === undefined).catch(loggaFel)
+  void stadaHandelser(uid, 'platsId', id, handelser, (h) => h.vaxtId === undefined, {
+    bevaraFoton: alternativ.bevaraFoton,
+    vidStadat: alternativ.vidStadat,
+  }).catch(loggaFel)
 }
 
 /* --------------------------------------------------------------------- växter */
@@ -434,14 +476,20 @@ export function taBortPlacering(uid: string, vaxtId: string): void {
  * bara riktiga flyttar, annars fylls loggen av "Flyttat" direkt efter att
  * varje ny växt lagts till.
  */
-export function flyttaVaxt(uid: string, vaxt: Vaxt, tillPlatsId: string | undefined): void {
-  if (tillPlatsId === vaxt.platsId) return
+export function flyttaVaxt(
+  uid: string,
+  vaxt: Vaxt,
+  tillPlatsId: string | undefined,
+): string | undefined {
+  if (tillPlatsId === vaxt.platsId) return undefined
   void updateDoc(doc(vaxtCol(uid), vaxt.id), {
     platsId: tillPlatsId ?? deleteField(),
     position: deleteField(),
   }).catch(loggaFel)
-  if (!vaxt.platsId) return
-  skapaHandelse(uid, {
+  if (!vaxt.platsId) return undefined
+  // Händelse-id:t returneras så att en ÅNGRAD flytt kan ta bort sin
+  // historikpost — annars står en flytt som aldrig blev av kvar i loggen.
+  return skapaHandelse(uid, {
     typ: 'flyttat',
     vaxtId: vaxt.id,
     platsId: tillPlatsId,
@@ -460,15 +508,16 @@ export function flyttaVaxtPaRitningen(
   x: number,
   y: number,
   tillPlatsId: string | undefined,
-): void {
+): string | undefined {
   if (tillPlatsId && tillPlatsId !== vaxt.platsId) {
     void updateDoc(doc(vaxtCol(uid), vaxt.id), {
       platsId: tillPlatsId,
       position: { x, y },
     }).catch(loggaFel)
-    // Samma regel som flyttaVaxt: första platsen är ingen flytt.
+    // Samma regel som flyttaVaxt: första platsen är ingen flytt. Id:t
+    // returneras så att ångra kan radera historikposten.
     if (vaxt.platsId) {
-      skapaHandelse(uid, {
+      return skapaHandelse(uid, {
         typ: 'flyttat',
         vaxtId: vaxt.id,
         platsId: tillPlatsId,
@@ -476,9 +525,10 @@ export function flyttaVaxtPaRitningen(
         tillPlatsId,
       })
     }
-    return
+    return undefined
   }
   placeraVaxt(uid, vaxt.id, x, y)
+  return undefined
 }
 
 /** Planerad → finns, med en planterat-händelse daterad i dag. */
@@ -578,6 +628,16 @@ export function skapaHandelse(uid: string, falt: HandelseFalt): string {
   return ny.id
 }
 
+/**
+ * Skriver tillbaka en händelse med SAMMA id — motstycket till aterskapaPlats,
+ * för ångra av platsradering. Utan den kommer platsen tillbaka men inte dess
+ * historik, och "Går att ångra" vore en lögn.
+ */
+export function aterskapaHandelse(uid: string, handelse: Handelse): void {
+  const { id, ...falt } = handelse
+  void setDoc(doc(handelseCol(uid), id), utanUndefined({ ...falt })).catch(loggaFel)
+}
+
 export function taBortHandelse(uid: string, id: string): void {
   void deleteDoc(doc(handelseCol(uid), id)).catch(loggaFel)
 }
@@ -601,6 +661,7 @@ async function stadaHandelser(
   kanda: Handelse[],
   /** Extra filter: bara händelser som passerar raderas. */
   galler: (h: Handelse) => boolean = () => true,
+  alternativ: { bevaraFoton?: boolean; vidStadat?: (handelser: Handelse[]) => void } = {},
 ): Promise<void> {
   let cachade: Handelse[] = []
   try {
@@ -612,22 +673,53 @@ async function stadaHandelser(
   const alla = new Map(
     [...kanda, ...cachade].filter(galler).map((h) => [h.id, h] as const),
   )
+  alternativ.vidStadat?.([...alla.values()])
   for (const handelse of alla.values()) taBortHandelse(uid, handelse.id)
-  stadaFoton([...alla.values()].flatMap((h) => (h.fotoRef ? [h.fotoRef] : [])))
+  if (!alternativ.bevaraFoton) {
+    stadaFoton([...alla.values()].flatMap((h) => (h.fotoRef ? [h.fotoRef] : [])))
+  }
 }
 
 /* ------------------------------------------------------------------ migrering */
 
+/**
+ * Källäsning för migreringen. I molnläge läses FRÅN SERVERN: en tom lokal
+ * cache (ny webbläsare, offline, nekad läsning) ser annars ut precis som
+ * "ingen data finns", och då skulle stämpeln sättas och verklig molndata
+ * strandas för alltid. undefined betyder "gick inte att läsa" — det är något
+ * HELT annat än en tom lista.
+ */
+async function lasForMigrering(ref: Query): Promise<QueryDocumentSnapshot<DocumentData>[] | undefined> {
+  try {
+    const snap = appLage === 'moln' ? await getDocsFromServer(ref) : await getDocs(ref)
+    return snap.docs
+  } catch {
+    // I lokalt läge finns ingen server — cachen ÄR sanningen, och ett fel
+    // där betyder "finns inte", inte "vet inte".
+    return appLage === 'moln' ? undefined : []
+  }
+}
+
+async function lasDokForMigrering(
+  ref: DocumentReference,
+): Promise<{ finns: boolean; data: DocumentData | undefined } | undefined> {
+  try {
+    const snap = appLage === 'moln' ? await getDocFromServer(ref) : await getDoc(ref)
+    return { finns: snap.exists(), data: snap.data() }
+  } catch {
+    // getDoc med avstängt nätverk KASTAR för dokument som inte ligger i
+    // cachen ("client is offline") — i lokalt läge betyder det bara att
+    // dokumentet inte finns.
+    return appLage === 'moln' ? undefined : { finns: false, data: undefined }
+  }
+}
+
 async function hamtaAlla<T>(
   ref: ReturnType<typeof collection>,
   omvandla: (snap: QueryDocumentSnapshot<DocumentData>) => T,
-): Promise<T[]> {
-  try {
-    const snap = await getDocs(ref)
-    return snap.docs.map(omvandla)
-  } catch {
-    return []
-  }
+): Promise<T[] | undefined> {
+  const docs = await lasForMigrering(ref)
+  return docs?.map(omvandla)
 }
 
 /**
@@ -652,36 +744,18 @@ export async function sakerstallDatamodell(uid: string, personligUid?: string): 
   // Trädgården blev gemensam. Data som skrevs medan den låg under det
   // personliga kontot flyttas hit — kopieras, aldrig raderas.
   if (personligUid && personligUid !== uid) {
-    const flyttad = await flyttaHitPersonligData(uid, personligUid)
-    if (flyttad) return
+    const flytt = await flyttaHitPersonligData(uid, personligUid)
+    if (flytt === 'flyttat') return
+    // Gick källorna inte att läsa får INGEN stämpel sättas — en tom läsning
+    // och "finns ingen data" är två olika saker. Nästa start försöker igen.
+    if (flytt === 'okant') return
   }
 
   // v1-data ligger under det personliga kontot — trädgården blev gemensam
   // först i v2. Läs därifrån, inte från den (tomma) delade roten.
   const v1Rot = personligUid ?? uid
-  const [karta, areas, plants, logEntries] = await Promise.all([
-    (async () => {
-      try {
-        const snap = await getDoc(doc(db, 'users', v1Rot, 'garden', 'map'))
-        if (!snap.exists()) return null
-        const d = snap.data()
-        return {
-          widthM: typeof d.widthM === 'number' ? d.widthM : 0,
-          heightM: typeof d.heightM === 'number' ? d.heightM : 0,
-          objects: (Array.isArray(d.objects) ? d.objects : []).map((rad: Record<string, unknown>) => ({
-            id: typeof rad.id === 'string' ? rad.id : '',
-            type: typeof rad.type === 'string' ? rad.type : 'annat',
-            name: typeof rad.name === 'string' ? rad.name : '',
-            points: (Array.isArray(rad.points) ? rad.points : []).map(
-              (p: { x?: number; y?: number }): PunktM => [p?.x ?? 0, p?.y ?? 0],
-            ),
-            note: typeof rad.note === 'string' ? rad.note : undefined,
-          })),
-        }
-      } catch {
-        return null
-      }
-    })(),
+  const [kartaLast, areas, plants, logEntries] = await Promise.all([
+    lasDokForMigrering(doc(db, 'users', v1Rot, 'garden', 'map')),
     hamtaAlla<V1Area>(collection(db, 'users', v1Rot, 'areas'), (s) => ({
       id: s.id,
       ...(s.data() as Omit<V1Area, 'id'>),
@@ -695,23 +769,54 @@ export async function sakerstallDatamodell(uid: string, personligUid?: string): 
       ...(s.data() as Omit<V1LegacyLogg, 'id'>),
     })),
   ])
+  if (kartaLast === undefined || !areas || !plants || !logEntries) return
+
+  const karta = (() => {
+    if (!kartaLast.finns || !kartaLast.data) return null
+    const d = kartaLast.data
+    return {
+      widthM: typeof d.widthM === 'number' ? d.widthM : 0,
+      heightM: typeof d.heightM === 'number' ? d.heightM : 0,
+      objects: (Array.isArray(d.objects) ? d.objects : []).map((rad: Record<string, unknown>) => ({
+        id: typeof rad.id === 'string' ? rad.id : '',
+        type: typeof rad.type === 'string' ? rad.type : 'annat',
+        name: typeof rad.name === 'string' ? rad.name : '',
+        points: (Array.isArray(rad.points) ? rad.points : []).map(
+          (p: { x?: number; y?: number }): PunktM => [p?.x ?? 0, p?.y ?? 0],
+        ),
+        note: typeof rad.note === 'string' ? rad.note : undefined,
+      })),
+    }
+  })()
 
   const v1: V1Data = { karta, areas, plants, logEntries }
   const v2 = migreraV1TillV2(v1, new Date().toISOString())
 
-  // Trädgårdar som redan finns (t.ex. halvkörd migrering) skrivs inte över.
-  const befintligaTradgardar = new Set(
-    (await hamtaAlla(tradgardCol(uid), (s) => s.id)).map((id) => id),
-  )
+  // Dokument som redan finns skrivs ALDRIG över — en halvkörd eller sent
+  // omkörd migrering får inte klippa bort redigeringar som gjorts sedan dess
+  // (omdöpta trädgårdar, flyttade växter, nya anteckningar).
+  const [harTradgardar, harPlatser, harVaxter, harHandelser] = await Promise.all([
+    hamtaAlla(tradgardCol(uid), (s) => s.id),
+    hamtaAlla(platsCol(uid), (s) => s.id),
+    hamtaAlla(vaxtCol(uid), (s) => s.id),
+    hamtaAlla(handelseCol(uid), (s) => s.id),
+  ])
+  if (!harTradgardar || !harPlatser || !harVaxter || !harHandelser) return
+  const befintliga = {
+    tradgardar: new Set(harTradgardar),
+    platser: new Set(harPlatser),
+    vaxter: new Set(harVaxter),
+    handelser: new Set(harHandelser),
+  }
 
   const batch = writeBatch(db)
   for (const tradgard of v2.tradgardar) {
-    if (befintligaTradgardar.has(tradgard.id)) continue
+    if (befintliga.tradgardar.has(tradgard.id)) continue
     const { id, ...falt } = tradgard
-    // merge: en befintlig trädgård får aldrig tappa sina mått.
-    batch.set(doc(tradgardCol(uid), id), utanUndefined(falt), { merge: true })
+    batch.set(doc(tradgardCol(uid), id), utanUndefined(falt))
   }
   for (const plats of v2.platser) {
+    if (befintliga.platser.has(plats.id)) continue
     const { id, geometri, ...falt } = plats
     batch.set(
       doc(platsCol(uid), id),
@@ -722,16 +827,20 @@ export async function sakerstallDatamodell(uid: string, personligUid?: string): 
     )
   }
   for (const vaxt of v2.vaxter) {
+    if (befintliga.vaxter.has(vaxt.id)) continue
     const { id, ...falt } = vaxt
     batch.set(doc(vaxtCol(uid), id), utanUndefined(falt))
   }
   for (const handelse of v2.handelser) {
+    if (befintliga.handelser.has(handelse.id)) continue
     const { id, ...falt } = handelse
     batch.set(doc(handelseCol(uid), id), utanUndefined(falt))
   }
   batch.set(migreringDoc(uid), { version: MIGRERINGSVERSION })
 
-  // Fire-and-forget mot cachen, precis som övriga skrivningar.
+  // Fire-and-forget mot cachen, precis som övriga skrivningar. Stämpeln
+  // ligger i SAMMA batch som datan — de blir varaktiga tillsammans eller
+  // inte alls, så en avbruten körning kan aldrig lämna en stämpel utan data.
   void batch.commit().catch(loggaFel)
 }
 
@@ -743,30 +852,29 @@ export async function sakerstallDatamodell(uid: string, personligUid?: string): 
  * Foton rörs inte: fotoRef är en lagringsväg under det gamla kontot, och
  * storage-reglerna släpper in båda ägarna överallt under users/.
  */
-async function flyttaHitPersonligData(till: string, fran: string): Promise<boolean> {
+async function flyttaHitPersonligData(
+  till: string,
+  fran: string,
+): Promise<'flyttat' | 'ingenting' | 'okant'> {
   const db = getDb()
   const namn = ['tradgardar', 'platser', 'vaxter', 'handelser'] as const
 
   const kallor = await Promise.all(
-    namn.map(async (n) => {
-      try {
-        const snap = await getDocs(collection(db, 'users', fran, n))
-        return { n, docs: snap.docs }
-      } catch {
-        return { n, docs: [] }
-      }
-    }),
+    namn.map(async (n) => ({ n, docs: await lasForMigrering(collection(db, 'users', fran, n)) })),
   )
+  // Kunde någon källa inte läsas vet vi INTE att där är tomt — avbryt utan
+  // stämpel och låt nästa start försöka igen.
+  if (kallor.some((k) => k.docs === undefined)) return 'okant'
 
   // Räkna ALLT — en personlig rot med bara trädgårdar och händelser är också
   // data som inte får överges.
-  const totalt = kallor.reduce((n, k) => n + k.docs.length, 0)
-  if (totalt === 0) return false
+  const totalt = kallor.reduce((n, k) => n + (k.docs?.length ?? 0), 0)
+  if (totalt === 0) return 'ingenting'
 
   const batch = writeBatch(db)
   let antal = 0
   for (const { n, docs } of kallor) {
-    for (const d of docs) {
+    for (const d of docs ?? []) {
       batch.set(doc(collection(db, 'users', till, n), d.id), d.data())
       antal++
     }
@@ -774,7 +882,7 @@ async function flyttaHitPersonligData(till: string, fran: string): Promise<boole
   batch.set(migreringDoc(till), { version: MIGRERINGSVERSION, flyttadFran: fran })
   void batch.commit().catch(loggaFel)
   console.info(`Ripvägen 11: flyttade ${antal} dokument till den delade trädgården.`)
-  return true
+  return 'flyttat'
 }
 
 type V1LegacyLogg = V1LogEntry

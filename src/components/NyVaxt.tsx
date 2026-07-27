@@ -63,6 +63,7 @@ export function NyVaxtProvider({ children }: { children: ReactNode }) {
   const [fotoRef, setFotoRef] = useState<string>()
   const [laddarFoto, setLaddarFoto] = useState(false)
   const [fel, setFel] = useState<string>()
+  const spararRef = useRef(false)
 
   /**
    * Grov men pålitlig enhetsgissning: telefoner och plattor har grov pekare.
@@ -77,6 +78,7 @@ export function NyVaxtProvider({ children }: { children: ReactNode }) {
     setNamn('')
     setFotoRef(undefined)
     setFel(undefined)
+    spararRef.current = false
     setOppen(true)
     // Kameran öppnas i SAMMA gest som knapptrycket — annars blockerar Safari.
     // Arket ligger redan under, så ett avbrutet kamerapass landar mjukt.
@@ -93,8 +95,12 @@ export function NyVaxtProvider({ children }: { children: ReactNode }) {
       const gammal = fotoRef
       setFotoRef(await taEmotFoto(uid, fil))
       if (gammal) {
-        const { taBortFoto } = await import('../lib/photoStore')
-        await taBortFoto(gammal)
+        // Städningen av den ERSATTA blobben får inte färga felraden — det
+        // nya fotot är redan sparat. Misslyckas raderingen blir filen bara
+        // en osynlig rest, inte förlorad data.
+        void import('../lib/photoStore')
+          .then(({ taBortFoto }) => taBortFoto(gammal))
+          .catch(() => undefined)
       }
     } catch {
       setFel('Fotot kunde inte sparas. Försök igen.')
@@ -103,13 +109,30 @@ export function NyVaxtProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  function vidOppenChange(nyOppen: boolean) {
+    setOppen(nyOppen)
+    // Fotot laddas upp direkt när det väljs. Stängs arket utan att växten
+    // sparas skulle blobben bli föräldralös — städa den. spararRef skiljer
+    // "stängde utan att spara" från "sparade och stängde".
+    if (!nyOppen && !spararRef.current && fotoRef) {
+      const ref = fotoRef
+      void import('../lib/photoStore')
+        .then(({ taBortFoto }) => taBortFoto(ref))
+        .catch(() => undefined)
+    }
+  }
+
   function spara(e: FormEvent) {
     e.preventDefault()
+    // Enter + tryck på Klart i samma andetag gav två växter som delade
+    // samma fotoRef — och raderades den ena försvann den andras bild.
+    if (spararRef.current) return
     const trimmat = namn.trim()
     if (!trimmat) {
       setFel('Ge växten ett namn.')
       return
     }
+    spararRef.current = true
     const sparadFoto = fotoRef
     setOppen(false)
     void (async () => {
@@ -169,7 +192,7 @@ export function NyVaxtProvider({ children }: { children: ReactNode }) {
 
       <Ark
         oppen={oppen}
-        onOppenChange={setOppen}
+        onOppenChange={vidOppenChange}
         titel={forval.status === 'planerad' ? 'Planera en växt' : 'Ny växt'}
       >
         <form onSubmit={spara} className="flex flex-col gap-4" data-testid="ny-vaxt-form">

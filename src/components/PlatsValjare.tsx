@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useDataRot } from '../auth/AuthProvider'
 import { useData } from '../data/DataProvider'
 import { Ark } from './Ark'
@@ -25,7 +25,16 @@ export function PlatsValjare({
   const [skaparI, setSkaparI] = useState<string>()
   const [nyttNamn, setNyttNamn] = useState('')
 
+  // Två snabba tryck hann förr ge två flyttat-händelser (andra trycket körde
+  // med en inaktuell växt där platsbytet inte syntes än). Ett val per öppning.
+  const valtRef = useRef(false)
+  useEffect(() => {
+    if (oppen) valtRef.current = false
+  }, [oppen])
+
   function valj(id: string | undefined) {
+    if (valtRef.current) return
+    valtRef.current = true
     onValj(id)
     onOppenChange(false)
   }

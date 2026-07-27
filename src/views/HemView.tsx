@@ -55,7 +55,12 @@ export function HemView() {
     ...vaxter.filter((v) => v.status === 'planerad'),
     ...platser.filter((p) => p.status === 'planerad'),
   ]
-  const hemlosa = vaxter.filter((v) => !v.platsId && v.status === 'finns')
+  const platsIdn = new Set(platser.map((p) => p.id))
+  // "Ingen plats vald" gäller även växter vars plats raderats någon
+  // annanstans — de ska upp i Att göra, inte försvinna tyst.
+  const hemlosa = vaxter.filter(
+    (v) => (!v.platsId || !platsIdn.has(v.platsId)) && v.status === 'finns',
+  )
   const uppfoljning = ofotograferade(vaxter, handelser, DAGAR_TILL_UPPFOLJNING)
   const fotoAvVaxt = senasteFotoPerVaxt(handelser)
   const senaste = senastaFotot(handelser)
