@@ -494,7 +494,7 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
         <div
           ref={behallareRef}
           data-testid="ritredigering"
-          className={`relative min-h-64 flex-1 touch-none overflow-hidden ring-1 ring-linje ring-inset select-none ${
+          className={`relative min-h-[45vh] flex-1 touch-none overflow-hidden ring-1 ring-linje ring-inset select-none ${
             ritar || armerad || matar ? 'cursor-crosshair' : ''
           }`}
         >
@@ -817,7 +817,7 @@ function TomtMatt({ tradgard }: { tradgard: Tradgard }) {
         value={bredd}
         onChange={(e) => setBredd(e.target.value)}
         onBlur={spara}
-        className={`${inmatningsStil} mono w-16 py-1.5 text-center text-sm`}
+        className={`${inmatningsStil} mono w-16 shrink-0 py-1.5 text-center text-sm`}
       />
       <span className="text-dis-svag">×</span>
       <label className="sr-only" htmlFor="tomt-djup">
@@ -830,7 +830,7 @@ function TomtMatt({ tradgard }: { tradgard: Tradgard }) {
         value={djup}
         onChange={(e) => setDjup(e.target.value)}
         onBlur={spara}
-        className={`${inmatningsStil} mono w-16 py-1.5 text-center text-sm`}
+        className={`${inmatningsStil} mono w-16 shrink-0 py-1.5 text-center text-sm`}
       />
       <span className="text-dis-svag">m</span>
     </div>

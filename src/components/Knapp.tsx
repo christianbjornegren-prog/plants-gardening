@@ -19,7 +19,7 @@ import { Link, type LinkProps } from 'react-router-dom'
 type Variant = 'primar' | 'sekundar' | 'diskret' | 'destruktiv'
 
 const GRUND =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm ' +
+  'inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg px-4 text-sm whitespace-nowrap ' +
   'transition-[background-color,opacity] duration-200 ease-[var(--ease-mjuk)] ' +
   'disabled:opacity-40 disabled:pointer-events-none'
 
