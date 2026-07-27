@@ -123,7 +123,7 @@ export function soldygn(
 
   // Först en skattning vid 12 UTC, sedan förfining vid själva händelsen —
   // tidsekvationen och deklinationen hinner ändras några minuter på ett dygn.
-  const middagMin = precisera(midnattUTC, 720, latitud, longitud, 'middag')
+  const middagMin = preciseraMiddag(midnattUTC, longitud)
   const middag = new Date(midnattUTC + middagMin * 60_000)
 
   const uppMin = precisera(midnattUTC, middagMin, latitud, longitud, 'uppgang')
@@ -143,26 +143,33 @@ export function soldygn(
   }
 }
 
+/** Solmiddagen finns varje dygn — alltid ett tal, med en förfiningsomgång. */
+function preciseraMiddag(midnattUTC: number, longitud: number): number {
+  let min = 720
+  for (let varv = 0; varv < 2; varv++) {
+    const T = (julianskDag(new Date(midnattUTC + min * 60_000)) - 2_451_545) / 36_525
+    min = 720 - 4 * longitud - solelement(T).tidsekvation
+  }
+  return min
+}
+
 /**
- * Minuter efter UTC-midnatt för middag/uppgång/nedgång, med en
- * förfiningsomgång: elementen räknas om vid den först skattade tidpunkten.
+ * Minuter efter UTC-midnatt för uppgång/nedgång, med en förfiningsomgång:
+ * elementen räknas om vid den först skattade tidpunkten. undefined när solen
+ * aldrig passerar horisonten (midnattssol/polarnatt).
  */
 function precisera(
   midnattUTC: number,
   startMin: number,
   latitud: number,
   longitud: number,
-  vad: 'middag' | 'uppgang' | 'nedgang',
+  vad: 'uppgang' | 'nedgang',
 ): number | undefined {
   let min = startMin
   for (let varv = 0; varv < 2; varv++) {
     const T = (julianskDag(new Date(midnattUTC + min * 60_000)) - 2_451_545) / 36_525
     const { deklination, tidsekvation } = solelement(T)
     const middag = 720 - 4 * longitud - tidsekvation
-    if (vad === 'middag') {
-      min = middag
-      continue
-    }
     const cosH0 =
       (Math.cos(UPPGANGSZENIT * RAD) -
         Math.sin(latitud * RAD) * Math.sin(deklination * RAD)) /
