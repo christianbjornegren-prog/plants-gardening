@@ -55,7 +55,9 @@ Trädgård        Framsidan · Baksidan · Inomhus
             └─ Händelse   foto · vattnat · gödslat · beskuret · planterat · flyttat · anteckning
 ```
 
-Fyra begrepp, inga fler. Framför allt: **"yta" finns inte.** Det som ritas på ritningen och det som innehåller växter är **samma sak — en plats**. Ordet "yta" får inte förekomma i UI eller kod.
+Fyra begrepp, inga fler. (Solen-fliken har därtill **skuggkällor** —
+skuggkastare utanför tomten. De är inte platser: de kan inte hålla växter
+och finns bara för skuggberäkningen. Se docs/SOLEN.md.) Framför allt: **"yta" finns inte.** Det som ritas på ritningen och det som innehåller växter är **samma sak — en plats**. Ordet "yta" får inte förekomma i UI eller kod.
 
 - **En plats är en plats i trädgården.** Den kan *ha* en form på ritningen, men behöver inte. "Köksfönstret" är en plats utan form. Boden är en plats med form men utan växter. Rabatten har både och.
 - **Alla platser kan hålla växter.** Typen (`bod`, `staket`, `rabatt` …) styr bara ritstil och namnförslag — aldrig vad som är tillåtet. Att boden inte har växter är ett faktum om trädgården, inte en regel appen upprätthåller.

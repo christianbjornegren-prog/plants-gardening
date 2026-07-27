@@ -33,6 +33,12 @@ Fas 4 polish. Ersatt av omtaget nedan — begreppsmodellen bar inte.
 - **Verktyg:** `npm run dev:lokal` (`VITE_LAGE=lokal`) så att e2e och
   skärmdumpar fungerar på en maskin med ifylld `.env.local`.
 
+- **Nattkörningen (Solen + dataintegritet):** färgdisciplin med fyra
+  knapproller och en röd åtgärd per skärm; Solen-fliken (NOAA-solmodell,
+  skuggmotor, soltimmarraster, kompass/höjder/skuggkällor); nio
+  dataförlustdefekter rättade efter adversariellt verifierad audit;
+  referensinvarianterna som ren funktion med tester.
+
 - **Förenklingsomgången:** en gest = en betydelse i ritläget (hörnknappar först
   när ett hörn är markerat, kantklick lägger till hörn, inga modifierartangenter),
   tyst ritläge med ett rött per skärm, panelen omordnad och "Mått (m)" struket,

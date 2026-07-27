@@ -94,3 +94,37 @@ ritläget är desktop-först enligt CLAUDE.md.
   skärmdump.
 - Namnlistans innehåll är granskat av en människa, inte mot en källa. Fel
   latinskt namn på en post upptäcks inte av testerna.
+
+## Nattkörningen (Solen + dataintegritet)
+
+- `lib/sol.test.ts` (15) — NOAA-modellen mot facit: solmiddag på sekunden
+  mot api.sunrise-sunset.org (4 datum), timeanddate-ankare (solnedgång
+  22:08 21/6, daglängder 18:37/6:04) inom 2 min, middagshöjder på 59,6°N,
+  azimutrotation, dagjämningens öst/väst, midnattssol/polarnatt i Kiruna,
+  sommartidsgränserna 2026.
+- `lib/skugga.test.ts` (18) — skugglängder (1 m vid 45°, √3 vid 30°),
+  riktningar, norrvinkelvridning, självskuggning, soltimmarraster
+  (fri yta = hela dagen, mur-scenario) och prestandatak (<150 ms).
+- `lib/integritet.test.ts` (7) — de fyra referensinvarianterna som ren
+  funktion.
+- `components/knapproller.test.tsx` (4) — signalfärgen tillhör primar;
+  destruktivt är aldrig rött före bekräftelsesteget.
+- `e2e/fargdisciplin.spec.ts` — exakt EN röd åtgärd per vy (alla flikar
+  inkl. Solen), och destruktivt utan rött före bekräftelse.
+- `e2e/integritet.spec.ts` — ångrad platsradering återställer historik och
+  foto; ångrad placering lämnar ingen loggpost; dubbel-submit ger en växt;
+  dubbeltryck i platsväljaren ger en flytt.
+- `e2e/solen.spec.ts` — tom inbjudan utan ritning, skuggläge + reglage +
+  norr-banner, kompassen släcker bannern, plats med höjd ger soltimmar och
+  nyckeldatum, skuggkälla ritas/namnges/listas, fri yta utan höjder.
+
+### Kända luckor efter nattkörningen
+
+- Multi-tab-persistensen (persistentMultipleTabManager) är verifierad mot
+  hela e2e-sviten i EN flik; tvåfliksscenariot är inte automatiserat.
+- Migreringens serverläsningar i molnläge är kodgranskade och
+  typkontrollerade men inte körda mot en riktig molndatabas i natt
+  (ingen migrering mot molndata var tillåten).
+- Klient B:s osynkade händelser mot en växt som klient A raderar blir
+  föräldralösa — klientsidan kan inte städa vad den inte sett.
+  Dokumenterad begränsning; invariantfunktionen gör brotten synliga.
