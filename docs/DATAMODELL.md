@@ -6,19 +6,31 @@ individer**, inte arter.
 ```
 users/{uid}/
   tradgardar/{tradgardId}
-    { namn, ordning, widthM?, heightM? }
+    { namn, ordning, widthM?, heightM?,
+      norrVinkel?, latitud?, longitud? }
   platser/{platsId}
     { tradgardId, namn, typ, egenTyp?, geometri?: { punkter: [{x,y}…], runda?: [index] },
-      sol?, jord?, vetterMot?, vaderstreck?, status, anteckning? }
+      sol?, jord?, vetterMot?, vaderstreck?, status, anteckning?, hojdM? }
   vaxter/{vaxtId}
     { namn, platsId?, position?: {x,y}, status,
       sort?, latin?, planterad?, antal?, sol?, jord?, anteckning? }
   handelser/{handelseId}
     { typ, datum, vaxtId?, platsId?, fotoRef?, anteckning?,
       franPlatsId?, tillPlatsId?, datumOkant? }
+  skuggkallor/{skuggkallaId}
+    { tradgardId, namn, geometri: { punkter: [{x,y}…] }, hojdM }
   meta/migrering
     { version }
 ```
+
+## Solens fält
+
+`Tradgard.norrVinkel` (grader medurs som norr ligger från ritningens uppåt),
+`latitud`/`longitud` samt `Plats.hojdM` är alla valfria och används enbart av
+Solen-fliken — saknade fält betyder "ej angivet", ingen migrering behövs.
+`skuggkallor` är skuggkastare UTANFÖR tomten (radhuset, grannens hus); deras
+koordinater delar ritningens meterplan och får vara negativa. De är inte
+platser och kan inte hålla växter.
 
 ## Fyra begrepp, inga fler
 

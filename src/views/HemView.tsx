@@ -41,7 +41,7 @@ export function HemView() {
           rubrik="Trädgården är tom än"
           text="Börja med att fota en växt. Namn räcker — plats och det andra kan komma sen."
           atgard={
-            <Knapp variant="primar" onClick={() => oppna()}>
+            <Knapp onClick={() => oppna()}>
               Fota första växten
             </Knapp>
           }
@@ -55,7 +55,12 @@ export function HemView() {
     ...vaxter.filter((v) => v.status === 'planerad'),
     ...platser.filter((p) => p.status === 'planerad'),
   ]
-  const hemlosa = vaxter.filter((v) => !v.platsId && v.status === 'finns')
+  const platsIdn = new Set(platser.map((p) => p.id))
+  // "Ingen plats vald" gäller även växter vars plats raderats någon
+  // annanstans — de ska upp i Att göra, inte försvinna tyst.
+  const hemlosa = vaxter.filter(
+    (v) => (!v.platsId || !platsIdn.has(v.platsId)) && v.status === 'finns',
+  )
   const uppfoljning = ofotograferade(vaxter, handelser, DAGAR_TILL_UPPFOLJNING)
   const fotoAvVaxt = senasteFotoPerVaxt(handelser)
   const senaste = senastaFotot(handelser)
@@ -94,7 +99,7 @@ export function HemView() {
       </dl>
 
       <div className="mb-8">
-        <Knapp variant="primar" onClick={() => oppna()}>
+        <Knapp onClick={() => oppna()}>
           Fota en växt
         </Knapp>
       </div>

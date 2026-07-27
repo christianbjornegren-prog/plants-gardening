@@ -90,6 +90,12 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
   const angra = useAngra()
 
   const iTradgarden = platser.filter((p) => p.tradgardId === tradgard.id)
+  // Ångra-callbacks körs långt efter render — de läser läget via refs i
+  // stället för via inaktuella stängningar.
+  const vaxterRef = useRef(vaxter)
+  vaxterRef.current = vaxter
+  const handelserRef = useRef(handelser)
+  handelserRef.current = handelser
   // Öppna zoomad till det som finns ritat, inte till hela tomten. Fångas en
   // gång vid montering — annars skulle vyn hoppa varje gång man ritar.
   const innehall = useRef(
@@ -190,7 +196,14 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
       angra.minns('rita platsen', () => {
         void (async () => {
           const r = await import('../data/repo')
-          r.taBortPlats(uid, id, [], [])
+          // Växter kan ha hunnit placeras här (även från mobilen) sedan
+          // platsen ritades — läs läget VID ÅNGRAT, inte vid ritandet.
+          r.taBortPlats(
+            uid,
+            id,
+            vaxterRef.current.filter((v) => v.platsId === id),
+            handelserRef.current.filter((h) => h.platsId === id),
+          )
           valjPlats(undefined)
         })()
       })
@@ -383,9 +396,11 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
     }
     const foreP = vaxt.platsId
     const forePos = vaxt.position
+    // Lådan fylls när skrivningen körts — ångra kan tryckas långt senare.
+    const flyttId: { varde?: string } = {}
     void (async () => {
       const repo = await import('../data/repo')
-      repo.flyttaVaxtPaRitningen(uid, vaxt, punkt[0], punkt[1], plats.id)
+      flyttId.varde = repo.flyttaVaxtPaRitningen(uid, vaxt, punkt[0], punkt[1], plats.id)
     })()
     setArmerad(undefined)
     setPlaceringsfel(undefined)
@@ -393,6 +408,8 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
       void (async () => {
         const repo = await import('../data/repo')
         repo.aterstallVaxtPlacering(uid, vaxt.id, foreP, forePos)
+        // En ångrad flytt ska inte lämna spår i historiken.
+        if (flyttId.varde) repo.taBortHandelse(uid, flyttId.varde)
       })()
     })
   }
@@ -448,7 +465,8 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
               setMatPunkter([])
               setArmerad(undefined)
             }}
-            className={matar ? 'border-fermob-text text-fermob-text' : ''}
+            aria-pressed={matar}
+            className={matar ? 'bg-upphojd font-medium' : ''}
           >
             {matar ? 'Sluta mäta' : 'Mät'}
           </Knapp>
@@ -476,7 +494,7 @@ function Ritare({ tradgard }: { tradgard: Tradgard }) {
         <div
           ref={behallareRef}
           data-testid="ritredigering"
-          className={`relative min-h-64 flex-1 touch-none overflow-hidden ring-1 ring-linje ring-inset select-none ${
+          className={`relative min-h-[45vh] flex-1 touch-none overflow-hidden ring-1 ring-linje ring-inset select-none ${
             ritar || armerad || matar ? 'cursor-crosshair' : ''
           }`}
         >
@@ -799,7 +817,7 @@ function TomtMatt({ tradgard }: { tradgard: Tradgard }) {
         value={bredd}
         onChange={(e) => setBredd(e.target.value)}
         onBlur={spara}
-        className={`${inmatningsStil} mono w-16 py-1.5 text-center text-sm`}
+        className={`${inmatningsStil} mono w-16 shrink-0 py-1.5 text-center text-sm`}
       />
       <span className="text-dis-svag">×</span>
       <label className="sr-only" htmlFor="tomt-djup">
@@ -812,7 +830,7 @@ function TomtMatt({ tradgard }: { tradgard: Tradgard }) {
         value={djup}
         onChange={(e) => setDjup(e.target.value)}
         onBlur={spara}
-        className={`${inmatningsStil} mono w-16 py-1.5 text-center text-sm`}
+        className={`${inmatningsStil} mono w-16 shrink-0 py-1.5 text-center text-sm`}
       />
       <span className="text-dis-svag">m</span>
     </div>
@@ -1032,7 +1050,6 @@ function PlatsPanel({
             {/* Lågmäld och sist. Rött är signalfärg, inte "radera". */}
             <div className="pt-1">
               <TaBortKnapp
-                variant="lank"
                 onBekraftad={() => {
                   const vaxterDar = vaxter.filter((v) => v.platsId === plats.id)
                   const platsFore = plats
@@ -1041,6 +1058,11 @@ function PlatsPanel({
                     platsId: v.platsId,
                     position: v.position,
                   }))
+                  // Fylls med de händelser raderingen faktiskt tog — det är
+                  // dem ångra ska återskapa, inte vyns möjligen inaktuella
+                  // lista. Fotona bevaras: en raderad blob kan aldrig
+                  // återuppstå, och då vore "Går att ångra" en lögn.
+                  const raderade: { varde: import('../data/types').Handelse[] } = { varde: [] }
                   void (async () => {
                     const repo = await import('../data/repo')
                     repo.taBortPlats(
@@ -1048,6 +1070,12 @@ function PlatsPanel({
                       plats.id,
                       vaxterDar,
                       handelser.filter((h) => h.platsId === plats.id),
+                      {
+                        bevaraFoton: true,
+                        vidStadat: (h) => {
+                          raderade.varde = h
+                        },
+                      },
                     )
                     onTaBort()
                   })()
@@ -1055,6 +1083,9 @@ function PlatsPanel({
                     void (async () => {
                       const repo = await import('../data/repo')
                       repo.aterskapaPlats(uid, platsFore)
+                      for (const h of raderade.varde) {
+                        repo.aterskapaHandelse(uid, h)
+                      }
                       for (const p of placeringar) {
                         repo.aterstallVaxtPlacering(uid, p.id, p.platsId, p.position)
                       }

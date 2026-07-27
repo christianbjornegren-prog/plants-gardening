@@ -13,6 +13,7 @@ import { LoggView } from './views/LoggView'
 import { PlatsView } from './views/PlatsView'
 import { RitaView } from './views/RitaView'
 import { RitningView } from './views/RitningView'
+import { SolView } from './views/SolView'
 import { VaxterView } from './views/VaxterView'
 import { VaxtView } from './views/VaxtView'
 
@@ -33,6 +34,7 @@ function AppRoutes() {
               <Route index element={<HemView />} />
               <Route path="ritning" element={<RitningView />} />
               <Route path="ritning/rita" element={<RitaView />} />
+              <Route path="solen" element={<SolView />} />
               <Route path="vaxter" element={<VaxterView />} />
               {/* key på id: annars behåller kortet state när man byter växt. */}
               <Route path="vaxter/:id" element={<NyckladVaxt />} />

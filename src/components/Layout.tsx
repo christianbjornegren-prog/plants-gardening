@@ -1,6 +1,6 @@
 import { useEffect, type SVGProps } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { HemIkon, LoggIkon, PlusIkon, RitningIkon, VaxterIkon } from './Ikoner'
+import { HemIkon, LoggIkon, PlusIkon, RitningIkon, SolIkon, VaxterIkon } from './Ikoner'
 import { useNyVaxt } from './NyVaxt'
 
 interface NavPost {
@@ -13,6 +13,7 @@ interface NavPost {
 const VANSTER: NavPost[] = [
   { till: '/', label: 'Hem', Ikon: HemIkon },
   { till: '/ritning', label: 'Ritningen', Ikon: RitningIkon },
+  { till: '/solen', label: 'Solen', Ikon: SolIkon },
 ]
 const HOGER: NavPost[] = [
   { till: '/vaxter', label: 'Växter', Ikon: VaxterIkon },
@@ -101,7 +102,7 @@ export function Layout() {
         aria-label="Huvudmeny"
         className="fixed inset-x-0 bottom-0 z-30 border-t border-linje bg-panel pb-[env(safe-area-inset-bottom)] md:hidden"
       >
-        <div className="grid grid-cols-5 items-center">
+        <div className="grid grid-cols-6 items-center">
           {VANSTER.map((post) => (
             <Flik key={post.till} {...post} />
           ))}

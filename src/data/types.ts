@@ -76,6 +76,14 @@ export interface Tradgard {
   ordning: number
   widthM?: number
   heightM?: number
+  /**
+   * Grader MEDURS som norr ligger från ritningens uppåt. 0 = uppåt är norr.
+   * Saknas ⇒ ej angivet; Solen frågar efter den innan skuggor visas skarpt.
+   */
+  norrVinkel?: number
+  /** Läge för solberäkningen. Saknas ⇒ Solen föreslår Sigtuna. */
+  latitud?: number
+  longitud?: number
 }
 
 export interface Geometri {
@@ -105,6 +113,8 @@ export interface Plats {
   vaderstreck?: Vaderstreck
   status: Status
   anteckning?: string
+  /** Höjd i meter — bara för skuggberäkningen i Solen. Saknas ⇒ kastar ingen skugga. */
+  hojdM?: number
 }
 
 /** users/{uid}/vaxter/{id} — allt utom namn är valfritt. */
@@ -141,6 +151,19 @@ export type HandelseTyp =
  * users/{uid}/handelser/{id} — ALL historik. Foton är händelser, flyttar är
  * händelser. Datum lagras som ISO-sträng.
  */
+/**
+ * users/{uid}/skuggkallor/{id} — skuggkastare UTANFÖR tomten: grannens hus,
+ * radhuslängan, skogsbrynet. Ritas som enkla rektanglar i Solen-vyn.
+ * Koordinaterna delar ritningens meterplan och FÅR ligga utanför tomten.
+ */
+export interface Skuggkalla {
+  id: string
+  tradgardId: string
+  namn: string
+  punkter: PunktM[]
+  hojdM: number
+}
+
 export interface Handelse {
   id: string
   typ: HandelseTyp

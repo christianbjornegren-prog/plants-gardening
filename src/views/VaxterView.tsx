@@ -38,18 +38,22 @@ export function VaxterView() {
     (v.sort?.toLowerCase().includes(sokt) ?? false) ||
     (platsAvId.get(v.platsId ?? '')?.namn.toLowerCase().includes(sokt) ?? false)
 
+  // En växt vars plats inte längre finns (raderad från en annan enhet)
+  // behandlas som hemlös — annars försvinner den ur varje filter utom Alla.
+  const platsFor = (v: Vaxt) => (v.platsId ? platsAvId.get(v.platsId) : undefined)
+
   const iUrval = vaxter.filter((v) => {
     if (!matchar(v)) return false
     if (urval === 'alla') return true
-    if (urval === 'utan-plats') return !v.platsId
+    if (urval === 'utan-plats') return !platsFor(v)
     if (urval === 'planerade') return v.status === 'planerad'
-    return platsAvId.get(v.platsId ?? '')?.tradgardId === urval
+    return platsFor(v)?.tradgardId === urval
   })
 
   // Gruppering på plats, med hemlösa först — de är dem hon behöver hitta.
   const grupper = new Map<string, Vaxt[]>()
   for (const v of iUrval) {
-    const nyckel = v.platsId ?? ''
+    const nyckel = platsFor(v)?.id ?? ''
     grupper.set(nyckel, [...(grupper.get(nyckel) ?? []), v])
   }
   const ordnade = [...grupper.entries()].sort(([a], [b]) => {
@@ -64,7 +68,7 @@ export function VaxterView() {
         rubrik="Här bor inga växter än"
         text="Lägg till den första. Ett namn räcker — plats och det andra kan komma sen."
         atgard={
-          <Knapp variant="primar" onClick={() => oppna()}>
+          <Knapp onClick={() => oppna()}>
             Fota första växten
           </Knapp>
         }
