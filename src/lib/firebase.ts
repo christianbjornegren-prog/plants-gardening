@@ -3,6 +3,7 @@ import {
   disableNetwork,
   initializeFirestore,
   persistentLocalCache,
+  persistentMultipleTabManager,
   setLogLevel,
   type Firestore,
 } from 'firebase/firestore'
@@ -38,7 +39,12 @@ export function getFirebaseApp(): FirebaseApp {
 export function getDb(): Firestore {
   if (!db) {
     setLogLevel('error')
-    db = initializeFirestore(getFirebaseApp(), { localCache: persistentLocalCache() })
+    // Multi-tab: utan tabManager får ANDRA fliken bara minnescache, och
+    // offline-skrivningar gjorda där försvinner när fliken stängs. Med
+    // fliksamordning delar flikarna en beständig cache via ledarval.
+    db = initializeFirestore(getFirebaseApp(), {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    })
     if (appLage === 'lokal') {
       void disableNetwork(db)
     }
